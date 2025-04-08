@@ -30,8 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const complexityLoadingEl = document.getElementById('complexity-loading');
     const readabilityScoreEl = document.getElementById('readability-score');
     const analysisTimeEl = document.getElementById('analysis-time');
+    const targetAudienceSelect = document.getElementById('target-audience-select'); // New reference
 
     // --- Quill Initialization ---
+    // Removed the custom Attributor registration as it caused errors with global script loading.
+    // We will use a standard CSS class instead.
+
     const quill = new Quill(editorContainer, {
         theme: 'snow', // Use the Snow theme
         modules: {
@@ -77,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State for Analysis ---
     let currentAnalysisResults = []; // Store results to map sentences
+    let currentTargetAudienceLevel = 3; // Default to High School (value 3)
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -137,9 +142,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (complexityDescriptionEl) {
-            complexityDescriptionEl.textContent = levelDescriptions[currentLevel] || description;
-        }
+        // Removed the line that updated complexityDescriptionEl.textContent
+        // The static labels in HTML now handle this.
+        // We keep the element in case we want to display other status messages later.
     }
 
     // --- Readability Score Calculation ---
@@ -158,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Analysis & Highlighting ---
-    async function analyzeAndHighlight() {
+    async function analyzeAndHighlight(forceHighlightUpdate = false) {
         const text = quill.getText();
         const startTime = performance.now();
 
@@ -168,77 +173,101 @@ document.addEventListener('DOMContentLoaded', () => {
             updateComplexityMeter(null);
             if (readabilityScoreEl) readabilityScoreEl.textContent = '-';
             if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
+            // Clear highlighting if text is empty
+            applyHighlighting([]); // Call with empty results to clear formats
             return;
         }
 
-        // Show loading state
-        if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
-        if (readabilityScoreEl) readabilityScoreEl.textContent = '...';
+        // Only fetch new analysis if not forcing highlight update
+        if (!forceHighlightUpdate) {
+            // Show loading state
+            if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
+            if (readabilityScoreEl) readabilityScoreEl.textContent = '...';
 
-        try {
-            const response = await fetch('/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text }),
-            });
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text }),
+                });
 
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-            const data = await response.json();
-            currentAnalysisResults = data.results || [];
+                const data = await response.json();
+                currentAnalysisResults = data.results || []; // Store new results
 
-            // Calculate metrics
-            const endTime = performance.now();
-            const analysisTime = Math.round(endTime - startTime);
+                // Calculate metrics
+                const endTime = performance.now();
+                const analysisTime = Math.round(endTime - startTime);
 
-            // Update UI
-            applyHighlighting(currentAnalysisResults);
-            updateComplexityMeter(data.overall_level);
-            if (readabilityScoreEl) readabilityScoreEl.textContent = calculateReadabilityScore(text);
-            if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
+                // Update UI parts that depend on new analysis
+                updateComplexityMeter(data.overall_level);
+                if (readabilityScoreEl) readabilityScoreEl.textContent = calculateReadabilityScore(text);
+                if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
 
-        } catch (error) {
-            console.error('Error fetching analysis:', error);
-            updateComplexityMeter({level: 0, description: "Analysis Error"});
-            if (readabilityScoreEl) readabilityScoreEl.textContent = 'Error';
-            if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
-        } finally {
-            if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+            } catch (error) {
+                console.error('Error fetching analysis:', error);
+                updateComplexityMeter({level: 0, description: "Analysis Error"});
+                if (readabilityScoreEl) readabilityScoreEl.textContent = 'Error';
+                if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
+                currentAnalysisResults = []; // Clear results on error
+            } finally {
+                if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+            }
         }
+
+        // Always apply highlighting based on current results and target audience
+        applyHighlighting(currentAnalysisResults);
     }
 
-    function applyHighlighting(results) {
-        // Clear previous background formatting first
-        quill.formatText(0, quill.getLength(), 'background', false, 'api'); // 'api' source prevents adding to undo stack
+    // Removed clearDeviationHighlighting function - clearing is handled in applyHighlighting
 
-        const editorText = quill.getText();
-        let currentIndex = 0;
+    function applyHighlighting(results) {
+        // Clear previous background formatting AND deviation class first
+        // Note: Formatting with 'class': false might remove ALL classes.
+        // A safer approach might involve getting existing formats, but let's try this first.
+        // Clear previous background formatting first
+        // console.log("Clearing previous background format..."); // DEBUG
+        quill.formatText(0, quill.getLength(), 'background', false, 'api');
+        // We will now handle clearing/applying the 'sentence-deviates' class per sentence below.
+        // console.log(`Applying highlighting for target level: ${currentTargetAudienceLevel}`); // DEBUG
 
         results.forEach(result => {
-            const sentenceText = result.sentence;
+            // const sentenceText = result.sentence; // No longer needed for finding index
             const color = result.color;
+            const sentenceLevel = result.level;
             const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
+            const startIndex = result.start; // Use start index from backend
+            const endIndex = result.end;     // Use end index from backend
+            const length = endIndex - startIndex; // Calculate length
 
-            // Find the sentence in the current editor text
-            // This assumes sentences from backend match substrings in editor text
-            const startIndex = editorText.indexOf(sentenceText, currentIndex);
-
-            if (startIndex !== -1) {
-                const length = sentenceText.length;
-                // Apply background color using inline style formatting
+            if (startIndex !== undefined && length > 0) {
+                // Apply background color using indices
                 quill.formatText(startIndex, length, 'background', bgColor, 'api');
-                currentIndex = startIndex + length; // Move search position forward
+
+                // Check for deviation from target audience
+                const deviation = Math.abs(sentenceLevel - currentTargetAudienceLevel);
+                // console.log(`Sentence: "${quill.getText(startIndex, length).substring(0, 20)}...", Level: ${sentenceLevel}, Target: ${currentTargetAudienceLevel}, Deviation: ${deviation}`); // DEBUG
+                // Removed duplicate declaration that was here
+
+                if (deviation >= 2) { // Highlight if 2 or more levels away
+                    // Apply the 'sentence-deviates' class using indices
+                    // console.log(`   Applying 'sentence-deviates' class.`); // DEBUG
+                    quill.formatText(startIndex, length, 'class', 'sentence-deviates', 'api');
+                } else {
+                    // Explicitly remove the 'sentence-deviates' class for this sentence range if it doesn't deviate
+                    // console.log(`   Removing 'sentence-deviates' class.`); // DEBUG
+                    quill.formatText(startIndex, length, 'class', false, 'api'); // Use 'false' to remove the class format
+                }
             } else {
-                console.warn(`Could not find sentence in editor: "${sentenceText.substring(0, 30)}..."`);
+                 // Log if indices are missing or invalid
+                 console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
             }
+            // No longer need currentIndex tracking with indexOf
         });
     }
 
-    // Debounced version for performance
-    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750); // Adjust delay as needed (ms)
-
     // --- Synonym Tooltip ---
-
     // Store the current selection range when showing the tooltip
     let currentSynonymRange = null;
 
@@ -419,12 +448,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners ---
+    // Define debounced function just before use
+    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750);
+
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
             updateStats();
-            debouncedAnalyzeAndHighlight();
+            debouncedAnalyzeAndHighlight(); // Now this should be defined
         }
     });
+
+    // Listener for Target Audience Dropdown
+    if (targetAudienceSelect) {
+        targetAudienceSelect.addEventListener('change', (event) => {
+            const newLevel = parseInt(event.target.value, 10);
+            console.log(`Target audience changed. New selected level: ${newLevel}`); // DEBUG
+            currentTargetAudienceLevel = newLevel;
+            // Re-apply highlighting based on the new target level, without re-analyzing text
+            console.log("Forcing highlight update due to target change."); // DEBUG
+            analyzeAndHighlight(true); // Pass true to force highlight update
+        });
+    }
 
     // Initialize tooltips after DOM is ready
     setTimeout(initTooltips, 500);

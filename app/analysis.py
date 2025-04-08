@@ -33,14 +33,29 @@ OVERALL_SCORE_THRESHOLD_SIMPLE = 0.5
 OVERALL_SCORE_THRESHOLD_MODERATE = 0.8
 OVERALL_SCORE_THRESHOLD_COMPLEX = 1.1
 
-# --- NLTK Data Check ---
+# Thresholds for individual sentence levels (using same as overall for now)
+SENTENCE_SCORE_THRESHOLD_VERY_SIMPLE = 0.3
+SENTENCE_SCORE_THRESHOLD_SIMPLE = 0.5
+SENTENCE_SCORE_THRESHOLD_MODERATE = 0.8
+SENTENCE_SCORE_THRESHOLD_COMPLEX = 1.1
+
+
+# --- NLTK Data Check and Tokenizer Initialization ---
 try:
     nltk.data.find('tokenizers/punkt')
+    sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 except nltk.downloader.DownloadError:
-    print("NLTK 'punkt' tokenizer not found. Please run the download step again.")
-    # Depending on the environment, you might raise an error or exit
-    # For now, we'll let it potentially fail later if punkt is truly missing.
-    pass
+    print("NLTK 'punkt' tokenizer not found. Downloading...")
+    try:
+        nltk.download('punkt', quiet=True)
+        sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+        print("Downloaded 'punkt'.")
+    except Exception as e:
+        print(f"Failed to download or load 'punkt': {e}")
+        sentence_tokenizer = None # Indicate failure
+except Exception as e:
+    print(f"Error loading 'punkt' tokenizer: {e}")
+    sentence_tokenizer = None
 
 
 def calculate_complexity(sentence):
@@ -101,6 +116,20 @@ def calculate_complexity(sentence):
     return round(score, 3), color
 
 
+def get_sentence_level(score):
+    """Maps an individual sentence score to a numerical level (1-5)."""
+    if score < SENTENCE_SCORE_THRESHOLD_VERY_SIMPLE:
+        return 1
+    elif score < SENTENCE_SCORE_THRESHOLD_SIMPLE:
+        return 2
+    elif score < SENTENCE_SCORE_THRESHOLD_MODERATE:
+        return 3
+    elif score < SENTENCE_SCORE_THRESHOLD_COMPLEX:
+        return 4
+    else:
+        return 5
+
+
 def get_overall_complexity_level(score):
     """Maps an overall score to a level, description, and color class."""
     if score < OVERALL_SCORE_THRESHOLD_VERY_SIMPLE:
@@ -118,37 +147,40 @@ def get_overall_complexity_level(score):
 def analyze_text_complexity(text):
     """
     Analyzes the complexity of each sentence in the input text.
-    Uses nltk for sentence segmentation.
+    Uses nltk for sentence segmentation using span_tokenize.
     Returns a dictionary containing:
-        - 'results': A list of dictionaries (sentence, score, color).
+        - 'results': A list of dictionaries (sentence, score, color, level, start, end).
         - 'overall_level': A dictionary (level, description, color_class).
     """
-    if not text or not text.strip():
+    if not text or not text.strip() or not sentence_tokenizer:
         # Return default structure for empty/whitespace-only text
         return {
             "results": [],
             "overall_level": {"level": 0, "description": "Enter text to analyze", "color_class": "bg-gray-600"}
         }
 
-    # Split text into sentences using NLTK
-    sentences = nltk.sent_tokenize(text)
+    # Use span_tokenize to get sentences with start/end indices
+    sentence_spans = sentence_tokenizer.span_tokenize(text)
 
     results = []
-    for sentence in sentences:
-        # Keep the original sentence for accurate frontend mapping
-        original_sentence = sentence
+    for start, end in sentence_spans:
+        original_sentence = text[start:end] # Extract sentence using spans
         if not original_sentence.strip(): # Check if sentence is just whitespace
              continue
 
         # Calculate complexity based on a cleaned version for metrics
         cleaned_for_calc = re.sub(r'\s+', ' ', original_sentence).strip()
         score, color = calculate_complexity(cleaned_for_calc)
+        level = get_sentence_level(score) # Calculate individual sentence level
 
-        # Return the ORIGINAL sentence string
+        # Return the ORIGINAL sentence string, score, color, level, and indices
         results.append({
-            "sentence": original_sentence,
+            "sentence": original_sentence, # Keep for potential debugging/display
             "score": score,
-            "color": color
+            "color": color,
+            "level": level,
+            "start": start, # Add start index
+            "end": end     # Add end index
         })
 
     # Calculate overall score (average of sentence scores)
@@ -175,4 +207,4 @@ if __name__ == '__main__':
     analysis_results = analyze_text_complexity(test_text)
     print(f"Overall Level: {analysis_results['overall_level']['level']} ({analysis_results['overall_level']['description']})")
     for result in analysis_results['results']:
-        print(f"[{result['color'].upper()}] Score: {result['score']:.3f} | Sentence: {result['sentence']}")
+        print(f"[{result['color'].upper()}] Lvl: {result['level']} Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")

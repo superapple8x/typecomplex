@@ -40,3 +40,9 @@
 .dark .ql-toolbar .ql-picker-item:hover {
     @apply text-white;
 }
+
+/* Style for sentences deviating from target audience */
+.dark .ql-editor .sentence-deviates {
+    @apply underline decoration-dotted decoration-blue-400 decoration-2 underline-offset-2;
+    /* Use a distinct style like a dotted underline */
+}
