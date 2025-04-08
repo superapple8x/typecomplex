@@ -52,10 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
         placement: 'bottom-start',
         appendTo: () => document.body, // Ensure it's appended to body
         content: 'Loading...', // Default content
-        // Hide on click outside
-        hideOnClick: true, // 'toggle' might be better depending on UX preference
+        // Hide on click outside - SET TO FALSE to allow interaction
+        hideOnClick: false, // We will hide manually in handleSynonymClick
         // We'll set reference client rect dynamically
-        // Add onShown callback later in showSynonymTooltip
     });
 
     // --- Complexity Color Mapping (Dark Theme) ---
@@ -290,6 +289,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Delegated Event Listener for Synonym Clicks ---
+    // Attach ONE listener to the body to handle clicks on any synonym item
+    document.body.addEventListener('click', (event) => {
+        // Check if the click happened on a synonym item within an active tippy tooltip
+        const targetLi = event.target.closest('li.synonym-item');
+        // Check if the parent tooltip element exists and is visible
+        const tooltipElement = targetLi?.closest('.tippy-box');
+
+        if (targetLi && tooltipElement && tooltipElement.style.visibility !== 'hidden') {
+            // If it's a valid click on a synonym in the tooltip, handle it
+            handleSynonymClick(event);
+        } else if (synonymTooltip.state.isVisible && !event.target.closest('.tippy-box')) {
+            // If the tooltip is visible and the click was OUTSIDE any tippy box, hide it
+            synonymTooltip.hide();
+            currentSynonymRange = null;
+        }
+    });
+
+
     async function showSynonymTooltip(range) {
         currentSynonymRange = range; // Store the range
 
@@ -335,20 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
         synonymTooltip.setProps({
             getReferenceClientRect: () => referenceBounds, // Use calculated bounds
             placement: 'bottom-start', // Reset placement
-            content: `<div id="${tooltipContentId}" class="p-1 text-xs dark:text-gray-200">Loading synonyms...</div>`,
-            // Attach listener directly to the popper element (tooltip container) using delegation
-            onShow(instance) {
-                 console.log("Attaching click listener to popper:", instance.popper); // DEBUG
-                 // Remove previous listener if any to prevent duplicates
-                 instance.popper.removeEventListener('click', handleSynonymClick);
-                 // Add listener using event delegation on the popper itself
-                 instance.popper.addEventListener('click', handleSynonymClick);
-            },
-            // Optional: Clean up listener on hide
-            onHide(instance) {
-                 console.log("Removing click listener from popper."); // DEBUG
-                 instance.popper.removeEventListener('click', handleSynonymClick);
-            }
+            content: `<div id="${tooltipContentId}" class="p-1 text-xs dark:text-gray-200">Loading synonyms...</div>`
+            // REMOVED onShow/onHide callbacks for listener management
         });
         synonymTooltip.show();
 
@@ -402,10 +408,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Initialize Tooltips ---
+    // --- Initialize Status Bar Tooltips ---
     function initTooltips() {
         tippy('.has-tooltip', {
-            theme: 'dark',
+            theme: 'dark', // Use 'dark' or your preferred theme
             placement: 'top',
             arrow: true,
             delay: [100, 0],
