@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"> <!-- Enable dark mode -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentence Complexity Analyzer</title>
+    <!-- Link to Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Link to Tailwind generated CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Link to Quill Snow theme CSS (we'll copy this file later) -->
+    <link href="{{ url_for('static', filename='quill.snow.css') }}" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-900 dark:bg-gray-900 text-gray-200 dark:text-gray-200 flex flex-col min-h-screen">
+    <!-- Optional Header -->
+    <!-- <header class="bg-gray-800 dark:bg-gray-800 p-3 mb-4 text-center shadow-md">
+        <h1 class="text-xl font-semibold text-gray-100 dark:text-gray-100">Complexity Analyzer</h1>
+    </header> -->
+
+    <!-- Flex container for main content and sidebar -->
+    <div class="flex flex-grow">
+
+        <!-- Main content area -->
+        <main class="flex-grow flex flex-col p-4 sm:p-6 md:p-8">
+            <!-- Editor Container - takes remaining vertical space -->
+            <div id="editor-container" class="flex-grow min-h-[300px] bg-gray-800 dark:bg-gray-800 rounded-md shadow-inner text-gray-100 dark:text-gray-100">
+                <!-- Quill editor will be initialized here -->
+            </div>
+        </main>
+
+        <!-- Collapsible Sidebar -->
+        <aside id="complexity-sidebar" class="w-64 bg-gray-850 dark:bg-gray-850 p-4 border-l border-gray-700 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-100 dark:text-gray-100">Analysis</h2>
+                <button id="toggle-sidebar-btn" class="text-gray-400 hover:text-gray-200 focus:outline-none">
+                    <!-- Heroicon: x-mark (for closing) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-grow">
+                <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Overall Complexity</h3>
+                <div id="overall-complexity-meter" class="bg-gray-700 dark:bg-gray-700 rounded p-3">
+                    <!-- 5-Level Health Bar -->
+                    <div class="flex space-x-1 h-4 w-full">
+                        <div data-level="1" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                        <div data-level="2" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                        <div data-level="3" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                        <div data-level="4" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                        <div data-level="5" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                    </div>
+                    <p id="complexity-description" class="text-xs text-gray-400 dark:text-gray-400 mt-2 text-center">Calculating...</p>
+                </div>
+                <!-- Add more analysis details here later if needed -->
+            </div>
+        </aside>
+
+        <!-- Button to Open Sidebar (Initially Hidden, shown when sidebar is closed) -->
+         <button id="open-sidebar-btn" class="fixed top-1/2 right-0 transform -translate-y-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 p-2 rounded-l-md shadow-lg focus:outline-none hidden z-10">
+            <!-- Heroicon: chevron-left -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+         </button>
+
+    </div>
+
+    <!-- Status Bar -->
+    <footer id="status-bar" class="bg-gray-800 dark:bg-gray-800 text-gray-400 dark:text-gray-400 text-xs px-4 py-1 border-t border-gray-700 dark:border-gray-700 flex justify-end space-x-4 mt-2">
+        <span>Words: <span id="word-count">0</span></span>
+        <span>Sentences: <span id="sentence-count">0</span></span>
+        <span>Characters: <span id="character-count">0</span></span>
+    </footer>
+
+    <!-- Tippy.js Tooltip Area (Tippy appends tooltips to body by default) -->
+
+    <!-- Load Libraries (UMD bundles) -->
+    <script defer src="{{ url_for('static', filename='quill.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='popper.min.js') }}"></script> <!-- Popper must come before Tippy -->
+    <script defer src="{{ url_for('static', filename='tippy-bundle.umd.min.js') }}"></script>
+
+    <!-- Link to our main JavaScript file (no longer a module) -->
+    <script defer src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Quill Dark Theme Overrides */
+.dark .ql-editor {
+    @apply text-gray-100; /* Ensure editor text is light */
+    min-height: 150px; /* Give it some default height */
+}
+
+/* Style the toolbar for dark mode */
+.dark .ql-toolbar {
+    @apply bg-gray-700 border-gray-600 rounded-t-md;
+}
+.dark .ql-toolbar .ql-stroke {
+    @apply stroke-gray-300;
+}
+.dark .ql-toolbar .ql-fill {
+    @apply fill-gray-300;
+}
+.dark .ql-toolbar .ql-picker-label {
+     @apply text-gray-300;
+}
+.dark .ql-toolbar button:hover .ql-stroke,
+.dark .ql-toolbar button:focus .ql-stroke,
+.dark .ql-toolbar button.ql-active .ql-stroke {
+    @apply stroke-white;
+}
+.dark .ql-toolbar button:hover .ql-fill,
+.dark .ql-toolbar button:focus .ql-fill,
+.dark .ql-toolbar button.ql-active .ql-fill {
+    @apply fill-white;
+}
+.dark .ql-toolbar .ql-picker-label:hover {
+    @apply text-white;
+}
+.dark .ql-toolbar .ql-picker-options {
+    @apply bg-gray-700 border-gray-600 text-gray-300;
+}
+.dark .ql-toolbar .ql-picker-item:hover {
+    @apply text-white;
+}
