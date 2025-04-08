@@ -14,10 +14,13 @@
     <link href="{{ url_for('static', filename='quill.snow.css') }}" rel="stylesheet">
 </head>
 <body class="font-sans bg-gray-900 dark:bg-gray-900 text-gray-200 dark:text-gray-200 flex flex-col min-h-screen">
-    <!-- Optional Header -->
-    <!-- <header class="bg-gray-800 dark:bg-gray-800 p-3 mb-4 text-center shadow-md">
-        <h1 class="text-xl font-semibold text-gray-100 dark:text-gray-100">Complexity Analyzer</h1>
-    </header> -->
+    <!-- Enhanced Header -->
+    <header class="bg-gray-800 dark:bg-gray-800 p-3 mb-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-semibold text-gray-100 dark:text-gray-100">Sentence Complexity Analyzer</h1>
+            <div class="text-sm text-gray-400">v1.0.0</div>
+        </div>
+    </header>
 
     <!-- Flex container for main content and sidebar -->
     <div class="flex flex-grow">
@@ -43,16 +46,23 @@
             </div>
             <div class="flex-grow">
                 <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Overall Complexity</h3>
-                <div id="overall-complexity-meter" class="bg-gray-700 dark:bg-gray-700 rounded p-3">
-                    <!-- 5-Level Health Bar -->
-                    <div class="flex space-x-1 h-4 w-full">
-                        <div data-level="1" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
-                        <div data-level="2" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
-                        <div data-level="3" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
-                        <div data-level="4" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
-                        <div data-level="5" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-colors duration-300"></div>
+                <div id="overall-complexity-meter" class="bg-gray-700 dark:bg-gray-700 rounded p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-md font-medium text-gray-300 dark:text-gray-300">Complexity Level</h3>
+                        <span id="complexity-percentage" class="text-xs font-mono bg-gray-600 px-2 py-1 rounded">0%</span>
                     </div>
-                    <p id="complexity-description" class="text-xs text-gray-400 dark:text-gray-400 mt-2 text-center">Calculating...</p>
+                    <!-- Enhanced 5-Level Meter -->
+                    <div class="flex space-x-1 h-4 w-full mb-2">
+                        <div data-level="1" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                        <div data-level="2" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                        <div data-level="3" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                        <div data-level="4" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                        <div data-level="5" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                    </div>
+                    <div id="complexity-loading" class="h-1 w-full bg-gray-600 rounded-full overflow-hidden hidden">
+                        <div class="h-full bg-blue-500 rounded-full animate-pulse" style="width: 100%"></div>
+                    </div>
+                    <p id="complexity-description" class="text-xs text-gray-400 dark:text-gray-400 mt-2 text-center">Enter text to analyze</p>
                 </div>
                 <!-- Add more analysis details here later if needed -->
             </div>
@@ -68,11 +78,17 @@
 
     </div>
 
-    <!-- Status Bar -->
-    <footer id="status-bar" class="bg-gray-800 dark:bg-gray-800 text-gray-400 dark:text-gray-400 text-xs px-4 py-1 border-t border-gray-700 dark:border-gray-700 flex justify-end space-x-4 mt-2">
-        <span>Words: <span id="word-count">0</span></span>
-        <span>Sentences: <span id="sentence-count">0</span></span>
-        <span>Characters: <span id="character-count">0</span></span>
+    <!-- Enhanced Status Bar -->
+    <footer id="status-bar" class="bg-gray-800 dark:bg-gray-800 text-gray-400 dark:text-gray-400 text-xs px-4 py-1 border-t border-gray-700 dark:border-gray-700 flex justify-between items-center">
+        <div class="flex space-x-4">
+            <span class="has-tooltip" data-tippy-content="Total words">Words: <span id="word-count">0</span></span>
+            <span class="has-tooltip" data-tippy-content="Total sentences">Sentences: <span id="sentence-count">0</span></span>
+            <span class="has-tooltip" data-tippy-content="Total characters">Chars: <span id="character-count">0</span></span>
+            <span class="has-tooltip" data-tippy-content="Estimated reading level">Readability: <span id="readability-score">-</span></span>
+        </div>
+        <div>
+            <span class="has-tooltip" data-tippy-content="Last analysis time">Analysis: <span id="analysis-time">0ms</span></span>
+        </div>
     </footer>
 
     <!-- Tippy.js Tooltip Area (Tippy appends tooltips to body by default) -->

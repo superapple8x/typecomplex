@@ -1,1 +1,3 @@
 /.venv
+data/ngram_freq.csv
+.gitignore
