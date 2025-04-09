@@ -62,13 +62,13 @@ def calculate_complexity(sentence):
     """
     Calculates a complexity score for a single sentence.
     Considers sentence length, average word length, and average word frequency.
-    Returns a score (float) and a color category (string).
+    Returns a score (float).
     """
     # Tokenize into words, removing punctuation
     words = [word.lower() for word in nltk.word_tokenize(sentence) if word.isalnum()]
 
     if not words:
-        return 0.0, "gray" # Handle empty sentences or sentences with only punctuation
+        return 0.0 # Handle empty sentences or sentences with only punctuation
 
     sentence_length = len(words)
     total_word_length = sum(len(word) for word in words)
@@ -101,34 +101,11 @@ def calculate_complexity(sentence):
             (word_len_factor * WEIGHT_AVG_WORD_LENGTH) + \
             (frequency_factor * WEIGHT_AVG_WORD_FREQUENCY)
 
-    # --- Determine Color based on Score Thresholds ---
-    if score < SCORE_THRESHOLD_GREEN:
-        color = "green"
-    elif score < SCORE_THRESHOLD_YELLOW:
-        color = "yellow"
-    elif score < SCORE_THRESHOLD_ORANGE:
-        color = "orange"
-    else:
-        color = "red"
-
     # Clamp score to a reasonable range if needed, e.g., 0.0 to potentially > 1.0
     # For simplicity, we'll return the raw score for now.
-    return round(score, 3), color
+    return round(score, 3)
 
-
-def get_sentence_level(score):
-    """Maps an individual sentence score to a numerical level (1-5)."""
-    if score < SENTENCE_SCORE_THRESHOLD_VERY_SIMPLE:
-        return 1
-    elif score < SENTENCE_SCORE_THRESHOLD_SIMPLE:
-        return 2
-    elif score < SENTENCE_SCORE_THRESHOLD_MODERATE:
-        return 3
-    elif score < SENTENCE_SCORE_THRESHOLD_COMPLEX:
-        return 4
-    else:
-        return 5
-
+# Removed get_sentence_level function as level is now determined on frontend
 
 def get_overall_complexity_level(score):
     """Maps an overall score to a level, description, and color class."""
@@ -149,7 +126,7 @@ def analyze_text_complexity(text):
     Analyzes the complexity of each sentence in the input text.
     Uses nltk for sentence segmentation using span_tokenize.
     Returns a dictionary containing:
-        - 'results': A list of dictionaries (sentence, score, color, level, start, end).
+        - 'results': A list of dictionaries (sentence, score, start, end).
         - 'overall_level': A dictionary (level, description, color_class).
     """
     if not text or not text.strip() or not sentence_tokenizer:
@@ -170,15 +147,15 @@ def analyze_text_complexity(text):
 
         # Calculate complexity based on a cleaned version for metrics
         cleaned_for_calc = re.sub(r'\s+', ' ', original_sentence).strip()
-        score, color = calculate_complexity(cleaned_for_calc)
-        level = get_sentence_level(score) # Calculate individual sentence level
+        score = calculate_complexity(cleaned_for_calc)
+        # level = get_sentence_level(score) # Level now determined on frontend
 
-        # Return the ORIGINAL sentence string, score, color, level, and indices
+        # Return the ORIGINAL sentence string, score, and indices
         results.append({
             "sentence": original_sentence, # Keep for potential debugging/display
             "score": score,
-            "color": color,
-            "level": level,
+            # "color": color, # Color now determined on frontend
+            # "level": level, # Level now determined on frontend
             "start": start, # Add start index
             "end": end     # Add end index
         })
@@ -207,4 +184,5 @@ if __name__ == '__main__':
     analysis_results = analyze_text_complexity(test_text)
     print(f"Overall Level: {analysis_results['overall_level']['level']} ({analysis_results['overall_level']['description']})")
     for result in analysis_results['results']:
-        print(f"[{result['color'].upper()}] Lvl: {result['level']} Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
+        # Color and Level are no longer in the result dict from the backend
+        print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")

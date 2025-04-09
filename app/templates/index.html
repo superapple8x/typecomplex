@@ -61,11 +61,11 @@
                     </div>
                     <!-- New Labels Div -->
                     <div class="flex justify-between text-xs text-gray-400 dark:text-gray-400 mt-1 px-0.5">
-                        <span>L1</span>
-                        <span>L2</span>
-                        <span>L3</span>
-                        <span>L4</span>
-                        <span>L5</span>
+                        <span class="text-center w-1/5">Very Simple (L1)</span>
+                        <span class="text-center w-1/5">Simple (L2)</span>
+                        <span class="text-center w-1/5">Moderate (L3)</span>
+                        <span class="text-center w-1/5">Complex (L4)</span>
+                        <span class="text-center w-1/5">Very Complex (L5)</span>
                     </div>
                     <div id="complexity-loading" class="h-1 w-full bg-gray-600 rounded-full overflow-hidden hidden mt-2"> <!-- Added mt-2 -->
                         <div class="h-full bg-blue-500 rounded-full animate-pulse" style="width: 100%"></div>
@@ -74,17 +74,17 @@
                     <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p> <!-- Keep for potential status messages, but less prominent -->
                 </div>
 
-                <!-- Target Audience Selector -->
+                <!-- Complexity Sensitivity Selector -->
                 <div class="mt-4">
-                    <label for="target-audience-select" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Target Audience</label>
-                    <select id="target-audience-select" class="w-full bg-gray-700 dark:bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 p-1.5">
-                        <option value="1">Elementary</option>
-                        <option value="2">Middle School</option>
-                        <option value="3" selected>High School</option> <!-- Default -->
-                        <option value="4">College</option>
-                        <option value="5">Graduate</option>
+                    <label for="complexity-sensitivity-select" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Complexity Sensitivity</label>
+                    <select id="complexity-sensitivity-select" class="w-full bg-gray-700 dark:bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 p-1.5">
+                        <option value="1">Very Lenient</option>
+                        <option value="2">Lenient</option>
+                        <option value="3" selected>Standard</option> <!-- Default -->
+                        <option value="4">Strict</option>
+                        <option value="5">Very Strict</option>
                     </select>
-                    <p id="target-audience-info" class="text-xs text-gray-400 dark:text-gray-400 mt-1">Highlight sentences deviating from target.</p>
+                    <!-- Removed the paragraph about deviation highlighting -->
                 </div>
 
                 <!-- Add more analysis details here later if needed -->

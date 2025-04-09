@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const complexityLoadingEl = document.getElementById('complexity-loading');
     const readabilityScoreEl = document.getElementById('readability-score');
     const analysisTimeEl = document.getElementById('analysis-time');
-    const targetAudienceSelect = document.getElementById('target-audience-select'); // New reference
+    const sensitivitySelect = document.getElementById('complexity-sensitivity-select'); // Updated reference
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State for Analysis ---
     let currentAnalysisResults = []; // Store results to map sentences
-    let currentTargetAudienceLevel = 3; // Default to High School (value 3)
+    let currentSensitivityLevel = 3; // Default to Standard (value 3)
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -220,22 +220,52 @@ document.addEventListener('DOMContentLoaded', () => {
         applyHighlighting(currentAnalysisResults);
     }
 
-    // Removed clearDeviationHighlighting function - clearing is handled in applyHighlighting
+    // --- Dynamic Color Calculation based on Sensitivity ---
+    function getDynamicHighlightColor(score, sensitivityLevel) {
+        // Define base thresholds (Standard Sensitivity - Level 3)
+        let thresholds = {
+            green: 0.4, // Score below this is green
+            yellow: 0.7, // Score below this is yellow
+            orange: 1.0, // Score below this is orange (else red)
+        };
+
+        // Adjust thresholds based on sensitivity
+        // Sensitivity 1 (Very Lenient) -> Higher thresholds
+        // Sensitivity 5 (Very Strict) -> Lower thresholds
+        // We adjust by a factor, e.g., 0.15 per level difference from standard (3) - Increased from 0.1
+        const adjustmentFactor = (3 - sensitivityLevel) * 0.15; // Positive for lenient, negative for strict
+
+        thresholds.green += adjustmentFactor;
+        thresholds.yellow += adjustmentFactor;
+        thresholds.orange += adjustmentFactor;
+
+        // Determine color based on adjusted thresholds
+        if (score < thresholds.green) {
+            return "green";
+        } else if (score < thresholds.yellow) {
+            return "yellow";
+        } else if (score < thresholds.orange) {
+            return "orange";
+        } else {
+            return "red";
+        }
+    }
+
 
     function applyHighlighting(results) {
-        // Clear previous background formatting AND deviation class first
+        // Clear previous background formatting first
         // Note: Formatting with 'class': false might remove ALL classes.
         // A safer approach might involve getting existing formats, but let's try this first.
         // Clear previous background formatting first
         // console.log("Clearing previous background format..."); // DEBUG
         quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        // We will now handle clearing/applying the 'sentence-deviates' class per sentence below.
-        // console.log(`Applying highlighting for target level: ${currentTargetAudienceLevel}`); // DEBUG
+        // Also clear any lingering 'sentence-deviates' class if it exists from previous runs
+        quill.formatText(0, quill.getLength(), 'class', false, 'api');
+        // console.log(`Applying highlighting for sensitivity level: ${currentSensitivityLevel}`); // DEBUG
 
         results.forEach(result => {
-            // const sentenceText = result.sentence; // No longer needed for finding index
-            const color = result.color;
-            const sentenceLevel = result.level;
+            const score = result.score; // Get score from backend result
+            const color = getDynamicHighlightColor(score, currentSensitivityLevel); // Calculate color dynamically
             const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
             const startIndex = result.start; // Use start index from backend
             const endIndex = result.end;     // Use end index from backend
@@ -245,20 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Apply background color using indices
                 quill.formatText(startIndex, length, 'background', bgColor, 'api');
 
-                // Check for deviation from target audience
-                const deviation = Math.abs(sentenceLevel - currentTargetAudienceLevel);
-                // console.log(`Sentence: "${quill.getText(startIndex, length).substring(0, 20)}...", Level: ${sentenceLevel}, Target: ${currentTargetAudienceLevel}, Deviation: ${deviation}`); // DEBUG
-                // Removed duplicate declaration that was here
+                // --- REMOVED Deviation Logic ---
+                // const deviation = sentenceLevel - currentTargetAudienceLevel;
+                // if (deviation >= 2) {
+                //     quill.formatText(startIndex, length, 'class', 'sentence-deviates', 'api');
+                // } else {
+                //     quill.formatText(startIndex, length, 'class', false, 'api');
+                // }
+                // --- End REMOVED Deviation Logic ---
 
-                if (deviation >= 2) { // Highlight if 2 or more levels away
-                    // Apply the 'sentence-deviates' class using indices
-                    // console.log(`   Applying 'sentence-deviates' class.`); // DEBUG
-                    quill.formatText(startIndex, length, 'class', 'sentence-deviates', 'api');
-                } else {
-                    // Explicitly remove the 'sentence-deviates' class for this sentence range if it doesn't deviate
-                    // console.log(`   Removing 'sentence-deviates' class.`); // DEBUG
-                    quill.formatText(startIndex, length, 'class', false, 'api'); // Use 'false' to remove the class format
-                }
             } else {
                  // Log if indices are missing or invalid
                  console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
@@ -458,14 +483,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Listener for Target Audience Dropdown
-    if (targetAudienceSelect) {
-        targetAudienceSelect.addEventListener('change', (event) => {
+    // Listener for Complexity Sensitivity Dropdown
+    if (sensitivitySelect) {
+        sensitivitySelect.addEventListener('change', (event) => {
             const newLevel = parseInt(event.target.value, 10);
-            console.log(`Target audience changed. New selected level: ${newLevel}`); // DEBUG
-            currentTargetAudienceLevel = newLevel;
-            // Re-apply highlighting based on the new target level, without re-analyzing text
-            console.log("Forcing highlight update due to target change."); // DEBUG
+            console.log(`Complexity sensitivity changed. New selected level: ${newLevel}`); // DEBUG
+            currentSensitivityLevel = newLevel;
+            // Re-apply highlighting based on the new sensitivity level, without re-analyzing text
+            console.log("Forcing highlight update due to sensitivity change."); // DEBUG
             analyzeAndHighlight(true); // Pass true to force highlight update
         });
     }
