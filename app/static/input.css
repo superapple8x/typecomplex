@@ -2,66 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Quill Dark Theme Overrides */
-.dark .ql-editor {
-    @apply text-gray-100; /* Ensure editor text is light */
-    min-height: 150px; /* Give it some default height */
+/* Custom Tippy.js Dark Theme */
+.tippy-box[data-theme~='tippy-dark'] {
+    @apply bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 text-sm shadow-lg;
+    font-family: inherit; /* Use the body font */
 }
 
-/* Style the toolbar for dark mode */
-.dark .ql-toolbar {
-    @apply bg-gray-700 border-gray-600 rounded-t-md;
+.tippy-box[data-theme~='tippy-dark'][data-placement^='top'] > .tippy-arrow {
+    @apply border-t-gray-700;
 }
-.dark .ql-toolbar .ql-stroke {
-    @apply stroke-gray-300;
+.tippy-box[data-theme~='tippy-dark'][data-placement^='bottom'] > .tippy-arrow {
+    @apply border-b-gray-700;
 }
-.dark .ql-toolbar .ql-fill {
-    @apply fill-gray-300;
+.tippy-box[data-theme~='tippy-dark'][data-placement^='left'] > .tippy-arrow {
+    @apply border-l-gray-700;
 }
-.dark .ql-toolbar .ql-picker-label {
-     @apply text-gray-300;
-}
-.dark .ql-toolbar button:hover .ql-stroke,
-.dark .ql-toolbar button:focus .ql-stroke,
-.dark .ql-toolbar button.ql-active .ql-stroke {
-    @apply stroke-white;
-}
-.dark .ql-toolbar button:hover .ql-fill,
-.dark .ql-toolbar button:focus .ql-fill,
-.dark .ql-toolbar button.ql-active .ql-fill {
-    @apply fill-white;
-}
-.dark .ql-toolbar .ql-picker-label:hover {
-    @apply text-white;
-}
-.dark .ql-toolbar .ql-picker-options {
-    @apply bg-gray-700 border-gray-600 text-gray-300;
-}
-.dark .ql-toolbar .ql-picker-item:hover {
-    @apply text-white;
+.tippy-box[data-theme~='tippy-dark'][data-placement^='right'] > .tippy-arrow {
+    @apply border-r-gray-700;
 }
 
-/* Style for sentences deviating from target audience */
-.dark .ql-editor .sentence-deviates {
-    @apply underline decoration-dotted decoration-blue-400 decoration-2 underline-offset-2;
-    /* Use a distinct style like a dotted underline */
+.tippy-box[data-theme~='tippy-dark'] .tippy-content {
+    @apply p-0; /* Remove default padding if using custom padding in HTML */
 }
 
-/* --- Visual Document Map Styles --- */
-.map-segment {
-    @apply flex-grow transition-all duration-200 ease-in-out cursor-pointer;
-    /* Default background can be set here or rely on JS adding color classes */
-    /* background-color: theme('colors.gray.500'); */
+/* Optional: Style links inside the dark tooltip */
+.tippy-box[data-theme~='tippy-dark'] a {
+    @apply text-blue-400 hover:text-blue-300;
 }
 
-.map-segment:hover {
-    @apply ring-2 ring-offset-1 ring-offset-gray-700 ring-blue-400; /* Add a ring on hover */
-    transform: scaleY(1.05); /* Slightly scale up on hover */
+/* Optional: Style strong tags inside the dark tooltip */
+.tippy-box[data-theme~='tippy-dark'] strong {
+    @apply text-gray-100 font-semibold;
 }
 
-/* --- Quill Highlight for Map Hover --- */
-.dark .ql-editor .highlight-map-hover {
-    /* Use !important cautiously but might be needed to override Quill's inline background */
-    /* Apply !important prefix directly to the utility */
-    @apply !bg-yellow-400/30 outline outline-2 outline-yellow-400 outline-offset-1 rounded-sm;
+/* Optional: Style hr tags inside the dark tooltip */
+.tippy-box[data-theme~='tippy-dark'] hr {
+    @apply border-gray-500 my-1;
 }
+
+/* Ensure Tailwind processes these custom styles */
