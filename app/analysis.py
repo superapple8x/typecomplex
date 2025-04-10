@@ -141,7 +141,8 @@ def analyze_text_complexity(text):
     sentence_spans = sentence_tokenizer.span_tokenize(text)
 
     results = []
-    for start, end in sentence_spans:
+    # Use enumerate to get index along with spans
+    for i, (start, end) in enumerate(sentence_spans):
         original_sentence = text[start:end] # Extract sentence using spans
         if not original_sentence.strip(): # Check if sentence is just whitespace
              continue
@@ -158,7 +159,8 @@ def analyze_text_complexity(text):
             # "color": color, # Color now determined on frontend
             # "level": level, # Level now determined on frontend
             "start": start, # Add start index
-            "end": end     # Add end index
+            "end": end,     # Add end index
+            "index": i      # Add sentence index
         })
 
     # Calculate overall score (average of sentence scores)

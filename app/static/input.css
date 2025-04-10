@@ -46,3 +46,22 @@
     @apply underline decoration-dotted decoration-blue-400 decoration-2 underline-offset-2;
     /* Use a distinct style like a dotted underline */
 }
+
+/* --- Visual Document Map Styles --- */
+.map-segment {
+    @apply flex-grow transition-all duration-200 ease-in-out cursor-pointer;
+    /* Default background can be set here or rely on JS adding color classes */
+    /* background-color: theme('colors.gray.500'); */
+}
+
+.map-segment:hover {
+    @apply ring-2 ring-offset-1 ring-offset-gray-700 ring-blue-400; /* Add a ring on hover */
+    transform: scaleY(1.05); /* Slightly scale up on hover */
+}
+
+/* --- Quill Highlight for Map Hover --- */
+.dark .ql-editor .highlight-map-hover {
+    /* Use !important cautiously but might be needed to override Quill's inline background */
+    /* Apply !important prefix directly to the utility */
+    @apply !bg-yellow-400/30 outline outline-2 outline-yellow-400 outline-offset-1 rounded-sm;
+}

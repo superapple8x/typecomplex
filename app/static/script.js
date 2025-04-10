@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const fleschKincaidScoreEl = document.getElementById('flesch-kincaid-score');
     const gunningFogScoreEl = document.getElementById('gunning-fog-score');
     const smogIndexScoreEl = document.getElementById('smog-index-score');
+    // Visual Map container
+    const documentMapContainer = document.getElementById('document-map');
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -249,8 +251,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Always apply highlighting based on current results and target audience
-        applyHighlighting(currentAnalysisResults);
+        // Update the visual document map *after* results are potentially fetched/updated
+        console.log("Calling updateDocumentMap with results:", currentAnalysisResults); // DEBUG
+        updateDocumentMap(currentAnalysisResults);
     }
 
     // --- Helper function to update score with animation ---
@@ -279,7 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Analysis & Highlighting ---
+    // --- Analysis & Highlighting --- // <<< REMOVE THIS REDUNDANT DEFINITION
+    /*
     async function analyzeAndHighlight(forceHighlightUpdate = false) {
         const text = quill.getText();
         const startTime = performance.now();
@@ -295,9 +299,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // if (readabilityScoreEl) readabilityScoreEl.textContent = '-'; // Removed
             if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
             // Clear highlighting if text is empty
-            applyHighlighting([]); // Call with empty results to clear formats
-            return;
-        }
+        applyHighlighting([]); // Call with empty results to clear formats
+        updateDocumentMap([]); // Clear the map as well
+        return;
+    }
 
         // Only fetch new analysis if not forcing highlight update
         if (!forceHighlightUpdate) {
@@ -341,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 currentAnalysisResults = []; // Clear results on error
+                updateDocumentMap([]); // Clear map on error
             } finally {
                 if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
             }
@@ -349,8 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Always apply highlighting based on current results and target audience
         applyHighlighting(currentAnalysisResults);
     }
-
-
+    */
     // --- Dynamic Color Calculation based on Sensitivity ---
     function getDynamicHighlightColor(score, sensitivityLevel) {
         // Define base thresholds (Standard Sensitivity - Level 3)
@@ -420,6 +425,62 @@ document.addEventListener('DOMContentLoaded', () => {
                  console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
             }
             // No longer need currentIndex tracking with indexOf
+        });
+    }
+
+    // --- Visual Document Map Update ---
+    function updateDocumentMap(results) {
+        console.log("updateDocumentMap received results:", results); // DEBUG
+        if (!documentMapContainer) {
+            console.error("Document map container not found!"); // DEBUG
+            return;
+        }
+
+        // Clear previous map segments
+        documentMapContainer.innerHTML = '';
+
+        if (!results || results.length === 0) {
+            // Optionally display a message or leave it empty
+            // documentMapContainer.textContent = 'No text to map.';
+            return;
+        }
+
+        // Define background colors for map segments (Tailwind classes)
+        const mapSegmentColors = {
+            green: 'bg-green-500',
+            yellow: 'bg-yellow-500',
+            orange: 'bg-orange-500',
+            red: 'bg-red-500',
+            gray: 'bg-gray-500', // Fallback
+        };
+
+        console.log(`Processing ${results.length} results for document map.`); // DEBUG
+        results.forEach((result, idx) => {
+             console.log(`Creating segment for result index ${idx}:`, result); // DEBUG
+             if (result.index === undefined || result.score === undefined) {
+                 console.warn(`Skipping result at index ${idx} due to missing index or score.`); // DEBUG
+                 return; // Skip this iteration if data is missing
+             }
+            const segment = document.createElement('div');
+            segment.classList.add('map-segment'); // Base class for styling (flex-grow, transition)
+
+            // Set sentence index for linking
+            segment.dataset.sentenceIndex = result.index;
+
+            // Calculate height (e.g., scale score to percentage, with min/max)
+            // Score range might be 0 to ~1.5+. Let's map it to 5% - 100% height.
+            const heightPercent = Math.min(100, Math.max(5, (result.score || 0) * 60 + 5));
+            segment.style.height = `${heightPercent}%`;
+
+            // Determine color based on score and sensitivity
+            const colorName = getDynamicHighlightColor(result.score, currentSensitivityLevel);
+            const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
+            segment.classList.add(colorClass);
+
+            // Add tooltip showing the score (optional)
+            segment.title = `Sentence ${result.index + 1}: Score ${result.score.toFixed(2)}`;
+
+            documentMapContainer.appendChild(segment);
         });
     }
 
@@ -707,5 +768,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // openSidebar(); // Uncomment if you want it open by default
     // If you want it closed by default, you might need to adjust initial classes in index.html
     // For now, assuming it starts open as per index.html structure.
+
+
+    // --- Visual Map Hover Listeners ---
+    if (documentMapContainer) {
+        documentMapContainer.addEventListener('mouseover', (event) => {
+            const segment = event.target.closest('.map-segment');
+            if (!segment || !segment.dataset.sentenceIndex) return;
+
+            const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+            const result = currentAnalysisResults[sentenceIndex];
+
+            if (result && result.start !== undefined && result.end !== undefined) {
+                const length = result.end - result.start;
+                if (length > 0) {
+                    // Apply a temporary highlight class
+                    quill.formatText(result.start, length, 'class', 'highlight-map-hover', 'api');
+                }
+            }
+        });
+
+        documentMapContainer.addEventListener('mouseout', (event) => {
+            const segment = event.target.closest('.map-segment');
+            if (!segment || !segment.dataset.sentenceIndex) return;
+
+            const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+            const result = currentAnalysisResults[sentenceIndex];
+
+            if (result && result.start !== undefined && result.end !== undefined) {
+                const length = result.end - result.start;
+                if (length > 0) {
+                    // Remove the temporary highlight class
+                    // Note: Formatting with 'class': false removes ALL classes applied via formatText.
+                    // If other classes were applied this way, this could be an issue.
+                    // For now, assuming only 'highlight-map-hover' is applied this way temporarily.
+                    quill.formatText(result.start, length, 'class', false, 'api');
+                }
+            }
+        });
+    }
 
 }); // End DOMContentLoaded
