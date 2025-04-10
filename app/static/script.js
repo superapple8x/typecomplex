@@ -28,9 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const complexityDescriptionEl = document.getElementById('complexity-description');
     const complexityPercentageEl = document.getElementById('complexity-percentage');
     const complexityLoadingEl = document.getElementById('complexity-loading');
-    const readabilityScoreEl = document.getElementById('readability-score');
+    // const readabilityScoreEl = document.getElementById('readability-score'); // Removed - replaced by individual scores
     const analysisTimeEl = document.getElementById('analysis-time');
     const sensitivitySelect = document.getElementById('complexity-sensitivity-select'); // Updated reference
+    // New elements for individual readability scores
+    const fleschKincaidScoreEl = document.getElementById('flesch-kincaid-score');
+    const gunningFogScoreEl = document.getElementById('gunning-fog-score');
+    const smogIndexScoreEl = document.getElementById('smog-index-score');
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -82,6 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State for Analysis ---
     let currentAnalysisResults = []; // Store results to map sentences
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
+    let previousScores = { // Store previous scores for animation
+        flesch_kincaid_grade: null,
+        gunning_fog: null,
+        smog_index: null,
+    };
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -171,7 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
             quill.formatText(0, quill.getLength(), 'background', false, 'api');
             currentAnalysisResults = [];
             updateComplexityMeter(null);
-            if (readabilityScoreEl) readabilityScoreEl.textContent = '-';
+            // Reset individual scores
+            if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = '-';
+            if (gunningFogScoreEl) gunningFogScoreEl.textContent = '-';
+            if (smogIndexScoreEl) smogIndexScoreEl.textContent = '-';
+            // if (readabilityScoreEl) readabilityScoreEl.textContent = '-'; // Removed
             if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
             // Clear highlighting if text is empty
             applyHighlighting([]); // Call with empty results to clear formats
@@ -182,7 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!forceHighlightUpdate) {
             // Show loading state
             if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
-            if (readabilityScoreEl) readabilityScoreEl.textContent = '...';
+            // REMOVED: Update individual score placeholders to '...'
+            // if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = '...';
+            // if (gunningFogScoreEl) gunningFogScoreEl.textContent = '...';
+            // if (smogIndexScoreEl) smogIndexScoreEl.textContent = '...';
 
             try {
                 const response = await fetch('/analyze', {
@@ -202,13 +218,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Update UI parts that depend on new analysis
                 updateComplexityMeter(data.overall_level);
-                if (readabilityScoreEl) readabilityScoreEl.textContent = calculateReadabilityScore(text);
+                // Update individual readability scores from backend data
+                const scores = data.readability_scores || {};
+                if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = scores.flesch_kincaid_grade !== null ? scores.flesch_kincaid_grade : 'N/A';
+                if (gunningFogScoreEl) gunningFogScoreEl.textContent = scores.gunning_fog !== null ? scores.gunning_fog : 'N/A';
+                if (smogIndexScoreEl) smogIndexScoreEl.textContent = scores.smog_index !== null ? scores.smog_index : 'N/A';
+                // if (readabilityScoreEl) readabilityScoreEl.textContent = calculateReadabilityScore(text); // Removed old calculation
                 if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
 
             } catch (error) {
                 console.error('Error fetching analysis:', error);
                 updateComplexityMeter({level: 0, description: "Analysis Error"});
-                if (readabilityScoreEl) readabilityScoreEl.textContent = 'Error';
+                // Update individual scores on error
+                if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = 'Error';
+                if (gunningFogScoreEl) gunningFogScoreEl.textContent = 'Error';
+                if (smogIndexScoreEl) smogIndexScoreEl.textContent = 'Error';
+                // if (readabilityScoreEl) readabilityScoreEl.textContent = 'Error'; // Removed
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 currentAnalysisResults = []; // Clear results on error
             } finally {
@@ -219,6 +244,104 @@ document.addEventListener('DOMContentLoaded', () => {
         // Always apply highlighting based on current results and target audience
         applyHighlighting(currentAnalysisResults);
     }
+
+    // --- Helper function to update score with animation ---
+    function updateScoreElement(element, newScore, scoreKey) {
+        const currentScore = newScore !== null ? newScore : 'N/A';
+        const previousScore = previousScores[scoreKey] !== null ? previousScores[scoreKey] : 'N/A';
+
+        if (element && currentScore !== previousScore) {
+            // Add class to trigger animation (defined in CSS)
+            element.classList.add('score-updating');
+            // Update text content
+            element.textContent = currentScore;
+            // Store the new score
+            previousScores[scoreKey] = newScore;
+            // Remove the class after animation duration (e.g., 300ms)
+            setTimeout(() => {
+                if (element) { // Check if element still exists
+                     element.classList.remove('score-updating');
+                }
+            }, 300); // Match CSS transition duration
+        } else if (element && element.textContent !== currentScore) {
+             // If score hasn't changed but text is wrong (e.g., initial load), update without animation
+             element.textContent = currentScore;
+             previousScores[scoreKey] = newScore; // Ensure previous score is stored
+        }
+    }
+
+
+    // --- Analysis & Highlighting ---
+    async function analyzeAndHighlight(forceHighlightUpdate = false) {
+        const text = quill.getText();
+        const startTime = performance.now();
+
+        if (!text.trim()) {
+            quill.formatText(0, quill.getLength(), 'background', false, 'api');
+            currentAnalysisResults = [];
+            updateComplexityMeter(null);
+            // Reset individual scores using the helper function
+            updateScoreElement(fleschKincaidScoreEl, null, 'flesch_kincaid_grade');
+            updateScoreElement(gunningFogScoreEl, null, 'gunning_fog');
+            updateScoreElement(smogIndexScoreEl, null, 'smog_index');
+            // if (readabilityScoreEl) readabilityScoreEl.textContent = '-'; // Removed
+            if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
+            // Clear highlighting if text is empty
+            applyHighlighting([]); // Call with empty results to clear formats
+            return;
+        }
+
+        // Only fetch new analysis if not forcing highlight update
+        if (!forceHighlightUpdate) {
+            // Show loading state
+            if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
+            // REMOVED: Update individual score placeholders to '...'
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text }),
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                currentAnalysisResults = data.results || []; // Store new results
+
+                // Calculate metrics
+                const endTime = performance.now();
+                const analysisTime = Math.round(endTime - startTime);
+
+                // Update UI parts that depend on new analysis
+                updateComplexityMeter(data.overall_level);
+                // Update individual readability scores using the helper function
+                const scores = data.readability_scores || {};
+                updateScoreElement(fleschKincaidScoreEl, scores.flesch_kincaid_grade, 'flesch_kincaid_grade');
+                updateScoreElement(gunningFogScoreEl, scores.gunning_fog, 'gunning_fog');
+                updateScoreElement(smogIndexScoreEl, scores.smog_index, 'smog_index');
+
+                if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
+
+            } catch (error) {
+                console.error('Error fetching analysis:', error);
+                updateComplexityMeter({level: 0, description: "Analysis Error"});
+                // Update individual scores on error using the helper function
+                updateScoreElement(fleschKincaidScoreEl, 'Error', 'flesch_kincaid_grade'); // Pass 'Error' as string
+                updateScoreElement(gunningFogScoreEl, 'Error', 'gunning_fog');
+                updateScoreElement(smogIndexScoreEl, 'Error', 'smog_index');
+
+                if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
+                currentAnalysisResults = []; // Clear results on error
+            } finally {
+                if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+            }
+        }
+
+        // Always apply highlighting based on current results and target audience
+        applyHighlighting(currentAnalysisResults);
+    }
+
 
     // --- Dynamic Color Calculation based on Sensitivity ---
     function getDynamicHighlightColor(score, sensitivityLevel) {

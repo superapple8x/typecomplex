@@ -2,108 +2,109 @@ argcomplete==3.6.0
 babel==2.17.0
 beautifulsoup4==4.13.3
 blinker==1.7.0
-blivet==3.11.0
-blivet-gui==2.6.0
+# blivet==3.11.0 (Removed - System specific)
+# blivet-gui==2.6.0 (Removed - System specific)
 boto3==1.37.25
 botocore==1.37.25
-Brlapi==0.8.5
+# Brlapi==0.8.5 (Removed - System specific)
 certifi==2023.5.7
 cffi==1.17.0
 charset-normalizer==3.3.2
 click==8.1.7
 click-plugins==1.1.1
 contourpy==1.3.1
-crypt_r==3.13.1
-cupshelpers==1.0
+# crypt_r==3.13.1 (Commented out - Requires python3-devel)
+# cupshelpers==1.0 (Removed - System specific)
 cycler==0.12.1
-dasbus==1.7
-dbus-python==1.3.2
+# dasbus==1.7 (Removed - System specific, likely unused)
+# dbus-python==1.3.2 (Removed - System specific, likely unused)
 distro==1.9.0
-dnf==4.23.0
-evdev==1.9.1
-fedora-third-party==0.10
+# dnf==4.23.0 (Removed - System specific)
+# evdev==1.9.1 (Removed - System specific)
+# fedora-third-party==0.10 (Removed - System specific)
 file-magic==0.4.0
 Flask==3.0.3
 fonttools==4.57.0
 greenlet==3.1.1
 humanize==4.9.0
 idna==3.7
-initial-setup==0.3.101
+# initial-setup==0.3.101 (Removed - System specific)
 iso639==0.1.4
 itsdangerous==2.1.2
 Jinja2==3.1.6
 jmespath==1.0.1
 kiwisolver==1.4.8
 langtable==0.0.68
-libcomps==0.1.21
-libdnf==0.74.0
-louis==3.28.0
-lutris==0.5.19
-lxml==5.2.1
+# libcomps==0.1.21 (Removed - System specific)
+# libdnf==0.74.0 (Removed - System specific)
+# louis==3.28.0 (Removed - System specific)
+# lutris==0.5.19 (Removed - System specific)
+# lxml==5.2.1 (Commented out - Requires system libs libxml2/libxslt-dev)
 MarkupSafe==2.1.5
 matplotlib==3.10.1
-moddb==0.12.0
-nftables==0.1
+# moddb==0.12.0 (Removed - System specific)
+# nftables==0.1 (Removed - System specific)
 numpy==2.2.4
 olefile==0.47
 packaging==24.2
 pandas==2.2.3
-perf==0.1
+# perf==0.1 (Removed - System specific)
 pexpect==4.9.0
 pid==2.2.3
 pillow==11.0.0
 ply==3.11
-productmd==1.43
+# productmd==1.43 (Removed - System specific)
 progressbar2==3.53.2
 protobuf==3.19.6
 psutil==5.9.8
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
-pwquality==1.4.5
-pycairo==1.25.1
+# pwquality==1.4.5 (Removed - System specific)
+# pycairo==1.25.1 (Commented out - Requires system lib cairo-dev)
 pycparser==2.20
-pycups==2.0.4
+# pycups==2.0.4 (Removed - System specific)
 pyenchant==3.2.2
 pygdbmi==0.11.0.0
 pygit2==1.17.0
-PyGObject==3.48.2
+# PyGObject==3.48.2 (Commented out - Requires system libs)
 pyinotify==0.9.6
-pykickstart==3.58
+# pykickstart==3.58 (Removed - System specific)
 pyparsing==3.2.3
-pyparted==3.13.0
+# pyparted==3.13.0 (Removed - System specific)
 pypresence==4.3.0
 PySocks==1.7.1
-python-augeas==1.1.0
+# python-augeas==1.1.0 (Removed - System specific)
 python-dateutil==2.8.2
-python-linux-procfs==0.7.3
-python-meh==0.52
+# python-linux-procfs==0.7.3 (Removed - System specific)
+# python-meh==0.52 (Removed - System specific)
 python-utils==3.7.0
 pytz==2025.2
-pyudev==0.24.3
+# pyudev==0.24.3 (Removed - System specific)
 pyxdg==0.27
 PyYAML==6.0.1
 regex==2024.11.6
 requests==2.32.3
 requests-file==2.0.0
 requests-ftp==0.3.1
-rpm==4.20.1
-rpmautospec==0.7.3
-rpmautospec-core==0.1.5
+# rpm==4.20.1 (Removed - System specific)
+# rpmautospec==0.7.3 (Removed - System specific)
+# rpmautospec-core==0.1.5 (Removed - System specific)
 s3transfer==0.11.4
-selinux @ file:///builddir/build/BUILD/libselinux-3.7-build/libselinux-3.7/src
+# selinux @ file:///builddir/build/BUILD/libselinux-3.7-build/libselinux-3.7/src (Removed - Local path dependency)
 sentry-sdk==2.17.0
-sepolicy @ file:///builddir/build/BUILD/policycoreutils-3.7-build/selinux-3.7/python/sepolicy
-setools==4.5.1
+# sepolicy @ file:///builddir/build/BUILD/policycoreutils-3.7-build/selinux-3.7/python/sepolicy (Removed - Local path dependency)
+# setools==4.5.1 (Removed - System specific)
 setuptools==69.2.0
-simpleaudio==1.0.4
-simpleline==1.9.0
+# simpleaudio==1.0.4 (Commented out - Requires python3-devel, likely unused)
+# simpleline==1.9.0 (Removed - System specific)
 six==1.16.0
-sos==4.8.2
+# sos==4.8.2 (Removed - System specific)
 soupsieve==2.6
 SQLAlchemy==2.0.40
-systemd-python==235
+# systemd-python==235 (Removed - System specific)
 typing_extensions==4.12.2
 tzdata==2025.2
 urllib3==1.26.20
 Werkzeug==3.0.6
-xkbregistry==0.3
+# xkbregistry==0.3 (Removed - System specific)
+textstat

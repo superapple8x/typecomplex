@@ -87,6 +87,30 @@
                     <!-- Removed the paragraph about deviation highlighting -->
                 </div>
 
+                <!-- Readability Scores Section -->
+                <div class="mt-4">
+                    <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Readability Scores</h3>
+                    <div class="grid grid-cols-2 gap-2 text-center">
+                        <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
+                            <div id="flesch-kincaid-score" class="text-lg font-semibold text-gray-100">-</div>
+                            <div class="text-xs text-gray-400">Flesch-Kincaid Grade</div>
+                        </div>
+                        <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
+                            <div id="gunning-fog-score" class="text-lg font-semibold text-gray-100">-</div>
+                            <div class="text-xs text-gray-400">Gunning Fog</div>
+                        </div>
+                        <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded col-span-2"> <!-- Span across 2 cols for SMOG -->
+                            <div id="smog-index-score" class="text-lg font-semibold text-gray-100">-</div>
+                            <div class="text-xs text-gray-400">SMOG Index</div>
+                        </div>
+                        <!-- Removed the old single 'Readability' score from status bar logic -->
+                        <!-- <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
+                            <div id="readability-score" class="text-lg font-semibold text-gray-100">-</div>
+                            <div class="text-xs text-gray-400">Overall Readability</div>
+                        </div> -->
+                    </div>
+                </div>
+
                 <!-- Add more analysis details here later if needed -->
             </div>
         </aside>
@@ -107,7 +131,8 @@
             <span class="has-tooltip" data-tippy-content="Total words">Words: <span id="word-count">0</span></span>
             <span class="has-tooltip" data-tippy-content="Total sentences">Sentences: <span id="sentence-count">0</span></span>
             <span class="has-tooltip" data-tippy-content="Total characters">Chars: <span id="character-count">0</span></span>
-            <span class="has-tooltip" data-tippy-content="Estimated reading level">Readability: <span id="readability-score">-</span></span>
+            <!-- Removed the single 'Readability' score from status bar -->
+            <!-- <span class="has-tooltip" data-tippy-content="Estimated reading level">Readability: <span id="readability-score">-</span></span> -->
         </div>
         <div>
             <span class="has-tooltip" data-tippy-content="Last analysis time">Analysis: <span id="analysis-time">0ms</span></span>

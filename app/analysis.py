@@ -1,6 +1,7 @@
 import nltk
 import re
 import math
+import textstat # Import textstat
 from app.frequency import get_word_frequency # Import frequency function
 
 # --- Constants for Scoring and Levels ---
@@ -168,9 +169,28 @@ def analyze_text_complexity(text):
     # Get the complexity level details based on the average score
     overall_level_details = get_overall_complexity_level(overall_score)
 
+    # --- Calculate Standard Readability Scores for the whole text ---
+    try:
+        flesch_kincaid_grade = round(textstat.flesch_kincaid_grade(text), 1)
+        gunning_fog = round(textstat.gunning_fog(text), 1)
+        smog_index = round(textstat.smog_index(text), 1)
+        # Add more scores if needed, e.g., textstat.flesch_reading_ease(text)
+    except Exception as e:
+        # Handle potential errors in textstat calculation (e.g., text too short)
+        print(f"Error calculating textstat scores: {e}")
+        flesch_kincaid_grade = None
+        gunning_fog = None
+        smog_index = None
+
     return {
         "results": results,
-        "overall_level": overall_level_details
+        "overall_level": overall_level_details,
+        "readability_scores": {
+            "flesch_kincaid_grade": flesch_kincaid_grade,
+            "gunning_fog": gunning_fog,
+            "smog_index": smog_index
+            # Add other scores here if calculated
+        }
     }
 
 # Example usage (for testing purposes)
@@ -183,6 +203,11 @@ if __name__ == '__main__':
     """
     analysis_results = analyze_text_complexity(test_text)
     print(f"Overall Level: {analysis_results['overall_level']['level']} ({analysis_results['overall_level']['description']})")
+    if analysis_results.get('readability_scores'):
+        print("Readability Scores:")
+        for name, score in analysis_results['readability_scores'].items():
+            print(f"  {name}: {score}")
+    print("\nSentence Analysis:")
     for result in analysis_results['results']:
         # Color and Level are no longer in the result dict from the backend
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
