@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const complexityLoadingEl = document.getElementById('complexity-loading');
     // const readabilityScoreEl = document.getElementById('readability-score'); // Removed - replaced by individual scores
     const analysisTimeEl = document.getElementById('analysis-time');
-    const sensitivitySelect = document.getElementById('complexity-sensitivity-select'); // Updated reference
+    const sensitivitySlider = document.getElementById('complexity-sensitivity-slider'); // Changed from select to slider
+    const sensitivityLabel = document.getElementById('sensitivity-value-label'); // Added label reference
     // New elements for individual readability scores
     const fleschKincaidScoreEl = document.getElementById('flesch-kincaid-score');
     const gunningFogScoreEl = document.getElementById('gunning-fog-score');
@@ -86,6 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State for Analysis ---
     let currentAnalysisResults = []; // Store results to map sentences
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
+    const sensitivityLabels = { // Map values to labels
+        1: "V. Lenient",
+        2: "Lenient",
+        3: "Standard",
+        4: "Strict",
+        5: "V. Strict"
+    };
     let previousScores = { // Store previous scores for animation
         flesch_kincaid_grade: null,
         gunning_fog: null,
@@ -606,14 +614,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Listener for Complexity Sensitivity Dropdown
-    if (sensitivitySelect) {
-        sensitivitySelect.addEventListener('change', (event) => {
+    // Function to update sensitivity label
+    function updateSensitivityLabel(level) {
+        if (sensitivityLabel) {
+            sensitivityLabel.textContent = sensitivityLabels[level] || 'Unknown';
+        }
+    }
+
+    // Listener for Complexity Sensitivity Slider
+    if (sensitivitySlider) {
+        // Set initial label text on load
+        updateSensitivityLabel(parseInt(sensitivitySlider.value, 10));
+
+        sensitivitySlider.addEventListener('input', (event) => { // Changed from 'change' to 'input'
             const newLevel = parseInt(event.target.value, 10);
-            console.log(`Complexity sensitivity changed. New selected level: ${newLevel}`); // DEBUG
+            // console.log(`Complexity sensitivity changed. New selected level: ${newLevel}`); // DEBUG
             currentSensitivityLevel = newLevel;
+            updateSensitivityLabel(newLevel); // Update the label text
             // Re-apply highlighting based on the new sensitivity level, without re-analyzing text
-            console.log("Forcing highlight update due to sensitivity change."); // DEBUG
+            // console.log("Forcing highlight update due to sensitivity change."); // DEBUG
             analyzeAndHighlight(true); // Pass true to force highlight update
         });
     }

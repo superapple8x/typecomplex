@@ -74,17 +74,13 @@
                     <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p> <!-- Keep for potential status messages, but less prominent -->
                 </div>
 
-                <!-- Complexity Sensitivity Selector -->
+                <!-- Complexity Sensitivity Slider -->
                 <div class="mt-4">
-                    <label for="complexity-sensitivity-select" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Complexity Sensitivity</label>
-                    <select id="complexity-sensitivity-select" class="w-full bg-gray-700 dark:bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 p-1.5">
-                        <option value="1">Very Lenient</option>
-                        <option value="2">Lenient</option>
-                        <option value="3" selected>Standard</option> <!-- Default -->
-                        <option value="4">Strict</option>
-                        <option value="5">Very Strict</option>
-                    </select>
-                    <!-- Removed the paragraph about deviation highlighting -->
+                    <label for="complexity-sensitivity-slider" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Complexity Sensitivity</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="range" id="complexity-sensitivity-slider" min="1" max="5" step="1" value="3" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                        <span id="sensitivity-value-label" class="text-sm text-gray-400 w-24 text-right font-mono">Standard</span>
+                    </div>
                 </div>
 
                 <!-- Readability Scores Section -->
