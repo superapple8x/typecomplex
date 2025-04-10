@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyHighlighting(currentAnalysisResults); // Ensure highlighting is called
 
         // Update the visual document map *after* results are potentially fetched/updated
-        console.log("Calling updateDocumentMap with results:", currentAnalysisResults); // DEBUG
+        // console.log("Calling updateDocumentMap with results:", currentAnalysisResults); // DEBUG REMOVED
         updateDocumentMap(currentAnalysisResults);
     }
 
@@ -433,9 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Visual Document Map Update ---
     function updateDocumentMap(results) {
-        console.log("updateDocumentMap received results:", results); // DEBUG
+        // console.log("updateDocumentMap received results:", results); // DEBUG REMOVED
         if (!documentMapContainer) {
-            console.error("Document map container not found!"); // DEBUG
+            // console.error("Document map container not found!"); // DEBUG REMOVED
             return;
         }
 
@@ -457,11 +457,11 @@ document.addEventListener('DOMContentLoaded', () => {
             gray: 'bg-gray-500', // Fallback
         };
 
-        console.log(`Processing ${results.length} results for document map.`); // DEBUG
+        // console.log(`Processing ${results.length} results for document map.`); // DEBUG REMOVED
         results.forEach((result, idx) => {
-             console.log(`Creating segment for result index ${idx}:`, result); // DEBUG
+             // console.log(`Creating segment for result index ${idx}:`, result); // DEBUG REMOVED
              if (result.index === undefined || result.score === undefined) {
-                 console.warn(`Skipping result at index ${idx} due to missing index or score.`); // DEBUG
+                 // console.warn(`Skipping result at index ${idx} due to missing index or score.`); // DEBUG REMOVED
                  return; // Skip this iteration if data is missing
              }
             const segment = document.createElement('div');
@@ -806,6 +806,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     // If other classes were applied this way, this could be an issue.
                     // For now, assuming only 'highlight-map-hover' is applied this way temporarily.
                     quill.formatText(result.start, length, 'class', false, 'api');
+                }
+            }
+        });
+
+        // Add click listener to select text in editor
+        documentMapContainer.addEventListener('click', (event) => {
+            const segment = event.target.closest('.map-segment');
+            if (!segment || !segment.dataset.sentenceIndex) return;
+
+            const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+            const result = currentAnalysisResults[sentenceIndex];
+
+            if (result && result.start !== undefined && result.end !== undefined) {
+                const length = result.end - result.start;
+                if (length > 0) {
+                    // Set Quill's selection to highlight the sentence
+                    quill.setSelection(result.start, length, 'user');
+                    // Optional: Scroll the editor to the selection
+                    quill.scrollIntoView();
                 }
             }
         });
