@@ -251,6 +251,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Always apply highlighting based on current results and target audience
+        applyHighlighting(currentAnalysisResults); // Ensure highlighting is called
+
         // Update the visual document map *after* results are potentially fetched/updated
         console.log("Calling updateDocumentMap with results:", currentAnalysisResults); // DEBUG
         updateDocumentMap(currentAnalysisResults);
@@ -282,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Analysis & Highlighting --- // <<< REMOVE THIS REDUNDANT DEFINITION
+    // --- Analysis & Highlighting --- // <<< REDUNDANT DEFINITION COMMENTED OUT
     /*
     async function analyzeAndHighlight(forceHighlightUpdate = false) {
         const text = quill.getText();
@@ -353,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Always apply highlighting based on current results and target audience
-        applyHighlighting(currentAnalysisResults);
+        // applyHighlighting(currentAnalysisResults); // This call was inside the commented block
     }
     */
     // --- Dynamic Color Calculation based on Sensitivity ---
