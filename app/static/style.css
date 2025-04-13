@@ -1403,6 +1403,17 @@ video {
   /* Ensure segments have a minimum width */
 }
 
+/* Custom underline for goal deviation (now using Quill's <u> tag) */
+
+.ql-editor u {
+  text-decoration: underline !important;
+  text-decoration-color: #facc15 !important;
+  /* Tailwind yellow-400 */
+  text-decoration-style: wavy !important;
+  /* Optional: Adjust thickness if needed */
+  /* text-decoration-thickness: 1px !important; */
+}
+
 .hover\:scale-y-125:hover {
   --tw-scale-y: 1.25;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));

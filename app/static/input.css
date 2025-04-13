@@ -47,3 +47,12 @@
   @apply flex-grow transition-all duration-300 ease-in-out;
   min-width: 2px; /* Ensure segments have a minimum width */
 }
+
+/* Custom underline for goal deviation (now using Quill's <u> tag) */
+.ql-editor u {
+  text-decoration: underline !important;
+  text-decoration-color: #facc15 !important; /* Tailwind yellow-400 */
+  text-decoration-style: wavy !important;
+  /* Optional: Adjust thickness if needed */
+  /* text-decoration-thickness: 1px !important; */
+}

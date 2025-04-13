@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Removed the custom Attributor registration as it caused errors with global script loading.
     // We will use a standard CSS class instead.
 
+    // REMOVED Custom Format Registration for GoalDeviationUnderline
+
+
     const quill = new Quill(editorContainer, {
         theme: 'snow', // Use the Snow theme
         modules: {
@@ -100,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTargetAudience = 'Standard'; // Default audience, updated from select element
     let showHighlighting = true; // Default state for toggle, updated from checkbox
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
+    let isOverallScoreOutOfBounds = false; // NEW: Track if overall score is outside target
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
     const sensitivityLabels = { 1: "V. Lenient", 2: "Lenient", 3: "Standard", 4: "Strict", 5: "V. Strict" };
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
@@ -150,46 +154,30 @@ function formatTargetRange(targetTuple) { // NEW
 }
 
 // --- Update Readability Scores (Handles calculated + target display) ---
-function updateReadabilityScores(analysisData) { // NEW/MODIFIED
+function updateReadabilityScores(analysisData) {
     const calculatedScores = analysisData?.readability_scores || {};
     const targetScores = analysisData?.target_readability_scores || {};
 
-    // Update calculated scores (using existing updateScoreElement helper for potential animation)
+    // Update calculated scores
     updateScoreElement(fleschKincaidScoreEl, calculatedScores.flesch_kincaid_grade, 'flesch_kincaid_grade');
     updateScoreElement(gunningFogScoreEl, calculatedScores.gunning_fog, 'gunning_fog');
     updateScoreElement(smogIndexScoreEl, calculatedScores.smog_index, 'smog_index');
 
-    // Update target score display based on toggle state
-    console.log(`[updateReadabilityScores] showGoalIndicators: ${showGoalIndicators}`); // DEBUG
-    console.log(`[updateReadabilityScores] analysisData:`, analysisData); // DEBUG
-    console.log(`[updateReadabilityScores] targetScores:`, targetScores); // DEBUG
-    console.log(`[updateReadabilityScores] fleschKincaidTargetEl:`, fleschKincaidTargetEl); // DEBUG
-    console.log(`[updateReadabilityScores] gunningFogTargetEl:`, gunningFogTargetEl); // DEBUG
+    // --- Update Target Text Content (Always update text if data exists) ---
+    const fkTargetText = formatTargetRange(targetScores?.flesch_kincaid_grade);
+    const gfTargetText = formatTargetRange(targetScores?.gunning_fog);
 
-    if (showGoalIndicators) {
-        if (fleschKincaidTargetEl) {
-            const fkTargetText = formatTargetRange(targetScores?.flesch_kincaid_grade); // Optional chaining
-            console.log(`[updateReadabilityScores] Setting FK Target text: "${fkTargetText}"`); // DEBUG
-            fleschKincaidTargetEl.textContent = fkTargetText;
-            fleschKincaidTargetEl.classList.remove('hidden'); // Ensure visible
-        } else {
-            console.warn("[updateReadabilityScores] fleschKincaidTargetEl not found."); // DEBUG
-        }
-        if (gunningFogTargetEl) {
-            const gfTargetText = formatTargetRange(targetScores?.gunning_fog); // Optional chaining
-            console.log(`[updateReadabilityScores] Setting GF Target text: "${gfTargetText}"`); // DEBUG
-            gunningFogTargetEl.textContent = gfTargetText;
-            gunningFogTargetEl.classList.remove('hidden'); // Ensure visible
-        } else {
-            console.warn("[updateReadabilityScores] gunningFogTargetEl not found."); // DEBUG
-        }
-        // Add logic for SMOG target if applicable and element exists
-    } else {
-        // Hide target elements if toggle is off
-        if (fleschKincaidTargetEl) fleschKincaidTargetEl.classList.add('hidden');
-        if (gunningFogTargetEl) gunningFogTargetEl.classList.add('hidden');
-        // Hide other target elements if added
+    if (fleschKincaidTargetEl) {
+        fleschKincaidTargetEl.textContent = fkTargetText;
+        // Visibility is handled by the toggle listener and initial state
     }
+    if (gunningFogTargetEl) {
+        gunningFogTargetEl.textContent = gfTargetText;
+        // Visibility is handled by the toggle listener and initial state
+    }
+    // --- End Update Target Text ---
+
+    // Visibility is handled by the toggle listener and initial setup
 }
 
 
@@ -227,34 +215,43 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         // Removed the line that updated complexityDescriptionEl.textContent - static labels handle this.
 
-        // --- NEW: Add Target Marker Logic ---
-        // Example: Add a class to the meter container if goal indicators are shown
-        // This requires CSS rules for `.overall-complexity-meter.show-goal-indicator::before` or similar
-        // to draw the marker/zone based on CSS variables.
-        const meterContainer = document.getElementById('overall-complexity-meter'); // Assuming this ID exists on the container div
-        if (meterContainer) {
-            if (showGoalIndicators && analysisData?.target_readability_scores && levelData) {
-                 // TODO: A more robust way to get target level range is needed.
-                 // Option 1: Backend sends target level range based on profile thresholds.
-                 // Option 2: Frontend approximates based on target scores (less accurate).
-                 // For now, just add the class to enable CSS styling.
-                 // Example placeholder logic (needs refinement):
-                 // const targetFKG = analysisData.target_readability_scores.flesch_kincaid_grade;
-                 // let targetMinLevel = 1, targetMaxLevel = 5;
-                 // if (targetFKG) { // Very rough approximation
-                 //    if (targetFKG[1] && targetFKG[1] < 11) targetMaxLevel = 3; // General Public max ~ Moderate
-                 //    if (targetFKG[0] && targetFKG[0] >= 13) targetMinLevel = 4; // Academic min ~ Complex
-                 // }
-                 // meterContainer.style.setProperty('--target-min-percent', `${(targetMinLevel -1) * 20}%`);
-                 // meterContainer.style.setProperty('--target-max-percent', `${targetMaxLevel * 20}%`);
-                 meterContainer.classList.add('show-goal-indicator'); // Add class for CSS styling of marker/zone
-            } else {
-                 meterContainer.classList.remove('show-goal-indicator');
-                 // meterContainer.style.removeProperty('--target-min-percent');
-                 // meterContainer.style.removeProperty('--target-max-percent');
-            }
-        }
+        // --- Target Marker Logic --- (Moved to applyGoalIndicatorVisibility)
+        // const meterContainer = document.getElementById('overall-complexity-meter');
+        // if (meterContainer) {
+        //     // Apply/remove class based on current toggle state
+        //     meterContainer.classList.toggle('show-goal-indicator', showGoalIndicators);
+        //     // CSS needs to handle the display based on this class
+        // }
         // --- End Target Marker Logic ---
+    }
+
+    // --- NEW Helper: Check if overall scores are out of bounds ---
+    function checkIfOutOfBounds(calculatedScores, targetScores) {
+        if (!calculatedScores || !targetScores) return false;
+
+        let isOut = false;
+
+        // Check Flesch-Kincaid Grade
+        const fkTarget = targetScores.flesch_kincaid_grade;
+        const fkScore = calculatedScores.flesch_kincaid_grade;
+        if (fkTarget && fkScore !== null) {
+            const [min, max] = fkTarget;
+            if (min !== null && fkScore < min) isOut = true;
+            if (max !== null && fkScore > max) isOut = true;
+        }
+
+        // Check Gunning Fog (if not already out)
+        const gfTarget = targetScores.gunning_fog;
+        const gfScore = calculatedScores.gunning_fog;
+        if (!isOut && gfTarget && gfScore !== null) {
+            const [min, max] = gfTarget;
+            if (min !== null && gfScore < min) isOut = true;
+            if (max !== null && gfScore > max) isOut = true;
+        }
+
+        // Add checks for other scores (e.g., SMOG) here if needed
+
+        return isOut;
     }
 
 
@@ -284,7 +281,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         if (!text.trim()) {
             quill.formatText(0, quill.getLength(), 'background', false, 'api'); // Clear highlights
+            quill.formatText(0, quill.getLength(), 'underline', false, 'api'); // Clear underlines
             currentAnalysisData = null; // Clear full data
+            isOverallScoreOutOfBounds = false; // Reset out of bounds flag
             updateComplexityMeter(null); // Reset meter
             updateReadabilityScores(null); // Clear scores and targets
             updateDocumentMap(null); // Clear map
@@ -320,12 +319,23 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 const analysisTime = Math.round(endTime - startTime);
 
                 // Update UI using the full data object
-                updateComplexityMeter(currentAnalysisData); // MODIFIED (pass full data)
-                updateReadabilityScores(currentAnalysisData); // MODIFIED (handles calculated + target)
+                updateComplexityMeter(currentAnalysisData); // Pass full data (handles meter levels)
+                updateReadabilityScores(currentAnalysisData); // Pass full data (handles score text)
                 if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
+
+                // --- NEW: Check if overall score is out of bounds ---
+                isOverallScoreOutOfBounds = checkIfOutOfBounds(
+                    currentAnalysisData?.readability_scores,
+                    currentAnalysisData?.target_readability_scores
+                );
+                // console.log("Overall Score Out Of Bounds:", isOverallScoreOutOfBounds); // DEBUG
+
+                // --- Explicitly apply visibility state AFTER data is processed ---
+                applyGoalIndicatorVisibility();
             } catch (error) {
                 console.error('Error fetching analysis:', error);
                 currentAnalysisData = null; // Clear data on error
+                isOverallScoreOutOfBounds = false; // Reset flag on error
                 updateComplexityMeter(null); // Reset meter
                 updateReadabilityScores(null); // Reset scores
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
@@ -473,9 +483,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     function applyHighlighting(results) {
         // Clear previous formats first
         quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        quill.formatText(0, quill.getLength(), 'class', false, 'api'); // Clear other classes like hover
+        // Clear standard underline format
+        quill.formatText(0, quill.getLength(), 'underline', false, 'api');
+        // Clear any lingering classes (like hover) - might need refinement if other classes are used
+        quill.formatText(0, quill.getLength(), 'class', false, 'api');
 
-        // --- NEW: Check toggle state ---
+
+        // --- Check highlighting toggle state ---
         if (!showHighlighting) {
             // console.log("Highlighting is OFF"); // DEBUG
             return; // Exit if highlighting is turned off
@@ -484,6 +498,25 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // console.log("Highlighting is ON, applying formats..."); // DEBUG
 
         if (!results) return; // Check if results exist
+
+        // --- Determine deviation direction for goal indicator logic ---
+        let deviationDirection = null; // "high" (too complex), "low" (too simple), or null
+        if (isOverallScoreOutOfBounds && currentAnalysisData && currentAnalysisData.readability_scores && currentAnalysisData.target_readability_scores) {
+            // We'll use Flesch-Kincaid as the main reference (could be improved to use all)
+            const fkScore = currentAnalysisData.readability_scores.flesch_kincaid_grade;
+            const fkTarget = currentAnalysisData.target_readability_scores.flesch_kincaid_grade;
+            if (fkScore !== null && fkTarget) {
+                const [min, max] = fkTarget;
+                if (max !== null && fkScore > max) deviationDirection = "high";
+                else if (min !== null && fkScore < min) deviationDirection = "low";
+                // Debug log for deviation direction
+                console.log(`[Goal Indicator] Flesch-Kincaid: score=${fkScore}, target=[${min},${max}], deviationDirection=${deviationDirection}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}`);
+            } else {
+                console.log(`[Goal Indicator] Flesch-Kincaid: score=${fkScore}, target=${fkTarget}, deviationDirection=${deviationDirection}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}`);
+            }
+        } else {
+            console.log(`[Goal Indicator] Not out of bounds or missing data. isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}`);
+        }
 
         results.forEach(result => {
             const score = result.score; // Get score from backend result
@@ -494,8 +527,30 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const length = endIndex - startIndex; // Calculate length
 
             if (startIndex !== undefined && length > 0) {
-                // Apply background color using indices
+                // 1. Apply background color
                 quill.formatText(startIndex, length, 'background', bgColor, 'api');
+
+                // 2. Check conditions for underline
+                let shouldApplyUnderline = false;
+                if (showGoalIndicators && isOverallScoreOutOfBounds) {
+                    if (deviationDirection === "high" && (color === "red" || color === "orange")) {
+                        shouldApplyUnderline = true;
+                    } else if (deviationDirection === "low" && color === "green") {
+                        shouldApplyUnderline = true;
+                    }
+                }
+
+                // --- DEBUGGING LOG ---
+                if (result.index === 0) {
+                    console.log(`Sentence ${result.index}: showGoalIndicators=${showGoalIndicators}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}, color=${color}, deviationDirection=${deviationDirection}, shouldApplyUnderline=${shouldApplyUnderline}`);
+                }
+                // --- END DEBUGGING LOG ---
+
+                // 3. Apply standard underline format if needed
+                if (shouldApplyUnderline) {
+                    // Apply Quill's standard underline format
+                    quill.formatText(startIndex, length, 'underline', true, 'api');
+                }
             } else {
                  // Log if indices are missing or invalid
                  console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
@@ -511,25 +566,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         if (!documentMapContainer) return;
         documentMapContainer.innerHTML = ''; // Clear previous map segments and lines
 
-        // --- NEW: Add Target Line Logic ---
-        // Add class to container for CSS-based styling of the line
-        if (showGoalIndicators && analysisData?.target_readability_scores) {
-            // TODO: Calculate the complexity score threshold corresponding to the target audience.
-            // This is complex as it depends on the profile's thresholds and how they map back to scores.
-            // For now, we'll just add the class and assume CSS handles the line display.
-            // A simpler approach might be to use the 'moderate' threshold from the profile.
-            // Example placeholder:
-            // const profileThresholds = analysisData.profile?.thresholds; // Assuming backend sends profile used
-            // if (profileThresholds) {
-            //    const targetMaxScore = profileThresholds.moderate; // Use moderate threshold as target line?
-            //    const targetLinePercent = Math.min(100, Math.max(5, (targetMaxScore || 0) * 60 + 5)); // Scale like bars
-            //    documentMapContainer.style.setProperty('--target-line-percent', `${targetLinePercent}%`);
-            // }
-            documentMapContainer.classList.add('show-goal-indicator'); // Add class for CSS styling of line
-        } else {
-            documentMapContainer.classList.remove('show-goal-indicator');
-            // documentMapContainer.style.removeProperty('--target-line-percent');
-        }
+        // --- Target Line Logic --- (Moved to applyGoalIndicatorVisibility)
+        // if (documentMapContainer) {
+        //      // Apply/remove class based on current toggle state
+        //     documentMapContainer.classList.toggle('show-goal-indicator', showGoalIndicators);
+        //      // CSS needs to handle the display based on this class
+        //      // TODO: Add CSS rules for .document-map.show-goal-indicator::before or similar
+        // }
         // --- End Target Line Logic ---
 
         if (!results || results.length === 0) {
@@ -566,6 +609,29 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             documentMapContainer.appendChild(segment);
         });
+    }
+
+
+    // --- NEW: Function to Apply Goal Indicator Visibility ---
+    function applyGoalIndicatorVisibility() {
+        // Toggle visibility of target score text elements
+        if (fleschKincaidTargetEl) {
+            fleschKincaidTargetEl.style.display = showGoalIndicators ? 'inline' : 'none';
+        }
+        if (gunningFogTargetEl) {
+            gunningFogTargetEl.style.display = showGoalIndicators ? 'inline' : 'none';
+        }
+
+        // Toggle class on meter container
+        const meterContainer = document.getElementById('overall-complexity-meter');
+        if (meterContainer) {
+            meterContainer.classList.toggle('show-goal-indicator', showGoalIndicators);
+        }
+
+        // Toggle class on document map container
+        if (documentMapContainer) {
+            documentMapContainer.classList.toggle('show-goal-indicator', showGoalIndicators);
+        }
     }
 
 
@@ -816,7 +882,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (targetAudienceSelect) {
         targetAudienceSelect.addEventListener('change', (event) => {
             currentTargetAudience = event.target.value;
-            console.log(`Target audience changed to: ${currentTargetAudience}`); // DEBUG
+            // console.log(`Target audience changed to: ${currentTargetAudience}`); // DEBUG
             analyzeAndHighlight(false); // Re-analyze with new audience (force backend call)
         });
         // Set initial state from dropdown value on load
@@ -829,7 +895,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (toggleHighlighting) {
         toggleHighlighting.addEventListener('change', (event) => {
             showHighlighting = event.target.checked;
-            console.log(`Show Highlighting set to: ${showHighlighting}`); // DEBUG
+            // console.log(`Show Highlighting set to: ${showHighlighting}`); // DEBUG
             // Immediately apply/remove highlighting based on current data
             applyHighlighting(currentAnalysisData?.results || []);
         });
@@ -842,16 +908,16 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // Toggle Goal Indicators Listener
     if (toggleGoalIndicators) {
+        // Set initial state from checkbox value on load FIRST
+        showGoalIndicators = toggleGoalIndicators.checked;
+
         toggleGoalIndicators.addEventListener('change', (event) => {
             showGoalIndicators = event.target.checked;
-            console.log(`Show Goal Indicators set to: ${showGoalIndicators}`); // DEBUG
-            // Immediately update UI elements that show goal indicators using current data
-            updateReadabilityScores(currentAnalysisData);
-            updateComplexityMeter(currentAnalysisData);
-            updateDocumentMap(currentAnalysisData);
+            // Immediately apply the new visibility state for labels/markers
+            applyGoalIndicatorVisibility();
+            // Re-apply highlighting to add/remove underlines based on the new toggle state
+            applyHighlighting(currentAnalysisData?.results || []);
         });
-        // Set initial state from checkbox value on load
-        showGoalIndicators = toggleGoalIndicators.checked;
     } else {
         console.warn("Toggle goal indicators element not found.");
         showGoalIndicators = true; // Default if element missing
@@ -861,6 +927,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- Initial Load ---
     updateStats(); // Initial stats calculation
     // Set initial audience/toggle states (done above in listener checks)
+    applyGoalIndicatorVisibility(); // Apply initial visibility based on default toggle state
     // Initial analysis call
     setTimeout(analyzeAndHighlight, 100); // Small delay to ensure Quill is fully ready and initial states are set
 
