@@ -215,29 +215,18 @@
                     tippy('#overall-complexity-info', {
                       content: `<div class='text-left p-1'>
                                     <strong class='block mb-1 text-gray-100'>Sentence Score Factors (Weighted):</strong>
-                                    <ul class='list-none text-xs space-y-1'>
-                                        <li class='flex items-center'>
-                                            <span class='w-2/5'>Sentence Length</span>
-                                            <span class='w-3/5 flex items-center'>
-                                                <span class='h-2 bg-blue-400 rounded-l' style='width: 40%;'></span><span class='h-2 bg-gray-600 rounded-r' style='width: 60%;'></span>
-                                                <span class='ml-2 text-gray-400'>(40%)</span>
-                                            </span>
-                                        </li>
-                                        <li class='flex items-center'>
-                                            <span class='w-2/5'>Avg. Word Length</span>
-                                             <span class='w-3/5 flex items-center'>
-                                                <span class='h-2 bg-green-400 rounded-l' style='width: 30%;'></span><span class='h-2 bg-gray-600 rounded-r' style='width: 70%;'></span>
-                                                <span class='ml-2 text-gray-400'>(30%)</span>
-                                            </span>
-                                        </li>
-                                        <li class='flex items-center'>
-                                            <span class='w-2/5'>Avg. Word Rarity*</span>
-                                             <span class='w-3/5 flex items-center'>
-                                                <span class='h-2 bg-yellow-400 rounded-l' style='width: 30%;'></span><span class='h-2 bg-gray-600 rounded-r' style='width: 70%;'></span>
-                                                <span class='ml-2 text-gray-400'>(30%)</span>
-                                            </span>
-                                        </li>
-                                    </ul>
+                                    <!-- Single stacked bar for weights -->
+                                    <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
+                                        <div style="width:40%; background-color:#60a5fa;" title="Sentence Length"></div>
+                                        <div style="width:30%; background-color:#34d399;" title="Avg. Word Length"></div>
+                                        <div style="width:30%; background-color:#facc15;" title="Avg. Word Rarity"></div>
+                                    </div>
+                                    <!-- Legend -->
+                                    <div class='flex justify-between text-xs mt-1 mb-2'>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sentence Length (40%)</span>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Avg. Word Length (30%)</span>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Avg. Word Rarity (30%)</span>
+                                    </div>
                                     <hr class='border-gray-500 my-2'>
                                     <p class='text-xs text-gray-400'>*Based on word frequency. Rarer words increase score. Determines highlighting & map height.</p>
                                 </div>`,
@@ -250,12 +239,16 @@
                     tippy('#readability-scores-info', {
                       content: `<div class='text-left p-1'>
                                     <strong class='block mb-1 text-gray-100'>Standard Readability Metrics (Entire Text):</strong>
-                                    <ul class='list-none text-xs space-y-1'>
-                                        <li><strong>FK Grade Level:</strong> Flesch-Kincaid (US school grade).</li>
-                                        <li><strong>Gunning Fog:</strong> Years of formal education needed.</li>
+                                    <ul class='list-none text-xs space-y-1 mb-2'>
+                                        <li><strong>FK Grade Level:</strong> Flesch-Kincaid (US school grade)</li>
+                                        <li><strong>Gunning Fog:</strong> Years of formal education needed</li>
                                     </ul>
                                     <hr class='border-gray-500 my-2'>
-                                    <p class='text-xs text-gray-400'>Calculated using the 'textstat' library.</p>
+                                    <p class='text-xs text-gray-400 mb-2'>
+                                      <strong>Goal Indicator:</strong> When the overall score is outside the target range, sentences that most contribute to the deviation (based on the above metrics) are <span style="text-decoration: underline wavy #facc15;">underlined with a yellow wavy line</span>.<br>
+                                      <em>For example, if the Flesch-Kincaid Grade is too high, the most complex sentences are underlined. If it's too low, the simplest sentences are underlined.</em>
+                                    </p>
+                                    <p class='text-xs text-gray-500'>Calculated using the 'textstat' library.</p>
                                 </div>`,
                       allowHTML: true,
                       placement: 'top',
