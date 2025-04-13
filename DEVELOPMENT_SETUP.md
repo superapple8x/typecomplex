@@ -40,6 +40,7 @@ This document outlines the steps required to set up and run the Sentence Complex
     nltk.download('omw-1.4')
     exit()
     ```
+    *(See Troubleshooting section below for potential issues with 'punkt' on some systems).*
 
 5.  **Install Frontend Dependencies:**
     Install Node.js packages defined in `package.json`.
@@ -52,6 +53,7 @@ This document outlines the steps required to set up and run the Sentence Complex
     ```bash
     npm run build:css
     ```
+    *(See Troubleshooting section below if this command fails).*
 
 ## Running the Application
 
@@ -70,3 +72,32 @@ This document outlines the steps required to set up and run the Sentence Complex
 
 *   For CSS changes, you can run `npm run watch:css` in a separate terminal to automatically rebuild `style.css` when `input.css` or related files change.
 *   Remember to activate the virtual environment (`source .venv/bin/activate`) in any new terminal session before running `flask` commands.
+
+## Troubleshooting / Environment Notes
+
+### Tailwind CSS Build Failure (Especially on WSL or after OS change)
+
+If the `npm run build:css` command fails with an error like `../tailwindcss/lib/cli.js: not found`, it might be due to issues with the Node.js module installation, potentially caused by switching operating systems (e.g., from Linux to Windows/WSL) or corrupted dependencies.
+
+**Solution:** Perform a clean reinstall of Node.js dependencies:
+```bash
+# 1. Remove existing modules and lock file
+rm -rf node_modules package-lock.json
+
+# 2. Reinstall dependencies
+npm install
+
+# 3. Try the build command again
+npm run build:css
+```
+This ensures that the dependencies are installed correctly for the current environment.
+
+### NLTK 'punkt' Tokenizer Issues (Ubuntu/WSL)
+
+On some systems (observed on Ubuntu 24 within WSL), the application might fail to load the NLTK 'punkt' tokenizer even after `nltk.download('punkt')` reports success. This can manifest as errors mentioning `punkt_tab` not found during application startup (`flask run`).
+
+**Solution:** Explicitly download the `punkt_tab` resource using the NLTK downloader:
+```bash
+python -c "import nltk; nltk.download('punkt_tab');"
+```
+Run this command within your activated virtual environment after installing Python dependencies. This seems necessary for NLTK to correctly locate the required tokenizer data in these specific environments.

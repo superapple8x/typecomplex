@@ -25,19 +25,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
     const openSidebarBtn = document.getElementById('open-sidebar-btn');
     const complexityLevelDivs = document.querySelectorAll('#overall-complexity-meter .complexity-level');
-    const complexityDescriptionEl = document.getElementById('complexity-description');
+    const complexityDescriptionEl = document.getElementById('complexity-description'); // Might be removed if not used
     const complexityPercentageEl = document.getElementById('complexity-percentage');
     const complexityLoadingEl = document.getElementById('complexity-loading');
-    // const readabilityScoreEl = document.getElementById('readability-score'); // Removed - replaced by individual scores
     const analysisTimeEl = document.getElementById('analysis-time');
-    const sensitivitySlider = document.getElementById('complexity-sensitivity-slider'); // Changed from select to slider
-    const sensitivityLabel = document.getElementById('sensitivity-value-label'); // Added label reference
-    // New elements for individual readability scores
+    const sensitivitySlider = document.getElementById('complexity-sensitivity-slider');
+    const sensitivityLabel = document.getElementById('sensitivity-value-label');
+    // Readability score elements
     const fleschKincaidScoreEl = document.getElementById('flesch-kincaid-score');
     const gunningFogScoreEl = document.getElementById('gunning-fog-score');
     const smogIndexScoreEl = document.getElementById('smog-index-score');
     // Visual Map container
     const documentMapContainer = document.getElementById('document-map');
+    // --- NEW DOM References ---
+    const targetAudienceSelect = document.getElementById('target-audience-select'); // e.g., <select id="target-audience-select">...</select>
+    const toggleHighlighting = document.getElementById('toggle-highlighting');       // e.g., <input type="checkbox" id="toggle-highlighting" checked>
+    const toggleGoalIndicators = document.getElementById('toggle-goal-indicators'); // e.g., <input type="checkbox" id="toggle-goal-indicators" checked>
+    // Elements for displaying targets (assuming they exist or will be added in HTML)
+    const fleschKincaidTargetEl = document.getElementById('flesch-kincaid-target'); // e.g., <span id="flesch-kincaid-target" class="text-xs text-gray-400 ml-1"></span>
+    const gunningFogTargetEl = document.getElementById('gunning-fog-target');       // e.g., <span id="gunning-fog-target" class="text-xs text-gray-400 ml-1"></span>
+    // Optional: Elements for visual indicators on meter/map (might be handled by CSS classes instead)
+    // const complexityMeterTargetMarker = document.getElementById('complexity-meter-target-marker');
+    // const documentMapTargetLine = document.getElementById('document-map-target-line');
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -87,20 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- State for Analysis ---
-    let currentAnalysisResults = []; // Store results to map sentences
+    let currentAnalysisData = null; // Store the full analysis response object { results: [], overall_level: {}, readability_scores: {}, target_readability_scores: {} }
+    let currentTargetAudience = 'Standard'; // Default audience, updated from select element
+    let showHighlighting = true; // Default state for toggle, updated from checkbox
+    let showGoalIndicators = true; // Default state for toggle, updated from checkbox
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
-    const sensitivityLabels = { // Map values to labels
-        1: "V. Lenient",
-        2: "Lenient",
-        3: "Standard",
-        4: "Strict",
-        5: "V. Strict"
-    };
-    let previousScores = { // Store previous scores for animation
-        flesch_kincaid_grade: null,
-        gunning_fog: null,
-        smog_index: null,
-    };
+    const sensitivityLabels = { 1: "V. Lenient", 2: "Lenient", 3: "Standard", 4: "Strict", 5: "V. Strict" };
+    let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -131,7 +133,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Complexity Meter Update ---
-    function updateComplexityMeter(levelData) {
+// --- Helper function to format target ranges ---
+function formatTargetRange(targetTuple) { // NEW
+    if (!targetTuple) return '';
+    const [min, max] = targetTuple;
+    if (min !== null && max !== null) {
+        // Check for single value range
+        if (min === max) return `(Target: ${min})`;
+        return `(Target: ${min}-${max})`;
+    } else if (min !== null) {
+        return `(Target: ${min}+)`;
+    } else if (max !== null) {
+        return `(Target: <= ${max})`; // Less common case
+    }
+    return '';
+}
+
+// --- Update Readability Scores (Handles calculated + target display) ---
+function updateReadabilityScores(analysisData) { // NEW/MODIFIED
+    const calculatedScores = analysisData?.readability_scores || {};
+    const targetScores = analysisData?.target_readability_scores || {};
+
+    // Update calculated scores (using existing updateScoreElement helper for potential animation)
+    updateScoreElement(fleschKincaidScoreEl, calculatedScores.flesch_kincaid_grade, 'flesch_kincaid_grade');
+    updateScoreElement(gunningFogScoreEl, calculatedScores.gunning_fog, 'gunning_fog');
+    updateScoreElement(smogIndexScoreEl, calculatedScores.smog_index, 'smog_index');
+
+    // Update target score display based on toggle state
+    console.log(`[updateReadabilityScores] showGoalIndicators: ${showGoalIndicators}`); // DEBUG
+    console.log(`[updateReadabilityScores] analysisData:`, analysisData); // DEBUG
+    console.log(`[updateReadabilityScores] targetScores:`, targetScores); // DEBUG
+    console.log(`[updateReadabilityScores] fleschKincaidTargetEl:`, fleschKincaidTargetEl); // DEBUG
+    console.log(`[updateReadabilityScores] gunningFogTargetEl:`, gunningFogTargetEl); // DEBUG
+
+    if (showGoalIndicators) {
+        if (fleschKincaidTargetEl) {
+            const fkTargetText = formatTargetRange(targetScores?.flesch_kincaid_grade); // Optional chaining
+            console.log(`[updateReadabilityScores] Setting FK Target text: "${fkTargetText}"`); // DEBUG
+            fleschKincaidTargetEl.textContent = fkTargetText;
+            fleschKincaidTargetEl.classList.remove('hidden'); // Ensure visible
+        } else {
+            console.warn("[updateReadabilityScores] fleschKincaidTargetEl not found."); // DEBUG
+        }
+        if (gunningFogTargetEl) {
+            const gfTargetText = formatTargetRange(targetScores?.gunning_fog); // Optional chaining
+            console.log(`[updateReadabilityScores] Setting GF Target text: "${gfTargetText}"`); // DEBUG
+            gunningFogTargetEl.textContent = gfTargetText;
+            gunningFogTargetEl.classList.remove('hidden'); // Ensure visible
+        } else {
+            console.warn("[updateReadabilityScores] gunningFogTargetEl not found."); // DEBUG
+        }
+        // Add logic for SMOG target if applicable and element exists
+    } else {
+        // Hide target elements if toggle is off
+        if (fleschKincaidTargetEl) fleschKincaidTargetEl.classList.add('hidden');
+        if (gunningFogTargetEl) gunningFogTargetEl.classList.add('hidden');
+        // Hide other target elements if added
+    }
+}
+
+
+// --- Complexity Meter Update (Modified) ---
+function updateComplexityMeter(analysisData) { // Modified to accept full data
+    const levelData = analysisData?.overall_level; // Get level from full data
         const defaultColor = 'bg-gray-600';
         const levelColors = {
             1: 'bg-green-500',
@@ -161,10 +225,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Removed the line that updated complexityDescriptionEl.textContent
-        // The static labels in HTML now handle this.
-        // We keep the element in case we want to display other status messages later.
+        // Removed the line that updated complexityDescriptionEl.textContent - static labels handle this.
+
+        // --- NEW: Add Target Marker Logic ---
+        // Example: Add a class to the meter container if goal indicators are shown
+        // This requires CSS rules for `.overall-complexity-meter.show-goal-indicator::before` or similar
+        // to draw the marker/zone based on CSS variables.
+        const meterContainer = document.getElementById('overall-complexity-meter'); // Assuming this ID exists on the container div
+        if (meterContainer) {
+            if (showGoalIndicators && analysisData?.target_readability_scores && levelData) {
+                 // TODO: A more robust way to get target level range is needed.
+                 // Option 1: Backend sends target level range based on profile thresholds.
+                 // Option 2: Frontend approximates based on target scores (less accurate).
+                 // For now, just add the class to enable CSS styling.
+                 // Example placeholder logic (needs refinement):
+                 // const targetFKG = analysisData.target_readability_scores.flesch_kincaid_grade;
+                 // let targetMinLevel = 1, targetMaxLevel = 5;
+                 // if (targetFKG) { // Very rough approximation
+                 //    if (targetFKG[1] && targetFKG[1] < 11) targetMaxLevel = 3; // General Public max ~ Moderate
+                 //    if (targetFKG[0] && targetFKG[0] >= 13) targetMinLevel = 4; // Academic min ~ Complex
+                 // }
+                 // meterContainer.style.setProperty('--target-min-percent', `${(targetMinLevel -1) * 20}%`);
+                 // meterContainer.style.setProperty('--target-max-percent', `${targetMaxLevel * 20}%`);
+                 meterContainer.classList.add('show-goal-indicator'); // Add class for CSS styling of marker/zone
+            } else {
+                 meterContainer.classList.remove('show-goal-indicator');
+                 // meterContainer.style.removeProperty('--target-min-percent');
+                 // meterContainer.style.removeProperty('--target-max-percent');
+            }
+        }
+        // --- End Target Marker Logic ---
     }
+
 
     // --- Readability Score Calculation ---
     function calculateReadabilityScore(text) {
@@ -182,22 +274,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Analysis & Highlighting ---
+    // --- Analysis & Highlighting (Modified) ---
     async function analyzeAndHighlight(forceHighlightUpdate = false) {
         const text = quill.getText();
         const startTime = performance.now();
 
+        // Get current audience from state (updated by event listener)
+        const audience = currentTargetAudience; // Use state variable
+
         if (!text.trim()) {
-            quill.formatText(0, quill.getLength(), 'background', false, 'api');
-            currentAnalysisResults = [];
-            updateComplexityMeter(null);
-            // Reset individual scores
-            if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = '-';
-            if (gunningFogScoreEl) gunningFogScoreEl.textContent = '-';
-            if (smogIndexScoreEl) smogIndexScoreEl.textContent = '-';
-            // if (readabilityScoreEl) readabilityScoreEl.textContent = '-'; // Removed
+            quill.formatText(0, quill.getLength(), 'background', false, 'api'); // Clear highlights
+            currentAnalysisData = null; // Clear full data
+            updateComplexityMeter(null); // Reset meter
+            updateReadabilityScores(null); // Clear scores and targets
+            updateDocumentMap(null); // Clear map
             if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
-            // Clear highlighting if text is empty
-            applyHighlighting([]); // Call with empty results to clear formats
+            // applyHighlighting is implicitly handled by clearing formats above and returning
             return;
         }
 
@@ -214,76 +306,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text }),
+                    // Send text AND target audience
+                    body: JSON.stringify({ text: text, target_audience: audience }), // MODIFIED
                 });
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
                 const data = await response.json();
-                currentAnalysisResults = data.results || []; // Store new results
+                currentAnalysisData = data; // Store the FULL response // MODIFIED
 
                 // Calculate metrics
                 const endTime = performance.now();
                 const analysisTime = Math.round(endTime - startTime);
 
-                // Update UI parts that depend on new analysis
-                updateComplexityMeter(data.overall_level);
-                // Update individual readability scores from backend data
-                const scores = data.readability_scores || {};
-                if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = scores.flesch_kincaid_grade !== null ? scores.flesch_kincaid_grade : 'N/A';
-                if (gunningFogScoreEl) gunningFogScoreEl.textContent = scores.gunning_fog !== null ? scores.gunning_fog : 'N/A';
-                if (smogIndexScoreEl) smogIndexScoreEl.textContent = scores.smog_index !== null ? scores.smog_index : 'N/A';
-                // if (readabilityScoreEl) readabilityScoreEl.textContent = calculateReadabilityScore(text); // Removed old calculation
+                // Update UI using the full data object
+                updateComplexityMeter(currentAnalysisData); // MODIFIED (pass full data)
+                updateReadabilityScores(currentAnalysisData); // MODIFIED (handles calculated + target)
                 if (analysisTimeEl) analysisTimeEl.textContent = `${analysisTime}ms`;
-
             } catch (error) {
                 console.error('Error fetching analysis:', error);
-                updateComplexityMeter({level: 0, description: "Analysis Error"});
-                // Update individual scores on error
-                if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = 'Error';
-                if (gunningFogScoreEl) gunningFogScoreEl.textContent = 'Error';
-                if (smogIndexScoreEl) smogIndexScoreEl.textContent = 'Error';
-                // if (readabilityScoreEl) readabilityScoreEl.textContent = 'Error'; // Removed
+                currentAnalysisData = null; // Clear data on error
+                updateComplexityMeter(null); // Reset meter
+                updateReadabilityScores(null); // Reset scores
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
-                currentAnalysisResults = []; // Clear results on error
+                // Map will be cleared in the finally block's updateDocumentMap call
             } finally {
                 if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
             }
         }
 
-        // Always apply highlighting based on current results and target audience
-        applyHighlighting(currentAnalysisResults); // Ensure highlighting is called
-
-        // Update the visual document map *after* results are potentially fetched/updated
-        // console.log("Calling updateDocumentMap with results:", currentAnalysisResults); // DEBUG REMOVED
-        updateDocumentMap(currentAnalysisResults);
+        // Apply highlighting and update map based on potentially updated currentAnalysisData
+        // Pass results array and the full data object if needed by sub-functions
+        applyHighlighting(currentAnalysisData?.results || []); // MODIFIED (use results from full data)
+        updateDocumentMap(currentAnalysisData); // MODIFIED (pass full data for potential target line)
     }
 
+
     // --- Helper function to update score with animation ---
+    // --- Helper function to update score with animation ---
+    // (This remains largely the same, used by updateReadabilityScores)
     function updateScoreElement(element, newScore, scoreKey) {
         const currentScore = newScore !== null ? newScore : 'N/A';
         const previousScore = previousScores[scoreKey] !== null ? previousScores[scoreKey] : 'N/A';
 
         if (element && currentScore !== previousScore) {
-            // Add class to trigger animation (defined in CSS)
-            element.classList.add('score-updating');
-            // Update text content
+            element.classList.add('score-updating'); // For CSS animation
             element.textContent = currentScore;
-            // Store the new score
             previousScores[scoreKey] = newScore;
-            // Remove the class after animation duration (e.g., 300ms)
             setTimeout(() => {
-                if (element) { // Check if element still exists
-                     element.classList.remove('score-updating');
-                }
+                if (element) element.classList.remove('score-updating');
             }, 300); // Match CSS transition duration
-        } else if (element && element.textContent !== currentScore) {
-             // If score hasn't changed but text is wrong (e.g., initial load), update without animation
+        } else if (element && element.textContent !== String(currentScore)) { // Ensure comparison is string-based if needed
+             // If score hasn't changed but text is wrong (e.g., initial load or 'Error'), update without animation
              element.textContent = currentScore;
              previousScores[scoreKey] = newScore; // Ensure previous score is stored
         }
     }
-
 
     // --- Analysis & Highlighting --- // <<< REDUNDANT DEFINITION COMMENTED OUT
     /*
@@ -391,20 +469,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // --- Apply Highlighting (Modified) ---
     function applyHighlighting(results) {
-        // Clear previous background formatting first
-        // Note: Formatting with 'class': false might remove ALL classes.
-        // A safer approach might involve getting existing formats, but let's try this first.
-        // Clear previous background formatting first
-        // console.log("Clearing previous background format..."); // DEBUG
+        // Clear previous formats first
         quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        // Also clear any lingering 'sentence-deviates' class if it exists from previous runs
-        quill.formatText(0, quill.getLength(), 'class', false, 'api');
-        // console.log(`Applying highlighting for sensitivity level: ${currentSensitivityLevel}`); // DEBUG
+        quill.formatText(0, quill.getLength(), 'class', false, 'api'); // Clear other classes like hover
+
+        // --- NEW: Check toggle state ---
+        if (!showHighlighting) {
+            // console.log("Highlighting is OFF"); // DEBUG
+            return; // Exit if highlighting is turned off
+        }
+        // --- End Check ---
+        // console.log("Highlighting is ON, applying formats..."); // DEBUG
+
+        if (!results) return; // Check if results exist
 
         results.forEach(result => {
             const score = result.score; // Get score from backend result
-            const color = getDynamicHighlightColor(score, currentSensitivityLevel); // Calculate color dynamically
+            const color = getDynamicHighlightColor(score, currentSensitivityLevel); // Calculate color dynamically based on sensitivity
             const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
             const startIndex = result.start; // Use start index from backend
             const endIndex = result.end;     // Use end index from backend
@@ -413,66 +496,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if (startIndex !== undefined && length > 0) {
                 // Apply background color using indices
                 quill.formatText(startIndex, length, 'background', bgColor, 'api');
-
-                // --- REMOVED Deviation Logic ---
-                // const deviation = sentenceLevel - currentTargetAudienceLevel;
-                // if (deviation >= 2) {
-                //     quill.formatText(startIndex, length, 'class', 'sentence-deviates', 'api');
-                // } else {
-                //     quill.formatText(startIndex, length, 'class', false, 'api');
-                // }
-                // --- End REMOVED Deviation Logic ---
-
             } else {
                  // Log if indices are missing or invalid
                  console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
             }
-            // No longer need currentIndex tracking with indexOf
         });
     }
 
     // --- Visual Document Map Update ---
-    function updateDocumentMap(results) {
-        // console.log("updateDocumentMap received results:", results); // DEBUG REMOVED
-        if (!documentMapContainer) {
-            // console.error("Document map container not found!"); // DEBUG REMOVED
-            return;
-        }
+    // --- Visual Document Map Update (Modified) ---
+    function updateDocumentMap(analysisData) { // Modified to accept full data
+        const results = analysisData?.results; // Get results array from full data
 
-        // Clear previous map segments
-        documentMapContainer.innerHTML = '';
+        if (!documentMapContainer) return;
+        documentMapContainer.innerHTML = ''; // Clear previous map segments and lines
+
+        // --- NEW: Add Target Line Logic ---
+        // Add class to container for CSS-based styling of the line
+        if (showGoalIndicators && analysisData?.target_readability_scores) {
+            // TODO: Calculate the complexity score threshold corresponding to the target audience.
+            // This is complex as it depends on the profile's thresholds and how they map back to scores.
+            // For now, we'll just add the class and assume CSS handles the line display.
+            // A simpler approach might be to use the 'moderate' threshold from the profile.
+            // Example placeholder:
+            // const profileThresholds = analysisData.profile?.thresholds; // Assuming backend sends profile used
+            // if (profileThresholds) {
+            //    const targetMaxScore = profileThresholds.moderate; // Use moderate threshold as target line?
+            //    const targetLinePercent = Math.min(100, Math.max(5, (targetMaxScore || 0) * 60 + 5)); // Scale like bars
+            //    documentMapContainer.style.setProperty('--target-line-percent', `${targetLinePercent}%`);
+            // }
+            documentMapContainer.classList.add('show-goal-indicator'); // Add class for CSS styling of line
+        } else {
+            documentMapContainer.classList.remove('show-goal-indicator');
+            // documentMapContainer.style.removeProperty('--target-line-percent');
+        }
+        // --- End Target Line Logic ---
 
         if (!results || results.length === 0) {
-            // Optionally display a message or leave it empty
-            // documentMapContainer.textContent = 'No text to map.';
-            return;
+            // documentMapContainer.textContent = 'No text to map.'; // Optional message
+            return; // Exit if no results
         }
 
         // Define background colors for map segments (Tailwind classes)
         const mapSegmentColors = {
-            green: 'bg-green-500',
-            yellow: 'bg-yellow-500',
-            orange: 'bg-orange-500',
-            red: 'bg-red-500',
-            gray: 'bg-gray-500', // Fallback
+            green: 'bg-green-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500',
+            red: 'bg-red-500', gray: 'bg-gray-500',
         };
 
-        // console.log(`Processing ${results.length} results for document map.`); // DEBUG REMOVED
         results.forEach((result, idx) => {
-             // console.log(`Creating segment for result index ${idx}:`, result); // DEBUG REMOVED
              if (result.index === undefined || result.score === undefined) {
-                 // console.warn(`Skipping result at index ${idx} due to missing index or score.`); // DEBUG REMOVED
+                 console.warn(`Skipping map segment for result index ${idx} due to missing index or score.`);
                  return; // Skip this iteration if data is missing
              }
             const segment = document.createElement('div');
-            segment.classList.add('map-segment'); // Base class for styling (flex-grow, transition)
+            segment.classList.add('map-segment'); // Base class for styling
 
-            // Set sentence index for linking
-            segment.dataset.sentenceIndex = result.index;
+            segment.dataset.sentenceIndex = result.index; // For linking
 
-            // Calculate height (e.g., scale score to percentage, with min/max)
-            // Score range might be 0 to ~1.5+. Let's map it to 5% - 100% height.
-            const heightPercent = Math.min(100, Math.max(5, (result.score || 0) * 60 + 5));
+            // Calculate height (scale score to percentage, with min/max)
+            const heightPercent = Math.min(100, Math.max(5, (result.score || 0) * 60 + 5)); // Example scaling
             segment.style.height = `${heightPercent}%`;
 
             // Determine color based on score and sensitivity
@@ -480,12 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
             segment.classList.add(colorClass);
 
-            // Add tooltip showing the score (optional)
-            segment.title = `Sentence ${result.index + 1}: Score ${result.score.toFixed(2)}`;
+            segment.title = `Sentence ${result.index + 1}: Score ${result.score.toFixed(2)}`; // Tooltip
 
             documentMapContainer.appendChild(segment);
         });
     }
+
 
     // --- Synonym Tooltip ---
     // Store the current selection range when showing the tooltip
@@ -701,8 +783,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize tooltips after DOM is ready
-    setTimeout(initTooltips, 500);
+    // Initialize Tippy tooltips for status bar, etc.
+    setTimeout(initTooltips, 500); // Delay slightly
 
     quill.on('selection-change', (range, oldRange, source) => {
         if (source === 'user') {
@@ -728,12 +810,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- NEW Event Listeners ---
+
+    // Target Audience Select Listener
+    if (targetAudienceSelect) {
+        targetAudienceSelect.addEventListener('change', (event) => {
+            currentTargetAudience = event.target.value;
+            console.log(`Target audience changed to: ${currentTargetAudience}`); // DEBUG
+            analyzeAndHighlight(false); // Re-analyze with new audience (force backend call)
+        });
+        // Set initial state from dropdown value on load
+        currentTargetAudience = targetAudienceSelect.value;
+    } else {
+        console.warn("Target audience select element not found.");
+    }
+
+    // Toggle Highlighting Listener
+    if (toggleHighlighting) {
+        toggleHighlighting.addEventListener('change', (event) => {
+            showHighlighting = event.target.checked;
+            console.log(`Show Highlighting set to: ${showHighlighting}`); // DEBUG
+            // Immediately apply/remove highlighting based on current data
+            applyHighlighting(currentAnalysisData?.results || []);
+        });
+        // Set initial state from checkbox value on load
+        showHighlighting = toggleHighlighting.checked;
+    } else {
+         console.warn("Toggle highlighting element not found.");
+         showHighlighting = true; // Default if element missing
+    }
+
+    // Toggle Goal Indicators Listener
+    if (toggleGoalIndicators) {
+        toggleGoalIndicators.addEventListener('change', (event) => {
+            showGoalIndicators = event.target.checked;
+            console.log(`Show Goal Indicators set to: ${showGoalIndicators}`); // DEBUG
+            // Immediately update UI elements that show goal indicators using current data
+            updateReadabilityScores(currentAnalysisData);
+            updateComplexityMeter(currentAnalysisData);
+            updateDocumentMap(currentAnalysisData);
+        });
+        // Set initial state from checkbox value on load
+        showGoalIndicators = toggleGoalIndicators.checked;
+    } else {
+        console.warn("Toggle goal indicators element not found.");
+        showGoalIndicators = true; // Default if element missing
+    }
+
+
     // --- Initial Load ---
-    updateStats();
-    // Analyze any initial content (if editor is pre-filled)
-    // analyzeAndHighlight(); // Maybe call this after a short delay? Or rely on first text-change?
-    // Let's call it initially to handle potential pre-filled content
-     setTimeout(analyzeAndHighlight, 100); // Small delay to ensure Quill is fully ready
+    updateStats(); // Initial stats calculation
+    // Set initial audience/toggle states (done above in listener checks)
+    // Initial analysis call
+    setTimeout(analyzeAndHighlight, 100); // Small delay to ensure Quill is fully ready and initial states are set
 
     // --- Sidebar Toggle Logic ---
     function openSidebar() {
@@ -780,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisResults[sentenceIndex];
+            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;
@@ -796,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisResults[sentenceIndex];
+            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;
@@ -816,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisResults[sentenceIndex];
+            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;

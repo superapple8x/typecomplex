@@ -14,14 +14,17 @@ def index():
 # Placeholder for the /analyze endpoint (POST)
 @app.route('/analyze', methods=['POST'])
 def analyze_text():
-    """Analyzes the text complexity."""
+    """Analyzes the text complexity based on the provided text and target audience."""
     data = request.get_json()
     if not data or 'text' not in data:
         return jsonify({"error": "Missing 'text' in request body"}), 400
 
     text_to_analyze = data.get('text', '')
-    # Call the actual analysis function
-    results = analyze_text_complexity(text_to_analyze)
+    # Get target audience from request, default to "Standard" if not provided
+    target_audience = data.get('target_audience', 'Standard')
+
+    # Call the actual analysis function, passing both text and audience
+    results = analyze_text_complexity(text_to_analyze, target_audience=target_audience)
     return jsonify(results) # Return the whole dictionary {results: [...], overall_score: ...}
 
 # Placeholder for the /synonyms endpoint (POST)

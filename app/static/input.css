@@ -41,3 +41,9 @@
 }
 
 /* Ensure Tailwind processes these custom styles */
+
+/* Styles for the visual document map segments */
+.map-segment {
+  @apply flex-grow transition-all duration-300 ease-in-out;
+  min-width: 2px; /* Ensure segments have a minimum width */
+}

@@ -1,3 +1,9 @@
 /.venv
 data/ngram_freq.csv
 .gitignore
+/.venv2
+app/__pycache__
+app/data
+node_modules
+node_modules/caniuse-lite/
+package-lock.json

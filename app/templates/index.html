@@ -80,7 +80,20 @@
                         <div class="h-full bg-blue-500 rounded-full animate-pulse" style="width: 100%"></div>
                     </div>
                     <!-- Description paragraph is now less prominent or can be removed by JS -->
-                    <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p> <!-- Keep for potential status messages, but less prominent -->
+                    <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p>
+                </div>
+
+                <!-- Target Audience Selector -->
+                <div class="mt-4">
+                    <label for="target-audience-select" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Target Audience</label>
+                    <select id="target-audience-select" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        <option value="Standard">Standard</option>
+                        <option value="General Public">General Public (Grade 8-10)</option>
+                        <option value="Academic / Technical">Academic / Technical</option>
+                        <!-- Add other profiles here later -->
+                        <!-- <option value="Young Adult">Young Adult</option> -->
+                        <!-- <option value="Expert">Expert</option> -->
+                    </select>
                 </div>
 
                 <!-- Complexity Sensitivity Slider -->
@@ -105,11 +118,11 @@
                     <div class="grid grid-cols-2 gap-2 text-center">
                         <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
                             <div id="flesch-kincaid-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">Flesch-Kincaid Grade</div>
+                            <div class="text-xs text-gray-400">Flesch-Kincaid Grade <span id="flesch-kincaid-target" class="text-xs text-gray-500 ml-1 hidden"></span></div>
                         </div>
                         <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
                             <div id="gunning-fog-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">Gunning Fog</div>
+                            <div class="text-xs text-gray-400">Gunning Fog <span id="gunning-fog-target" class="text-xs text-gray-500 ml-1 hidden"></span></div>
                         </div>
                         <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded col-span-2"> <!-- Span across 2 cols for SMOG -->
                             <div id="smog-index-score" class="text-lg font-semibold text-gray-100">-</div>
@@ -131,8 +144,27 @@
                     </div>
                 </div>
 
+                <!-- Display Options Toggles -->
+                <div class="mt-4 pt-4 border-t border-gray-700 dark:border-gray-700">
+                     <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Display Options</h3>
+                     <div class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between">
+                            <label for="toggle-highlighting" class="flex items-center cursor-pointer text-gray-300">
+                                <input type="checkbox" id="toggle-highlighting" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-600 border-gray-500 focus:ring-offset-gray-800 focus:ring-blue-500" checked>
+                                <span class="ml-2">Show Complexity Highlighting</span>
+                            </label>
+                        </div>
+                         <div class="flex items-center justify-between">
+                            <label for="toggle-goal-indicators" class="flex items-center cursor-pointer text-gray-300">
+                                <input type="checkbox" id="toggle-goal-indicators" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-600 border-gray-500 focus:ring-offset-gray-800 focus:ring-blue-500" checked>
+                                <span class="ml-2">Show Goal Indicators</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Add more analysis details here later if needed -->
-            </div>
+             </div>
         </aside>
 
         <!-- Button to Open Sidebar (Initially Hidden, shown when sidebar is closed) -->

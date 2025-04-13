@@ -5,7 +5,7 @@ import os
 # We use a Series (word as index, count as value) for fast lookups
 _frequency_data = None
 # Define the path relative to the app's root directory
-_DATA_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'ngram_freq.csv')
+_DATA_FILE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ngram_freq.csv')
 
 def load_frequency_data(filepath=_DATA_FILE_PATH):
     """
