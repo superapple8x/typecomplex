@@ -37,16 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const smogIndexScoreEl = document.getElementById('smog-index-score');
     // Visual Map container
     const documentMapContainer = document.getElementById('document-map');
-    // --- NEW DOM References ---
-    const targetAudienceSelect = document.getElementById('target-audience-select'); // e.g., <select id="target-audience-select">...</select>
-    const toggleHighlighting = document.getElementById('toggle-highlighting');       // e.g., <input type="checkbox" id="toggle-highlighting" checked>
-    const toggleGoalIndicators = document.getElementById('toggle-goal-indicators'); // e.g., <input type="checkbox" id="toggle-goal-indicators" checked>
-    // Elements for displaying targets (assuming they exist or will be added in HTML)
-    const fleschKincaidTargetEl = document.getElementById('flesch-kincaid-target'); // e.g., <span id="flesch-kincaid-target" class="text-xs text-gray-400 ml-1"></span>
-    const gunningFogTargetEl = document.getElementById('gunning-fog-target');       // e.g., <span id="gunning-fog-target" class="text-xs text-gray-400 ml-1"></span>
-    // Optional: Elements for visual indicators on meter/map (might be handled by CSS classes instead)
-    // const complexityMeterTargetMarker = document.getElementById('complexity-meter-target-marker');
-    // const documentMapTargetLine = document.getElementById('document-map-target-line');
+    // --- Target Audience / Display Options ---
+    const targetAudienceSelect = document.getElementById('target-audience-select');
+    const toggleHighlighting = document.getElementById('toggle-highlighting');
+    const toggleGoalIndicators = document.getElementById('toggle-goal-indicators');
+    const fleschKincaidTargetEl = document.getElementById('flesch-kincaid-target');
+    const gunningFogTargetEl = document.getElementById('gunning-fog-target');
+    // --- NEW Gemini/Context Awareness Elements ---
+    const contextAwarenessToggle = document.getElementById('context-awareness-toggle');
+    const goalContainer = document.getElementById('target-audience-goal-container');
+    const goalInput = document.getElementById('target-audience-goal');
+    const contextAwarenessInfo = document.getElementById('context-awareness-info'); // Info icon
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -103,10 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTargetAudience = 'Standard'; // Default audience, updated from select element
     let showHighlighting = true; // Default state for toggle, updated from checkbox
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
-    let isOverallScoreOutOfBounds = false; // NEW: Track if overall score is outside target
+    let isOverallScoreOutOfBounds = false; // Track if overall score is outside target
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
     const sensitivityLabels = { 1: "V. Lenient", 2: "Lenient", 3: "Standard", 4: "Strict", 5: "V. Strict" };
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
+    // --- NEW State for Context Awareness ---
+    let contextAwarenessEnabled = false; // Default state, updated from checkbox
+    let currentGoalText = ''; // Store the goal text
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -296,23 +300,36 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         if (!forceHighlightUpdate) {
             // Show loading state
             if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
-            // REMOVED: Update individual score placeholders to '...'
-            // if (fleschKincaidScoreEl) fleschKincaidScoreEl.textContent = '...';
-            // if (gunningFogScoreEl) gunningFogScoreEl.textContent = '...';
-            // if (smogIndexScoreEl) smogIndexScoreEl.textContent = '...';
+
+            // --- Prepare request body ---
+            const requestBody = {
+                text: text,
+                target_audience: audience, // For statistical analysis
+                context_awareness_enabled: contextAwarenessEnabled, // Send toggle state
+                target_audience_goal: contextAwarenessEnabled ? currentGoalText : '' // Send goal only if enabled
+            };
+            console.log("Sending analysis request:", requestBody); // DEBUG
 
             try {
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // Send text AND target audience
-                    body: JSON.stringify({ text: text, target_audience: audience }), // MODIFIED
+                    body: JSON.stringify(requestBody), // Use prepared body
                 });
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    // Try to get error message from response body
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (e) { /* Ignore parsing error */ }
+                    throw new Error(errorMsg);
+                }
 
                 const data = await response.json();
-                currentAnalysisData = data; // Store the FULL response // MODIFIED
+                currentAnalysisData = data; // Store the FULL response
+                console.log("Received analysis response:", currentAnalysisData); // DEBUG
 
                 // Calculate metrics
                 const endTime = performance.now();
@@ -332,12 +349,26 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
                 // --- Explicitly apply visibility state AFTER data is processed ---
                 applyGoalIndicatorVisibility();
+
+                // --- Process Gemini Results (if available) ---
+                if (currentAnalysisData && currentAnalysisData.gemini_analysis) {
+                    console.log("Processing Gemini analysis results...");
+                    applyGeminiHighlights(currentAnalysisData.gemini_analysis);
+                    // TODO: Implement displayGeminiSynonyms(currentAnalysisData.gemini_analysis);
+                } else {
+                    // Clear any previous Gemini highlights if none were returned this time
+                    clearGeminiHighlights();
+                    console.log("No Gemini analysis results in response.");
+                }
+                // --- End Process Gemini Results ---
+
             } catch (error) {
                 console.error('Error fetching analysis:', error);
                 currentAnalysisData = null; // Clear data on error
                 isOverallScoreOutOfBounds = false; // Reset flag on error
                 updateComplexityMeter(null); // Reset meter
                 updateReadabilityScores(null); // Reset scores
+                clearGeminiHighlights(); // Clear Gemini highlights on error
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 // Map will be cleared in the finally block's updateDocumentMap call
             } finally {
@@ -345,10 +376,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             }
         }
 
-        // Apply highlighting and update map based on potentially updated currentAnalysisData
-        // Pass results array and the full data object if needed by sub-functions
-        applyHighlighting(currentAnalysisData?.results || []); // MODIFIED (use results from full data)
-        updateDocumentMap(currentAnalysisData); // MODIFIED (pass full data for potential target line)
+        // Apply statistical highlighting and update map based on potentially updated currentAnalysisData
+        applyStatisticalHighlighting(currentAnalysisData?.results || []); // Renamed function
+        updateDocumentMap(currentAnalysisData);
     }
 
 
@@ -479,27 +509,22 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
 
 
-    // --- Apply Highlighting (Modified) ---
-    function applyHighlighting(results) {
-        // Clear previous formats first
+    // --- Apply Statistical Highlighting (Renamed from applyHighlighting) ---
+    function applyStatisticalHighlighting(results) {
+        // Clear only statistical highlights (background, standard underline)
+        // Assume Gemini highlights use different formats/classes
         quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        // Clear standard underline format
         quill.formatText(0, quill.getLength(), 'underline', false, 'api');
-        // Clear any lingering classes (like hover) - might need refinement if other classes are used
-        quill.formatText(0, quill.getLength(), 'class', false, 'api');
+        // Consider clearing specific classes if needed, but avoid clearing Gemini classes
 
-
-        // --- Check highlighting toggle state ---
+        // Check statistical highlighting toggle state
         if (!showHighlighting) {
-            // console.log("Highlighting is OFF"); // DEBUG
-            return; // Exit if highlighting is turned off
+            return; // Exit if statistical highlighting is turned off
         }
-        // --- End Check ---
-        // console.log("Highlighting is ON, applying formats..."); // DEBUG
 
         if (!results) return; // Check if results exist
 
-        // --- Determine deviation direction for goal indicator logic ---
+        // Determine deviation direction for goal indicator logic (remains the same)
         let deviationDirection = null; // "high" (too complex), "low" (too simple), or null
         if (isOverallScoreOutOfBounds && currentAnalysisData && currentAnalysisData.readability_scores && currentAnalysisData.target_readability_scores) {
             // We'll use Flesch-Kincaid as the main reference (could be improved to use all)
@@ -546,16 +571,74 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
                 // --- END DEBUGGING LOG ---
 
-                // 3. Apply standard underline format if needed
+                // Apply standard underline format if needed (remains the same)
                 if (shouldApplyUnderline) {
-                    // Apply Quill's standard underline format
                     quill.formatText(startIndex, length, 'underline', true, 'api');
                 }
             } else {
-                 // Log if indices are missing or invalid
-                 console.warn(`Invalid indices received for sentence analysis: start=${startIndex}, end=${endIndex}`);
+                 console.warn(`Invalid indices received for statistical sentence analysis: start=${startIndex}, end=${endIndex}`);
             }
         });
+    }
+
+    // --- NEW: Apply Gemini Highlighting ---
+    function applyGeminiHighlights(geminiData) {
+        if (!geminiData) return;
+
+        // Clear previous Gemini highlights (use specific formats/classes)
+        clearGeminiHighlights(); // Call helper to clear
+
+        // Example: Apply highlights for deviations (e.g., wavy red underline)
+        if (geminiData.deviations && Array.isArray(geminiData.deviations)) {
+            geminiData.deviations.forEach(deviation => {
+                if (deviation.start !== undefined && deviation.end !== undefined) {
+                    const length = deviation.end - deviation.start;
+                    if (length > 0) {
+                        // Apply a custom format or class for Gemini deviations
+                        // Option 1: Use a custom blot (requires Quill modification)
+                        // Option 2: Use inline style (less clean)
+                        // Option 3: Use a CSS class (cleanest if CSS is set up)
+                        // quill.formatText(deviation.start, length, 'gemini-deviation', true, 'api');
+                        // For now, let's use a distinct background color as a placeholder
+                        quill.formatText(deviation.start, length, 'background', 'rgba(255, 0, 0, 0.2)', 'api'); // Light red background
+                        // Add tooltip with reason?
+                        // quill.formatText(deviation.start, length, 'tooltip', deviation.reason, 'api'); // Needs custom tooltip blot
+                        console.log(`Highlighting deviation: [${deviation.start}-${deviation.end}] Reason: ${deviation.reason}`);
+                    }
+                }
+            });
+        }
+
+        // Example: Apply highlights for complexity mismatches (e.g., wavy blue underline)
+        if (geminiData.complexity_mismatches && Array.isArray(geminiData.complexity_mismatches)) {
+            geminiData.complexity_mismatches.forEach(mismatch => {
+                 if (mismatch.start !== undefined && mismatch.end !== undefined) {
+                    const length = mismatch.end - mismatch.start;
+                    if (length > 0) {
+                        // Apply a different format/class
+                        // quill.formatText(mismatch.start, length, 'gemini-complexity', true, 'api');
+                        quill.formatText(mismatch.start, length, 'background', 'rgba(0, 0, 255, 0.15)', 'api'); // Light blue background
+                        console.log(`Highlighting complexity mismatch: [${mismatch.start}-${mismatch.end}] Reason: ${mismatch.reason}`);
+                    }
+                }
+            });
+        }
+
+        // TODO: Handle Gemini synonyms - maybe add markers or integrate with tooltip
+    }
+
+    // --- NEW: Clear Gemini Highlighting ---
+    function clearGeminiHighlights() {
+        // Clear the specific formats/classes used by applyGeminiHighlights
+        // quill.formatText(0, quill.getLength(), 'gemini-deviation', false, 'api');
+        // quill.formatText(0, quill.getLength(), 'gemini-complexity', false, 'api');
+        // For the placeholder backgrounds:
+        // This is tricky as it might clear statistical highlights too if not careful.
+        // A better approach is needed, perhaps using specific CSS classes via custom blots.
+        // For now, we might accept that turning off Gemini clears all backgrounds.
+        // Or, re-apply statistical highlights *after* clearing Gemini ones.
+        console.log("Clearing Gemini highlights (placeholder - may need refinement)");
+        // Let's assume for now re-applying statistical highlights handles this overlap.
     }
 
     // --- Visual Document Map Update ---
@@ -835,17 +918,15 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // Listener for Complexity Sensitivity Slider
     if (sensitivitySlider) {
-        // Set initial label text on load
-        updateSensitivityLabel(parseInt(sensitivitySlider.value, 10));
-
-        sensitivitySlider.addEventListener('input', (event) => { // Changed from 'change' to 'input'
+        updateSensitivityLabel(parseInt(sensitivitySlider.value, 10)); // Initial label
+        sensitivitySlider.addEventListener('input', (event) => {
             const newLevel = parseInt(event.target.value, 10);
-            // console.log(`Complexity sensitivity changed. New selected level: ${newLevel}`); // DEBUG
             currentSensitivityLevel = newLevel;
-            updateSensitivityLabel(newLevel); // Update the label text
-            // Re-apply highlighting based on the new sensitivity level, without re-analyzing text
-            // console.log("Forcing highlight update due to sensitivity change."); // DEBUG
-            analyzeAndHighlight(true); // Pass true to force highlight update
+            updateSensitivityLabel(newLevel);
+            // Re-apply statistical highlighting based on new sensitivity
+            applyStatisticalHighlighting(currentAnalysisData?.results || []);
+            // Re-apply Gemini highlights (if any) - they aren't sensitivity-dependent currently
+            applyGeminiHighlights(currentAnalysisData?.gemini_analysis);
         });
     }
 
@@ -876,34 +957,47 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }
     });
 
-    // --- NEW Event Listeners ---
+    // --- Event Listeners ---
+
+    // Define debounced function for analysis
+    const debouncedAnalyze = debounce(() => analyzeAndHighlight(false), 750);
+    // Define debounced function specifically for goal input changes
+    const debouncedGoalAnalyze = debounce(() => {
+        if (contextAwarenessEnabled) { // Only analyze if toggle is on
+            analyzeAndHighlight(false);
+        }
+    }, 750);
+
+
+    quill.on('text-change', (delta, oldDelta, source) => {
+        if (source === 'user') {
+            updateStats();
+            debouncedAnalyze(); // Use the general debounced function
+        }
+    });
 
     // Target Audience Select Listener
     if (targetAudienceSelect) {
         targetAudienceSelect.addEventListener('change', (event) => {
             currentTargetAudience = event.target.value;
-            // console.log(`Target audience changed to: ${currentTargetAudience}`); // DEBUG
-            analyzeAndHighlight(false); // Re-analyze with new audience (force backend call)
+            analyzeAndHighlight(false); // Re-analyze with new audience profile
         });
-        // Set initial state from dropdown value on load
-        currentTargetAudience = targetAudienceSelect.value;
+        currentTargetAudience = targetAudienceSelect.value; // Initial state
     } else {
         console.warn("Target audience select element not found.");
     }
 
-    // Toggle Highlighting Listener
+    // Toggle Statistical Highlighting Listener
     if (toggleHighlighting) {
         toggleHighlighting.addEventListener('change', (event) => {
             showHighlighting = event.target.checked;
-            // console.log(`Show Highlighting set to: ${showHighlighting}`); // DEBUG
-            // Immediately apply/remove highlighting based on current data
-            applyHighlighting(currentAnalysisData?.results || []);
+            // Immediately apply/remove statistical highlighting
+            applyStatisticalHighlighting(currentAnalysisData?.results || []);
         });
-        // Set initial state from checkbox value on load
-        showHighlighting = toggleHighlighting.checked;
+        showHighlighting = toggleHighlighting.checked; // Initial state
     } else {
-         console.warn("Toggle highlighting element not found.");
-         showHighlighting = true; // Default if element missing
+         console.warn("Toggle statistical highlighting element not found.");
+         showHighlighting = true; // Default
     }
 
     // Toggle Goal Indicators Listener
@@ -913,23 +1007,80 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         toggleGoalIndicators.addEventListener('change', (event) => {
             showGoalIndicators = event.target.checked;
-            // Immediately apply the new visibility state for labels/markers
-            applyGoalIndicatorVisibility();
-            // Re-apply highlighting to add/remove underlines based on the new toggle state
-            applyHighlighting(currentAnalysisData?.results || []);
+            applyGoalIndicatorVisibility(); // Apply visibility changes
+            // Re-apply statistical highlighting to add/remove underlines
+            applyStatisticalHighlighting(currentAnalysisData?.results || []);
         });
+        // Initial state set above
     } else {
         console.warn("Toggle goal indicators element not found.");
-        showGoalIndicators = true; // Default if element missing
+        showGoalIndicators = true; // Default
+    }
+
+    // --- NEW Context Awareness Listeners ---
+    if (contextAwarenessToggle && goalContainer && goalInput) {
+        // Initial state setup
+        contextAwarenessEnabled = contextAwarenessToggle.checked;
+        goalContainer.style.display = contextAwarenessEnabled ? 'block' : 'none';
+        goalInput.disabled = !contextAwarenessEnabled;
+        currentGoalText = goalInput.value; // Store initial goal text
+
+        contextAwarenessToggle.addEventListener('change', (event) => {
+            contextAwarenessEnabled = event.target.checked;
+            goalContainer.style.display = contextAwarenessEnabled ? 'block' : 'none';
+            goalInput.disabled = !contextAwarenessEnabled;
+            console.log(`Context Awareness Toggled: ${contextAwarenessEnabled}`); // DEBUG
+
+            if (contextAwarenessEnabled) {
+                // Trigger analysis if enabled and goal text exists
+                if (currentGoalText.trim()) {
+                    analyzeAndHighlight(false);
+                }
+            } else {
+                // Clear Gemini highlights and potentially re-apply statistical ones
+                clearGeminiHighlights();
+                applyStatisticalHighlighting(currentAnalysisData?.results || []);
+                // Optionally clear the goal input?
+                // goalInput.value = '';
+                // currentGoalText = '';
+            }
+        });
+
+        goalInput.addEventListener('input', (event) => {
+            currentGoalText = event.target.value;
+            // Use the specific debounced function for goal input
+            debouncedGoalAnalyze();
+        });
+
+    } else {
+        console.error("Context awareness toggle, container, or input element not found!");
+    }
+
+    // Add Tooltip for Context Awareness Info Icon
+    if (contextAwarenessInfo && typeof tippy === 'function') {
+        tippy(contextAwarenessInfo, {
+            content: `<div class='text-left p-1 max-w-xs'>
+                        <strong class='block mb-1 text-gray-100'>Context Awareness (via Gemini)</strong>
+                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses Google's Gemini AI to analyze the text based on your 'Target Audience Goal'.</p>
+                        <ul class='list-disc list-inside text-xs space-y-0.5 text-gray-400'>
+                            <li>Suggests context-aware synonyms.</li>
+                            <li>Highlights sentences deviating from the goal (tone, style).</li>
+                            <li>Highlights sentences too simple/complex for the goal.</li>
+                        </ul>
+                        <p class='text-xs text-gray-500 mt-1'>Requires a configured API Key and may incur costs.</p>
+                      </div>`,
+            allowHTML: true,
+            placement: 'top-start',
+            theme: 'tippy-dark',
+        });
     }
 
 
     // --- Initial Load ---
-    updateStats(); // Initial stats calculation
-    // Set initial audience/toggle states (done above in listener checks)
-    applyGoalIndicatorVisibility(); // Apply initial visibility based on default toggle state
-    // Initial analysis call
-    setTimeout(analyzeAndHighlight, 100); // Small delay to ensure Quill is fully ready and initial states are set
+    updateStats();
+    applyGoalIndicatorVisibility(); // Apply initial visibility
+    // Initial analysis call (will now include context awareness state if enabled by default)
+    setTimeout(() => analyzeAndHighlight(false), 100);
 
     // --- Sidebar Toggle Logic ---
     function openSidebar() {
@@ -976,13 +1127,14 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
+            const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;
                 if (length > 0) {
-                    // Apply a temporary highlight class
-                    quill.formatText(result.start, length, 'class', 'highlight-map-hover', 'api');
+                    // Apply a temporary highlight class using inline style for simplicity
+                    // quill.formatText(result.start, length, 'class', 'highlight-map-hover', 'api');
+                    quill.formatText(result.start, length, 'background', 'rgba(255, 255, 0, 0.3)', 'api'); // Temporary yellow highlight
                 }
             }
         });
@@ -992,16 +1144,24 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
+            const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;
                 if (length > 0) {
-                    // Remove the temporary highlight class
-                    // Note: Formatting with 'class': false removes ALL classes applied via formatText.
-                    // If other classes were applied this way, this could be an issue.
-                    // For now, assuming only 'highlight-map-hover' is applied this way temporarily.
-                    quill.formatText(result.start, length, 'class', false, 'api');
+                    // Remove the temporary highlight by re-applying the original statistical highlight
+                    // This avoids clearing Gemini highlights accidentally
+                    // quill.formatText(result.start, length, 'class', false, 'api');
+                    const originalColorName = getDynamicHighlightColor(result.score, currentSensitivityLevel);
+                    const originalBgColor = complexityBackgrounds[originalColorName] || complexityBackgrounds['gray'];
+                    // Only re-apply background if statistical highlighting is enabled
+                    if (showHighlighting) {
+                        quill.formatText(result.start, length, 'background', originalBgColor, 'api');
+                    } else {
+                        quill.formatText(result.start, length, 'background', false, 'api'); // Clear if highlighting is off
+                    }
+                    // Also need to consider Gemini highlights here if they overlap... this gets complex.
+                    // For now, the temporary highlight might overwrite Gemini, and mouseout restores statistical.
                 }
             }
         });
@@ -1012,7 +1172,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
-            const result = currentAnalysisData?.results[sentenceIndex]; // Use currentAnalysisData
+            const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {
                 const length = result.end - result.start;

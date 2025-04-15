@@ -96,6 +96,25 @@
                     </select>
                 </div>
 
+                <!-- Context Awareness Toggle -->
+                <div class="mt-4">
+                    <label for="context-awareness-toggle" class="flex items-center cursor-pointer text-gray-300 dark:text-gray-300 text-md font-medium">
+                        <input type="checkbox" id="context-awareness-toggle" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-700 border-gray-600 focus:ring-offset-gray-800 focus:ring-blue-500">
+                        <span class="ml-2">Enable Context Awareness (Gemini)</span>
+                         <span id="context-awareness-info" class="inline-block ml-1 cursor-help">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-gray-400 hover:text-gray-200">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                            </svg>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Target Audience Goal Input (conditionally shown/enabled by JS) -->
+                <div id="target-audience-goal-container" class="mt-2 hidden"> <!-- Start hidden -->
+                    <label for="target-audience-goal" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Target Audience Goal</label>
+                    <textarea id="target-audience-goal" rows="3" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 placeholder-gray-500" placeholder="e.g., Explain this to a high school student, Write marketing copy for tech professionals..."></textarea>
+                </div>
+
                 <!-- Complexity Sensitivity Slider -->
                 <div class="mt-4">
                     <label for="complexity-sensitivity-slider" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Complexity Sensitivity</label>

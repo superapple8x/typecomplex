@@ -108,3 +108,5 @@ urllib3==1.26.20
 Werkzeug==3.0.6
 # xkbregistry==0.3 (Removed - System specific)
 textstat
+google-generativeai
+python-dotenv
