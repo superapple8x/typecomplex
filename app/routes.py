@@ -4,8 +4,8 @@ from app import app
 # Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity
 from app.synonyms import get_ranked_synonyms
-# Import the NEW Gemini enhancement functions
-from app.gemini_analysis import enhance_sentence_complexity, recommend_synonym
+# Import the NEW DeepSeek enhancement functions (replacing Gemini)
+from app.deepseek_analysis import enhance_sentence_complexity, recommend_synonym
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
 
 @app.route('/')
@@ -37,7 +37,7 @@ def analyze_text():
 
     # --- 2. Perform Gemini Enhancement (Conditional) ---
     if context_awareness_enabled:
-        logging.info("Context awareness enabled, calling Gemini complexity enhancement for sentences.")
+        logging.info("Context awareness enabled, calling DeepSeek complexity enhancement for sentences.") # Updated log message
         # Iterate through sentence results and enhance them
         for sentence_data in analysis_results.get('results', []):
             try:
@@ -48,14 +48,16 @@ def analyze_text():
                     target_audience_profile=target_audience_profile
                 )
                 # Add the enhancement results (or error) to the sentence data
-                sentence_data['gemini_enhancement'] = enhancement
+                # RENAME the key for clarity, although frontend might still expect 'gemini_enhancement'
+                # Let's keep 'gemini_enhancement' for now to minimize frontend changes initially.
+                sentence_data['gemini_enhancement'] = enhancement # Keep key name for now
             except Exception as e:
-                logging.error(f"Exception during Gemini complexity enhancement call for sentence index {sentence_data.get('index', 'N/A')}: {e}", exc_info=True)
-                sentence_data['gemini_enhancement'] = {"error": f"Server error during enhancement: {e}"}
+                logging.error(f"Exception during DeepSeek complexity enhancement call for sentence index {sentence_data.get('index', 'N/A')}: {e}", exc_info=True) # Updated log message
+                sentence_data['gemini_enhancement'] = {"error": f"Server error during enhancement: {e}"} # Keep key name
     else:
          # Ensure the key exists even if enhancement is off, for consistent frontend handling
          for sentence_data in analysis_results.get('results', []):
-              sentence_data['gemini_enhancement'] = None
+              sentence_data['gemini_enhancement'] = None # Keep key name
 
     # --- 3. Return Combined Results ---
     # The enhancements are now directly inside the 'results' list
@@ -87,29 +89,30 @@ def get_synonyms():
     # Sort by rank for the base list in the API response
     ranked_synonyms.sort(key=lambda x: (x['rank'], x['word']))
 
-    # --- 2. Get Gemini Recommendation (Conditional) ---
-    gemini_recommendation = None
+    # --- 2. Get DeepSeek Recommendation (Conditional) ---
+    deepseek_recommendation = None # Renamed variable
     if context_awareness_enabled and ranked_synonyms and sentence_context:
-        logging.info("Context awareness enabled, calling Gemini synonym recommendation.")
+        logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") # Updated log message
         try:
-            gemini_recommendation = recommend_synonym(
+            deepseek_recommendation = recommend_synonym( # Call the imported DeepSeek function
                 original_word=word_to_lookup,
                 sentence_context=sentence_context,
                 ranked_synonyms_list=ranked_synonyms, # Pass the base list
                 target_audience_profile=target_audience_profile
             )
-            if gemini_recommendation and "error" in gemini_recommendation:
-                 logging.warning(f"Gemini synonym recommendation returned an error: {gemini_recommendation['error']}")
-            elif not gemini_recommendation:
-                 logging.warning("Gemini synonym recommendation returned None.")
+            if deepseek_recommendation and "error" in deepseek_recommendation:
+                 logging.warning(f"DeepSeek synonym recommendation returned an error: {deepseek_recommendation['error']}") # Updated log message
+            elif not deepseek_recommendation:
+                 logging.warning("DeepSeek synonym recommendation returned None.") # Updated log message
         except Exception as e:
-            logging.error(f"Exception during Gemini synonym recommendation call: {e}", exc_info=True)
-            gemini_recommendation = {"error": f"Server error during recommendation: {e}"}
+            logging.error(f"Exception during DeepSeek synonym recommendation call: {e}", exc_info=True) # Updated log message
+            deepseek_recommendation = {"error": f"Server error during recommendation: {e}"}
     elif context_awareness_enabled:
-        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping Gemini recommendation.")
+        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping DeepSeek recommendation.") # Updated log message
 
     # --- 3. Combine and Return Results ---
+    # RENAME the key in the response for clarity. Frontend will need adjustment.
     return jsonify({
         "ranked_synonyms": ranked_synonyms, # Always return the base list
-        "gemini_recommendation": gemini_recommendation # Return recommendation/error or None
+        "llm_recommendation": deepseek_recommendation # Use a generic key 'llm_recommendation'
     })

@@ -44,7 +44,7 @@ MarkupSafe==2.1.5
 matplotlib==3.10.1
 # moddb==0.12.0 (Removed - System specific)
 # nftables==0.1 (Removed - System specific)
-numpy==2.2.4
+numpy<2.0 # Downgraded for compatibility
 olefile==0.47
 packaging==24.2
 pandas==2.2.3
@@ -108,5 +108,5 @@ urllib3==1.26.20
 Werkzeug==3.0.6
 # xkbregistry==0.3 (Removed - System specific)
 textstat
-google-generativeai
 python-dotenv
+openai>=1.0 # Added for DeepSeek (OpenAI compatible)

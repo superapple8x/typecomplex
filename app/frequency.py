@@ -15,15 +15,25 @@ def load_frequency_data(filepath=_DATA_FILE_PATH):
     global _frequency_data
     try:
         print(f"Loading frequency data from: {filepath}")
-        # Read the CSV file
-        df = pd.read_csv(filepath)
+        # Read the CSV file, explicitly stating header is on row 0
+        df = pd.read_csv(filepath, header=0)
+        print(f"CSV Columns loaded: {df.columns.tolist()}") # Log columns after loading
 
-        # Ensure column names are correct (adjust if necessary based on actual file)
+        # --- Adjust logic based on actual columns ('word', 'count') ---
+        # Ensure the expected columns 'word' and 'count' exist
         if 'word' not in df.columns or 'count' not in df.columns:
+            print(f"Error: Expected 'word' and 'count' columns not found in DataFrame columns: {df.columns.tolist()}")
             raise ValueError("CSV must contain 'word' and 'count' columns.")
 
+        # No splitting needed as columns seem to be loaded correctly
+        print("Using existing 'word' and 'count' columns.")
+
         # Convert words to lowercase for case-insensitive lookup
-        df['word'] = df['word'].str.lower()
+        # Ensure 'word' column is string type first
+        df['word'] = df['word'].astype(str).str.lower()
+
+        # Convert 'count' to numeric, coercing errors
+        df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
 
         # Set the 'word' column as the index
         # drop=True removes the 'word' column after setting it as index

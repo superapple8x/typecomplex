@@ -55,13 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // REMOVED Custom Format Registration for GoalDeviationUnderline
     
-    // --- NEW: Register Custom Format for Gemini Enhancements ---
+    // --- NEW: Register Custom Format for LLM Enhancements --- // Renamed comment
     const Inline = Quill.import('blots/inline');
-    class GeminiEnhancement extends Inline {
+    class LlmEnhancement extends Inline { // Renamed class
         static create(value) {
             let node = super.create();
             // Add a class for CSS styling and potentially JS selection
-            node.setAttribute('class', 'gemini-complexity-enhancement');
+            node.setAttribute('class', 'llm-complexity-enhancement'); // Renamed class attribute
             // You could store data attributes here if needed, e.g.:
             // node.setAttribute('data-reasoning', value.reasoning || '');
             // node.setAttribute('data-suggestion', value.suggestion || '');
@@ -74,9 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
              return true; // For a simple boolean format
         }
     }
-    GeminiEnhancement.blotName = 'gemini-enhancement';
-    GeminiEnhancement.tagName = 'SPAN'; // Render as a span
-    Quill.register(GeminiEnhancement);
+    LlmEnhancement.blotName = 'llm-enhancement'; // Renamed blotName
+    LlmEnhancement.tagName = 'SPAN'; // Render as a span
+    Quill.register(LlmEnhancement); // Register renamed class
     // --- END NEW ---
 
     const quill = new Quill(editorContainer, {
@@ -372,15 +372,15 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 // --- Explicitly apply visibility state AFTER data is processed ---
                 applyGoalIndicatorVisibility();
 
-                // --- Apply Gemini Enhancements (if enabled and data exists) ---
+                // --- Apply LLM Enhancements (if enabled and data exists) --- // Renamed section
                 // This happens regardless of statistical highlighting toggle
                 if (contextAwarenessEnabled && currentAnalysisData?.results) {
-                    applyGeminiEnhancements(currentAnalysisData.results);
-                    initializeGeminiTooltips(currentAnalysisData.results); // Initialize tooltips AFTER applying formats
+                    applyLlmEnhancements(currentAnalysisData.results); // Renamed function call
+                    // initializeGeminiTooltips(currentAnalysisData.results); // REMOVED undefined function call
                 } else {
-                    clearGeminiEnhancements(); // Clear if disabled or no data
+                    clearLlmEnhancements(); // Renamed function call
                 }
-                // --- End Apply Gemini Enhancements ---
+                // --- End Apply LLM Enhancements --- // Renamed section
 
             } catch (error) {
                 console.error('Error fetching analysis:', error);
@@ -388,7 +388,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 isOverallScoreOutOfBounds = false; // Reset flag on error
                 updateComplexityMeter(null); // Reset meter
                 updateReadabilityScores(null); // Reset scores
-                clearGeminiEnhancements(); // Clear enhancements on error
+                clearLlmEnhancements(); // Renamed function call
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 // Map will be cleared in the finally block's updateDocumentMap call
             } finally {
@@ -602,13 +602,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }); // <<< ADDED MISSING CLOSING BRACE AND PARENTHESIS HERE
     }
 
-    // --- NEW: Apply Gemini Enhancements ---
-    // Applies the 'gemini-enhancement' format (styled via CSS)
-    function applyGeminiEnhancements(results) {
+    // --- NEW: Apply LLM Enhancements --- // Renamed function
+    // Applies the 'llm-enhancement' format (styled via CSS)
+    function applyLlmEnhancements(results) { // Renamed function
         if (!results || !contextAwarenessEnabled) return; // Also check toggle state
 
         // Clear previous enhancements first (important!)
-        // clearGeminiEnhancements(); // Clearing is now done explicitly below
+        // clearLlmEnhancements(); // Clearing is now done explicitly below // Renamed comment
 
         results.forEach(result => {
             const enhancement = result.gemini_enhancement;
@@ -621,22 +621,22 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 if (enhancement && !enhancement.error && enhancement.contextual_assessment && enhancement.contextual_assessment !== "Appropriate") {
                     // Apply the boolean format. CSS will style based on the class added by the blot.
                     // Pass the enhancement data if the blot is configured to accept it (optional)
-                    // quill.formatText(startIndex, length, 'gemini-enhancement', { reasoning: enhancement.reasoning, suggestion: enhancement.suggestion }, 'api');
-                    quill.formatText(startIndex, length, 'gemini-enhancement', true, 'api');
+                    // quill.formatText(startIndex, length, 'llm-enhancement', { reasoning: enhancement.reasoning, suggestion: enhancement.suggestion }, 'api'); // Renamed format
+                    quill.formatText(startIndex, length, 'llm-enhancement', true, 'api'); // Renamed format
                 } else {
                     // Ensure the format is explicitly removed if no enhancement applies or is appropriate
                     // This prevents stale formatting if text changes but doesn't re-trigger full clear
-                    quill.formatText(startIndex, length, 'gemini-enhancement', false, 'api');
+                    quill.formatText(startIndex, length, 'llm-enhancement', false, 'api'); // Renamed format
                 }
             }
         });
     }
 
-    // --- NEW: Clear Gemini Enhancements ---
-    function clearGeminiEnhancements() {
+    // --- NEW: Clear LLM Enhancements --- // Renamed function
+    function clearLlmEnhancements() { // Renamed function
         // Clear the specific format across the whole document
-        quill.formatText(0, quill.getLength(), 'gemini-enhancement', false, 'api');
-        // console.log("Cleared Gemini enhancement formats."); // DEBUG
+        quill.formatText(0, quill.getLength(), 'llm-enhancement', false, 'api'); // Renamed format
+        // console.log("Cleared LLM enhancement formats."); // DEBUG Renamed comment
     }
 
     // --- Visual Document Map Update ---
@@ -874,12 +874,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             });
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json(); // Expect { ranked_synonyms: [], gemini_recommendation: {} | null }
+            const data = await response.json(); // Expect { ranked_synonyms: [], llm_recommendation: {} | null } // Updated expected key
 
             // Build tooltip content
             let contentHTML = `<div id="${tooltipContentId}" class="p-1 text-xs dark:text-gray-200 bg-gray-800 border border-gray-700 rounded shadow-lg max-w-xs">`;
             const rankedSynonyms = data.ranked_synonyms || [];
-            const geminiRec = data.gemini_recommendation;
+            const llmRec = data.llm_recommendation; // Use the new key
 
             if (rankedSynonyms.length > 0) {
                 contentHTML += `<strong class="block mb-1 text-sm font-semibold">Synonyms for "${selectedText}"</strong>`;
@@ -904,23 +904,23 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 });
                 contentHTML += `</ul>`;
 
-                // --- Add Gemini Recommendation ---
-                if (geminiRec && !geminiRec.error && geminiRec.recommendation && geminiRec.recommendation.length > 0) {
+                // --- Add LLM Recommendation --- // Renamed section
+                if (llmRec && !llmRec.error && llmRec.recommendation && llmRec.recommendation.length > 0) { // Use llmRec
                     contentHTML += `<hr class="border-gray-600 my-1">`; // Separator
                     contentHTML += `<div class="text-purple-300 text-xs font-semibold mb-0.5">Contextual Suggestion:</div>`;
-                    contentHTML += `<div class="text-gray-300 text-xs mb-1">"${geminiRec.recommendation.join('" or "')}"</div>`;
-                    if (geminiRec.reasoning) {
-                        contentHTML += `<div class="text-gray-400 text-xs italic">Reason: ${geminiRec.reasoning}</div>`;
+                    contentHTML += `<div class="text-gray-300 text-xs mb-1">"${llmRec.recommendation.join('" or "')}"</div>`; // Use llmRec
+                    if (llmRec.reasoning) { // Use llmRec
+                        contentHTML += `<div class="text-gray-400 text-xs italic">Reason: ${llmRec.reasoning}</div>`; // Use llmRec
                     }
-                } else if (geminiRec && geminiRec.error) {
+                } else if (llmRec && llmRec.error) { // Use llmRec
                     contentHTML += `<hr class="border-gray-600 my-1">`;
-                    contentHTML += `<div class="text-red-400 text-xs">Suggestion Error: ${geminiRec.error}</div>`;
+                    contentHTML += `<div class="text-red-400 text-xs">Suggestion Error: ${llmRec.error}</div>`; // Use llmRec
                 } else if (contextAwarenessEnabled) {
                      // Only show 'no suggestion' if context awareness was on
                      contentHTML += `<hr class="border-gray-600 my-1">`;
                      contentHTML += `<div class="text-gray-500 text-xs italic">No specific contextual suggestion.</div>`;
                 }
-                // --- End Add Gemini Recommendation ---
+                // --- End Add LLM Recommendation --- // Renamed section
 
             } else {
                 contentHTML += `No synonyms found for "${selectedText}".`;
@@ -974,11 +974,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             updateSensitivityLabel(newLevel);
             // Re-apply statistical highlighting based on new sensitivity
             applyStatisticalHighlighting(currentAnalysisData?.results || []);
-            // Re-apply Gemini enhancements (they aren't sensitivity-dependent but might need redraw)
+            // Re-apply LLM enhancements (they aren't sensitivity-dependent but might need redraw) // Renamed
             // Ensure results exist before calling
             if (currentAnalysisData?.results) {
-                applyGeminiEnhancements(currentAnalysisData.results);
-                initializeGeminiTooltips(currentAnalysisData.results); // Re-initialize tooltips too
+                applyLlmEnhancements(currentAnalysisData.results); // Renamed function call
+                // initializeGeminiTooltips(currentAnalysisData.results); // REMOVED undefined function call
             }
         });
     }
@@ -1087,7 +1087,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             // Explicitly clear enhancements if toggled OFF
             // (analyzeAndHighlight will handle applying if toggled ON)
             if (!contextAwarenessEnabled) {
-                 clearGeminiEnhancements(); // Call the new clear function
+                 clearLlmEnhancements(); // Renamed function call
             }
         });
 
@@ -1101,8 +1101,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (contextAwarenessInfo && typeof tippy === 'function') {
         tippy(contextAwarenessInfo, {
             content: `<div class='text-left p-1 max-w-xs'>
-                        <strong class='block mb-1 text-gray-100'>Context Awareness (via Gemini)</strong>
-                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses Google's Gemini AI to enhance the analysis based on the selected 'Target Audience' profile.</p>
+                        <strong class='block mb-1 text-gray-100'>Context Awareness (via DeepSeek)</strong> <!-- Updated provider -->
+                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses the configured LLM (currently DeepSeek) to enhance the analysis based on the selected 'Target Audience' profile.</p> <!-- Updated provider -->
                         <ul class='list-disc list-inside text-xs space-y-0.5 text-gray-400'>
                             <li>Provides contextual feedback and rewrite suggestions for sentences flagged by the complexity analysis.</li>
                             <li>Recommends the most suitable synonym from the provided list based on sentence context and audience profile.</li>

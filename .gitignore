@@ -8,3 +8,4 @@ node_modules
 node_modules/caniuse-lite/
 package-lock.json
 .env
+ngram_freq.csv
