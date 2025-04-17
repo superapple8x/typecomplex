@@ -3,6 +3,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import json
 import logging
+# Import AUDIENCE_PROFILES to get profile details
+from app.analysis import AUDIENCE_PROFILES
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,95 +12,38 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure the Gemini API client
+# --- Gemini API Configuration ---
 api_key = os.getenv("GEMINI_API_KEY")
+model = None # Initialize model variable
+
 if not api_key:
     logging.error("GEMINI_API_KEY not found in environment variables. Please set it in a .env file.")
-    # Optionally raise an error or handle this case appropriately
-    # raise ValueError("GEMINI_API_KEY not found.")
-    genai.configure(api_key="DUMMY_KEY_FOR_INITIALIZATION") # Configure with a dummy key to avoid crash
+    # Configure with a dummy key to avoid crashing other parts if API key is missing
+    try:
+        genai.configure(api_key="DUMMY_KEY_FOR_INITIALIZATION")
+    except Exception as e:
+        logging.error(f"Error configuring Gemini with dummy key: {e}")
 else:
-    genai.configure(api_key=api_key)
+    try:
+        genai.configure(api_key=api_key)
+        # Initialize the Generative Model
+        # Using a model known for instruction following and JSON output is good.
+        model = genai.GenerativeModel('gemini-1.5-flash') # Or 'gemini-pro'
+        logging.info("Gemini model initialized successfully.")
+    except Exception as e:
+        logging.error(f"Failed to initialize Gemini model with API key: {e}")
+        model = None # Ensure model is None if initialization fails
 
-# Initialize the Generative Model (e.g., gemini-pro)
-# Consider making the model name configurable if needed
-try:
-    # Use a model that supports function calling or structured output if possible
-    # For text generation, 'gemini-1.5-flash' or 'gemini-pro' are good choices.
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    logging.info("Gemini model initialized successfully.")
-except Exception as e:
-    logging.error(f"Failed to initialize Gemini model: {e}")
-    model = None # Ensure model is None if initialization fails
-
-def analyze_with_gemini(text: str, target_audience_goal: str):
-    """
-    Analyzes the text using the Gemini API based on the target audience goal.
-
-    Args:
-        text: The input text to analyze.
-        target_audience_goal: A description of the target audience and goal.
-
-    Returns:
-        A dictionary containing the analysis results (synonyms, deviations, complexity)
-        or None if the analysis fails or the API key is missing.
-        Example structure:
-        {
-            "synonyms": [{"original_word": "utilize", "suggestions": ["use", "employ"], "start": 10, "end": 17, "reason": "Simpler alternative"}],
-            "deviations": [{"sentence": "...", "start": 50, "end": 100, "reason": "Tone mismatch"}],
-            "complexity_mismatches": [{"sentence": "...", "start": 150, "end": 200, "reason": "Too complex for target audience"}]
-        }
-    """
+# --- Helper Function for API Calls ---
+def _call_gemini_api(prompt: str):
+    """Internal helper to make API call and handle basic response parsing/errors."""
     if not api_key or api_key == "DUMMY_KEY_FOR_INITIALIZATION":
-        logging.warning("Gemini API key is missing or invalid. Skipping Gemini analysis.")
-        return None
+        logging.warning("Gemini API key is missing or invalid. Skipping Gemini call.")
+        return {"error": "API key missing or invalid"}
     if not model:
-        logging.error("Gemini model not initialized. Skipping Gemini analysis.")
-        return None
-    if not text or not text.strip():
-        logging.warning("Input text is empty. Skipping Gemini analysis.")
-        return None
-    if not target_audience_goal or not target_audience_goal.strip():
-        logging.warning("Target audience goal is empty. Skipping Gemini analysis.")
-        return None
+        logging.error("Gemini model not initialized. Skipping Gemini call.")
+        return {"error": "Model not initialized"}
 
-    logging.info(f"Starting Gemini analysis for goal: {target_audience_goal}")
-
-    # --- Construct the Prompt ---
-    # Combine requests into a single prompt for efficiency, asking for structured output.
-    # We need start/end indices for highlighting, so we need to ensure Gemini provides them.
-    # This might require careful prompt engineering or function calling if the model supports it well.
-    # Example prompt structure (adjust based on model capabilities):
-    prompt = f"""
-Analyze the following text based on the target audience goal: "{target_audience_goal}".
-
-Text:
----
-{text}
----
-
-Provide the analysis in JSON format with the following keys:
-1.  "synonyms": A list of objects. Each object should represent a word in the original text that could be improved for the target audience. Include:
-    *   "original_word": The word from the text.
-    *   "suggestions": A list of 1-3 suitable synonym suggestions.
-    *   "start": The starting character index of the original word in the text.
-    *   "end": The ending character index of the original word in the text.
-    *   "reason": A brief explanation why the word might be unsuitable and why the suggestions fit better.
-2.  "deviations": A list of objects. Each object should represent a sentence that deviates significantly from the target audience goal (e.g., tone, style, assumed knowledge). Include:
-    *   "sentence": The full sentence text.
-    *   "start": The starting character index of the sentence in the text.
-    *   "end": The ending character index of the sentence in the text.
-    *   "reason": A brief explanation of the deviation.
-3.  "complexity_mismatches": A list of objects. Each object should represent a sentence that is significantly too simple or too complex for the target audience goal. Include:
-    *   "sentence": The full sentence text.
-    *   "start": The starting character index of the sentence in the text.
-    *   "end": The ending character index of the sentence in the text.
-    *   "reason": A brief explanation (e.g., "Too complex due to jargon", "Too simple, lacks detail").
-
-Ensure all start/end indices accurately reflect the positions in the original text provided above. If no issues are found for a category, provide an empty list for that key. Output only the JSON object.
-"""
-
-    # --- Make the API Call ---
     try:
         logging.info("Sending request to Gemini API...")
         # Configure safety settings if needed
@@ -111,80 +56,177 @@ Ensure all start/end indices accurately reflect the positions in the original te
         response = model.generate_content(
             prompt,
             safety_settings=safety_settings,
-            generation_config=genai.types.GenerationConfig(
-                # candidate_count=1, # Default is 1
-                # stop_sequences=['...'], # Optional stop sequences
-                # max_output_tokens=..., # Optional token limit
-                temperature=0.5 # Adjust temperature for creativity vs consistency
-            )
+            generation_config=genai.types.GenerationConfig(temperature=0.5)
         )
         logging.info("Received response from Gemini API.")
 
-        # --- Parse the Response ---
         # Check for safety blocks or empty response
         if not response.candidates:
              logging.warning("Gemini response blocked or empty. No candidates found.")
-             return {"synonyms": [], "deviations": [], "complexity_mismatches": [], "error": "Response blocked or empty"}
+             return {"error": "Response blocked or empty"}
 
-        # Extract the text content - handle potential errors if 'text' attribute isn't there
+        # Extract and clean JSON response
         try:
             raw_json_response = response.text
-        except ValueError:
-            # Handle cases where the response might be blocked due to safety
-            logging.warning(f"Gemini response might be blocked. Prompt feedback: {response.prompt_feedback}")
-            # You might want to return specific info about the block
-            block_reason = "Unknown"
-            if response.prompt_feedback and response.prompt_feedback.block_reason:
-                block_reason = response.prompt_feedback.block_reason.name
-            return {"synonyms": [], "deviations": [], "complexity_mismatches": [], "error": f"Response blocked due to {block_reason}"}
-        except AttributeError:
-             logging.error("Unexpected Gemini response format. 'text' attribute missing.")
-             return {"synonyms": [], "deviations": [], "complexity_mismatches": [], "error": "Unexpected response format"}
-
-
-        # Clean the response: Gemini might sometimes include markdown backticks
-        cleaned_json_response = raw_json_response.strip().strip('```json').strip('```').strip()
-
-        # Attempt to parse the JSON
-        try:
+            cleaned_json_response = raw_json_response.strip().strip('```json').strip('```').strip()
             analysis_results = json.loads(cleaned_json_response)
-            # Basic validation of the structure
-            if not all(k in analysis_results for k in ["synonyms", "deviations", "complexity_mismatches"]):
-                logging.warning("Gemini response JSON missing expected keys.")
-                # Attempt to return partial data or indicate error
-                return {"synonyms": analysis_results.get("synonyms", []),
-                        "deviations": analysis_results.get("deviations", []),
-                        "complexity_mismatches": analysis_results.get("complexity_mismatches", []),
-                        "error": "JSON structure incomplete"}
             logging.info("Successfully parsed Gemini JSON response.")
             return analysis_results
+        except (ValueError, AttributeError) as e: # Handle block reason or missing 'text'
+            logging.warning(f"Gemini response might be blocked or format error: {e}")
+            block_reason = "Unknown"
+            try: # Try to get block reason if available
+                if response.prompt_feedback and response.prompt_feedback.block_reason:
+                    block_reason = response.prompt_feedback.block_reason.name
+            except Exception: pass # Ignore errors getting block reason
+            return {"error": f"Response blocked or format error (Reason: {block_reason})"}
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse Gemini response as JSON: {e}")
             logging.debug(f"Raw Gemini response:\n{raw_json_response}")
-            # Return an error structure or None
-            return {"synonyms": [], "deviations": [], "complexity_mismatches": [], "error": "Failed to parse response JSON"}
+            return {"error": "Failed to parse response JSON"}
 
     except Exception as e:
-        logging.error(f"An error occurred during Gemini API call or processing: {e}")
-        # Return an error structure or None
-        return {"synonyms": [], "deviations": [], "complexity_mismatches": [], "error": f"API call failed: {e}"}
+        logging.error(f"An error occurred during Gemini API call or processing: {e}", exc_info=True)
+        return {"error": f"API call failed: {e}"}
 
-# Example usage (for testing)
-if __name__ == '__main__':
-    # Ensure you have a .env file with GEMINI_API_KEY in the project root
-    test_text_example = """
-    To commence, we must first instantiate the requisite operational parameters. Subsequently, the system effectuates data assimilation. This is quite easy. Finally, the derived metrics are promulgated to stakeholders. It's super important for business folks.
+# --- Function to Enhance Sentence Complexity Analysis ---
+def enhance_sentence_complexity(sentence: str, statistical_score: float, target_audience_profile: str):
     """
-    test_goal_example = "Explain the process clearly to a non-technical manager."
+    Uses Gemini to provide contextual feedback on a sentence's complexity,
+    considering its statistical score and the target audience profile.
 
-    if api_key and api_key != "DUMMY_KEY_FOR_INITIALIZATION" and model:
-        print(f"--- Testing Gemini Analysis ---")
-        print(f"Goal: {test_goal_example}")
-        results = analyze_with_gemini(test_text_example, test_goal_example)
-        if results:
-            print("\nAnalysis Results:")
-            print(json.dumps(results, indent=2))
-        else:
-            print("\nGemini analysis failed or was skipped.")
+    Args:
+        sentence: The sentence text.
+        statistical_score: The pre-calculated statistical complexity score.
+        target_audience_profile: Name of the target audience profile.
+
+    Returns:
+        A dictionary with LLM feedback (e.g., adjusted assessment, reason, suggestion)
+        or an error dictionary.
+        Example: {"assessment": "Slightly too complex", "reason": "Uses jargon 'effectuates'", "suggestion": "Consider replacing 'effectuates' with 'performs'"}
+    """
+    if not sentence or not sentence.strip():
+        return {"error": "Input sentence is empty"}
+
+    # Fetch profile details for the prompt
+    profile_details = AUDIENCE_PROFILES.get(target_audience_profile)
+    if not profile_details:
+        profile_description = f"a '{target_audience_profile}' audience"
     else:
-        print("\nSkipping Gemini analysis test: API key or model not configured.")
+        # Construct a description string (similar to previous version)
+        target_readability = profile_details.get('target_readability', {})
+        fk_target = target_readability.get('flesch_kincaid_grade')
+        gf_target = target_readability.get('gunning_fog')
+        readability_info = []
+        if fk_target: readability_info.append(f"target Flesch-Kincaid Grade: {fk_target[0]}{f'-{fk_target[1]}' if fk_target[1] else '+'}")
+        if gf_target: readability_info.append(f"target Gunning Fog: {gf_target[0]}{f'-{gf_target[1]}' if gf_target[1] else '+'}")
+        profile_description = f"a '{target_audience_profile}' audience"
+        if readability_info: profile_description += f" (aiming for {', '.join(readability_info)})"
+
+    logging.info(f"Requesting Gemini complexity enhancement for profile: {target_audience_profile}")
+
+    prompt = f"""
+Analyze the following sentence considering the target audience is {profile_description}.
+A statistical analysis already assigned this sentence a complexity score of {statistical_score:.3f} (higher means more complex based on length, word frequency etc.).
+
+Sentence:
+---
+{sentence}
+---
+
+Based *only* on the sentence text and the target audience profile ({profile_description}), provide a brief contextual assessment of its suitability. Consider tone, style, jargon, and complexity nuances beyond the statistical score.
+
+Provide the analysis in JSON format with the following keys:
+1.  "contextual_assessment": A brief phrase describing the sentence's suitability for the audience (e.g., "Appropriate", "Slightly too complex", "Tone mismatch", "Too simplistic", "Contains jargon").
+2.  "reasoning": A short explanation for your assessment, referencing specific words or phrases if applicable.
+3.  "suggestion": If the assessment is not "Appropriate", provide a concrete rewrite suggestion for the sentence to better align it with the target audience. Otherwise, provide an empty string.
+
+Output only the JSON object.
+"""
+    return _call_gemini_api(prompt)
+
+
+# --- Function to Recommend Synonyms Contextually ---
+def recommend_synonym(original_word: str, sentence_context: str, ranked_synonyms_list: list, target_audience_profile: str):
+    """
+    Uses Gemini to recommend the best synonym(s) from a pre-ranked list,
+    considering the sentence context and target audience profile.
+
+    Args:
+        original_word: The word the user wants synonyms for.
+        sentence_context: The full sentence containing the original word.
+        ranked_synonyms_list: List of dictionaries from get_ranked_synonyms [{"word": str, "rank": int}].
+        target_audience_profile: Name of the target audience profile.
+
+    Returns:
+        A dictionary with the LLM's recommendation and reasoning, or an error dictionary.
+        Example: {"recommendation": ["use", "apply"], "reasoning": "'Utilize' is too formal for General Public; 'use' or 'apply' fit the context better."}
+    """
+    if not original_word or not sentence_context or not ranked_synonyms_list:
+        return {"error": "Missing required input for synonym recommendation"}
+
+    # Fetch profile details for the prompt (similar logic as above)
+    profile_details = AUDIENCE_PROFILES.get(target_audience_profile)
+    if not profile_details:
+        profile_description = f"a '{target_audience_profile}' audience"
+    else:
+        target_readability = profile_details.get('target_readability', {})
+        fk_target = target_readability.get('flesch_kincaid_grade')
+        gf_target = target_readability.get('gunning_fog')
+        readability_info = []
+        if fk_target: readability_info.append(f"target Flesch-Kincaid Grade: {fk_target[0]}{f'-{fk_target[1]}' if fk_target[1] else '+'}")
+        if gf_target: readability_info.append(f"target Gunning Fog: {gf_target[0]}{f'-{gf_target[1]}' if gf_target[1] else '+'}")
+        profile_description = f"a '{target_audience_profile}' audience"
+        if readability_info: profile_description += f" (aiming for {', '.join(readability_info)})"
+
+    logging.info(f"Requesting Gemini synonym recommendation for profile: {target_audience_profile}")
+
+    # Format the synonym list for the prompt
+    synonym_options = ", ".join([f"'{s['word']}' (rank {s['rank']})" for s in ranked_synonyms_list])
+
+    prompt = f"""
+The user wants a synonym for the word "{original_word}" in the following sentence:
+---
+{sentence_context}
+---
+
+The target audience is {profile_description}.
+
+An internal algorithm provided the following potential synonyms, ranked by general frequency (1=most common, 5=least common):
+{synonym_options}
+
+Considering the specific sentence context and the target audience ({profile_description}), which synonym(s) from the provided list would be the *most suitable replacement* for "{original_word}" in this sentence?
+
+Provide the analysis in JSON format with the following keys:
+1.  "recommendation": A list containing the single best synonym string from the provided list. If multiple are equally good, list up to two. If none from the list are suitable, provide an empty list.
+2.  "reasoning": A brief explanation for your choice(s), explaining why it fits the context and audience better than the original word or other options. If none are suitable, explain why.
+
+Output only the JSON object.
+"""
+    return _call_gemini_api(prompt)
+
+
+# Example usage (for testing) - Update these later if needed
+if __name__ == '__main__':
+    print("--- Testing Complexity Enhancement ---")
+    test_sentence = "Subsequently, the system effectuates data assimilation."
+    test_score = 0.95
+    test_profile = "General Public"
+    if api_key and api_key != "DUMMY_KEY_FOR_INITIALIZATION" and model:
+        complexity_feedback = enhance_sentence_complexity(test_sentence, test_score, test_profile)
+        print(f"Feedback for '{test_sentence}' (Score: {test_score}, Profile: {test_profile}):")
+        print(json.dumps(complexity_feedback, indent=2))
+    else:
+        print("Skipping complexity test: API key or model not configured.")
+
+    print("\n--- Testing Synonym Recommendation ---")
+    test_orig_word = "effectuates"
+    test_context = "Subsequently, the system effectuates data assimilation."
+    test_syn_list = [{"word": "performs", "rank": 1}, {"word": "executes", "rank": 2}, {"word": "implements", "rank": 3}, {"word": "accomplishes", "rank": 4}]
+    if api_key and api_key != "DUMMY_KEY_FOR_INITIALIZATION" and model:
+        synonym_rec = recommend_synonym(test_orig_word, test_context, test_syn_list, test_profile)
+        print(f"Recommendation for '{test_orig_word}' in context (Profile: {test_profile}):")
+        print(f"Options: {test_syn_list}")
+        print(json.dumps(synonym_rec, indent=2))
+    else:
+         print("Skipping synonym test: API key or model not configured.")

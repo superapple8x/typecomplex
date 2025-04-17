@@ -7,3 +7,4 @@ app/data
 node_modules
 node_modules/caniuse-lite/
 package-lock.json
+.env

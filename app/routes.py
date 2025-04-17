@@ -1,10 +1,11 @@
 import logging # Add logging
 from flask import render_template, request, jsonify
 from app import app
-# Import the analysis, synonym, and new gemini functions
+# Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity
 from app.synonyms import get_ranked_synonyms
-from app.gemini_analysis import analyze_with_gemini # Import the new function
+# Import the NEW Gemini enhancement functions
+from app.gemini_analysis import enhance_sentence_complexity, recommend_synonym
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
 
 @app.route('/')
@@ -26,57 +27,89 @@ def analyze_text():
         return jsonify({"error": "Missing 'text' in request body"}), 400
 
     text_to_analyze = data.get('text', '')
-    # Get target audience profile for statistical analysis
     target_audience_profile = data.get('target_audience', 'Standard')
-    # Get context awareness toggle state and goal for Gemini analysis
-    context_awareness_enabled = data.get('context_awareness_enabled', False)
-    target_audience_goal = data.get('target_audience_goal', '')
+    context_awareness_enabled = data.get('context_awareness_enabled', False) # Keep the toggle state
 
-    logging.info(f"Received analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}, Goal: '{target_audience_goal[:50]}...'")
+    logging.info(f"Received analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
     # --- 1. Perform Statistical Analysis (Always) ---
-    statistical_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile)
+    analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile)
 
-    # --- 2. Perform Gemini Analysis (Conditional) ---
-    gemini_results = None
-    if context_awareness_enabled and target_audience_goal and target_audience_goal.strip():
-        logging.info("Context awareness enabled, calling Gemini analysis.")
-        try:
-            gemini_results = analyze_with_gemini(text_to_analyze, target_audience_goal)
-            if gemini_results and "error" in gemini_results:
-                 logging.warning(f"Gemini analysis returned an error: {gemini_results['error']}")
-            elif not gemini_results:
-                 logging.warning("Gemini analysis returned None.")
-        except Exception as e:
-            logging.error(f"Exception during Gemini analysis call: {e}", exc_info=True)
-            gemini_results = {"error": f"Server error during Gemini analysis: {e}"}
-    elif context_awareness_enabled:
-        logging.warning("Context awareness enabled but target audience goal is missing. Skipping Gemini.")
-
-
-    # --- 3. Combine Results ---
-    # Start with the statistical results
-    final_results = statistical_results
-    # Add Gemini results if they exist
-    if gemini_results:
-        final_results['gemini_analysis'] = gemini_results
+    # --- 2. Perform Gemini Enhancement (Conditional) ---
+    if context_awareness_enabled:
+        logging.info("Context awareness enabled, calling Gemini complexity enhancement for sentences.")
+        # Iterate through sentence results and enhance them
+        for sentence_data in analysis_results.get('results', []):
+            try:
+                # Call the enhancement function for each sentence
+                enhancement = enhance_sentence_complexity(
+                    sentence=sentence_data['sentence'],
+                    statistical_score=sentence_data['score'],
+                    target_audience_profile=target_audience_profile
+                )
+                # Add the enhancement results (or error) to the sentence data
+                sentence_data['gemini_enhancement'] = enhancement
+            except Exception as e:
+                logging.error(f"Exception during Gemini complexity enhancement call for sentence index {sentence_data.get('index', 'N/A')}: {e}", exc_info=True)
+                sentence_data['gemini_enhancement'] = {"error": f"Server error during enhancement: {e}"}
     else:
-        # Explicitly set to null if not run or failed, so frontend knows
-        final_results['gemini_analysis'] = None
+         # Ensure the key exists even if enhancement is off, for consistent frontend handling
+         for sentence_data in analysis_results.get('results', []):
+              sentence_data['gemini_enhancement'] = None
 
-    return jsonify(final_results)
+    # --- 3. Return Combined Results ---
+    # The enhancements are now directly inside the 'results' list
+    return jsonify(analysis_results)
 
 # /synonyms endpoint (POST) - Remains unchanged for now
+# /synonyms endpoint (POST) - Updated for contextual enhancement
 @app.route('/synonyms', methods=['POST'])
 def get_synonyms():
-    """Provides synonym suggestions."""
+    """
+    Provides ranked synonym suggestions using WordNet and optionally enhances
+    them with context-aware recommendations from Gemini.
+    """
     data = request.get_json()
-    if not data or 'word' not in data:
-        return jsonify({"error": "Missing 'word' in request body"}), 400
+    # Add checks for new required fields
+    if not data or 'word' not in data or 'sentence_context' not in data or 'target_audience' not in data:
+        logging.warning("'/synonyms' request missing 'word', 'sentence_context', or 'target_audience'.")
+        return jsonify({"error": "Missing 'word', 'sentence_context', or 'target_audience' in request body"}), 400
 
     word_to_lookup = data.get('word', '')
-    # Call the actual synonym function
-    synonyms_list = get_ranked_synonyms(word_to_lookup)
-    # Sort by rank for the API response
-    synonyms_list.sort(key=lambda x: (x['rank'], x['word']))
-    return jsonify({"synonyms": synonyms_list})
+    sentence_context = data.get('sentence_context', '') # Get sentence context
+    target_audience_profile = data.get('target_audience', 'Standard') # Get profile
+    context_awareness_enabled = data.get('context_awareness_enabled', False) # Get toggle state
+
+    logging.info(f"Received synonym request for '{word_to_lookup}'. Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
+
+    # --- 1. Get Base Ranked Synonyms (Always) ---
+    ranked_synonyms = get_ranked_synonyms(word_to_lookup)
+    # Sort by rank for the base list in the API response
+    ranked_synonyms.sort(key=lambda x: (x['rank'], x['word']))
+
+    # --- 2. Get Gemini Recommendation (Conditional) ---
+    gemini_recommendation = None
+    if context_awareness_enabled and ranked_synonyms and sentence_context:
+        logging.info("Context awareness enabled, calling Gemini synonym recommendation.")
+        try:
+            gemini_recommendation = recommend_synonym(
+                original_word=word_to_lookup,
+                sentence_context=sentence_context,
+                ranked_synonyms_list=ranked_synonyms, # Pass the base list
+                target_audience_profile=target_audience_profile
+            )
+            if gemini_recommendation and "error" in gemini_recommendation:
+                 logging.warning(f"Gemini synonym recommendation returned an error: {gemini_recommendation['error']}")
+            elif not gemini_recommendation:
+                 logging.warning("Gemini synonym recommendation returned None.")
+        except Exception as e:
+            logging.error(f"Exception during Gemini synonym recommendation call: {e}", exc_info=True)
+            gemini_recommendation = {"error": f"Server error during recommendation: {e}"}
+    elif context_awareness_enabled:
+        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping Gemini recommendation.")
+
+    # --- 3. Combine and Return Results ---
+    return jsonify({
+        "ranked_synonyms": ranked_synonyms, # Always return the base list
+        "gemini_recommendation": gemini_recommendation # Return recommendation/error or None
+    })
