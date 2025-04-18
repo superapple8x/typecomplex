@@ -231,22 +231,24 @@
 
                 // Initialize Tippy.js for the overall complexity score tooltip
                     tippy('#overall-complexity-info', {
-                      content: `<div class='text-left p-1'>
-                                    <strong class='block mb-1 text-gray-100'>Sentence Score Factors (Weighted):</strong>
-                                    <!-- Single stacked bar for weights -->
+                      content: `<div class='text-left p-1 max-w-xs'>
+                                    <strong class='block mb-1 text-gray-100'>Sentence Score Factors (Weighted - Standard Profile):</strong>
+                                    <!-- Updated stacked bar for weights -->
                                     <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
-                                        <div style="width:40%; background-color:#60a5fa;" title="Sentence Length"></div>
-                                        <div style="width:30%; background-color:#34d399;" title="Avg. Word Length"></div>
-                                        <div style="width:30%; background-color:#facc15;" title="Avg. Word Rarity"></div>
+                                        <div style="width:32%; background-color:#60a5fa;" title="Sentence Length (32%)"></div>
+                                        <div style="width:24%; background-color:#34d399;" title="Avg. Word Length (24%)"></div>
+                                        <div style="width:24%; background-color:#facc15;" title="Avg. Word Rarity (24%)"></div>
+                                        <div style="width:20%; background-color:#8b5cf6;" title="Contextual Embedding (BERT) (20%)"></div>
                                     </div>
-                                    <!-- Legend -->
-                                    <div class='flex justify-between text-xs mt-1 mb-2'>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sentence Length (40%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Avg. Word Length (30%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Avg. Word Rarity (30%)</span>
+                                    <!-- Updated Legend -->
+                                    <div class='grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-1 mb-2'>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sentence Length (32%)</span>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Avg. Word Length (24%)</span>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Avg. Word Rarity (24%)</span>
+                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#8b5cf6;'></span>Contextual Embedding (20%)</span>
                                     </div>
                                     <hr class='border-gray-500 my-2'>
-                                    <p class='text-xs text-gray-400'>*Based on word frequency. Rarer words increase score. Determines highlighting & map height.</p>
+                                    <p class='text-xs text-gray-400'>Score combines statistical text features with BERT-based analysis of word usage in context. Determines highlighting & map height.</p>
                                 </div>`,
                       allowHTML: true,
                       placement: 'top',
