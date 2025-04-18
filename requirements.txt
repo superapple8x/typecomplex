@@ -110,3 +110,6 @@ Werkzeug==3.0.6
 textstat
 python-dotenv
 openai>=1.0 # Added for DeepSeek (OpenAI compatible)
+
+sentence-transformers
+torch

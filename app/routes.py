@@ -35,32 +35,14 @@ def analyze_text():
     # --- 1. Perform Statistical Analysis (Always) ---
     analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile)
 
-    # --- 2. Perform Gemini Enhancement (Conditional) ---
-    if context_awareness_enabled:
-        logging.info("Context awareness enabled, calling DeepSeek complexity enhancement for sentences.") # Updated log message
-        # Iterate through sentence results and enhance them
-        for sentence_data in analysis_results.get('results', []):
-            try:
-                # Call the enhancement function for each sentence
-                enhancement = enhance_sentence_complexity(
-                    sentence=sentence_data['sentence'],
-                    statistical_score=sentence_data['score'],
-                    target_audience_profile=target_audience_profile
-                )
-                # Add the enhancement results (or error) to the sentence data
-                # RENAME the key for clarity, although frontend might still expect 'gemini_enhancement'
-                # Let's keep 'gemini_enhancement' for now to minimize frontend changes initially.
-                sentence_data['gemini_enhancement'] = enhancement # Keep key name for now
-            except Exception as e:
-                logging.error(f"Exception during DeepSeek complexity enhancement call for sentence index {sentence_data.get('index', 'N/A')}: {e}", exc_info=True) # Updated log message
-                sentence_data['gemini_enhancement'] = {"error": f"Server error during enhancement: {e}"} # Keep key name
-    else:
-         # Ensure the key exists even if enhancement is off, for consistent frontend handling
-         for sentence_data in analysis_results.get('results', []):
-              sentence_data['gemini_enhancement'] = None # Keep key name
+    # --- 2. LLM Enhancement Removed ---
+    # The call to analyze_text_complexity above now includes the local BERT-based
+    # contextual analysis. The external LLM call for complexity is no longer needed here.
+    # The context_awareness_enabled flag might still be used by the synonym endpoint
+    # or frontend, but it no longer triggers an LLM call for complexity analysis.
 
-    # --- 3. Return Combined Results ---
-    # The enhancements are now directly inside the 'results' list
+    # --- 3. Return Results ---
+    # analysis_results already contains the scores calculated using the enhanced local method.
     return jsonify(analysis_results)
 
 # /synonyms endpoint (POST) - Remains unchanged for now

@@ -104,6 +104,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // We'll set reference client rect dynamically
     });
 
+    // --- NEW: Context Menu Tooltip Initialization ---
+    const contextMenuTooltip = tippy(document.body, {
+        allowHTML: true,
+        trigger: 'manual',
+        interactive: true,
+        placement: 'right-start', // Or 'bottom-start' etc.
+        appendTo: () => document.body,
+        content: 'Loading...',
+        hideOnClick: false, // Hide manually
+        theme: 'tippy-dark', // Custom theme for context menu
+        // We'll set reference client rect dynamically based on click event
+    });
+    let currentContextMenuSentenceData = null; // Store data for the active context menu
+
     // --- Complexity Color Mapping (Dark Theme) ---
     const complexityBackgrounds = {
         green: 'rgba(40, 167, 69, 0.3)',
@@ -1225,5 +1239,167 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             }
         });
     }
+
+    // --- NEW: Context Menu Event Listener ---
+    const editorElement = document.getElementById('editor-container'); // Get the Quill container
+    if (editorElement) {
+        editorElement.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); // Prevent default browser right-click menu
+            contextMenuTooltip.hide(); // Hide any existing context menu first
+
+            if (!contextAwarenessEnabled || !currentAnalysisData || !currentAnalysisData.results) {
+                console.log("Context menu trigger skipped: Context awareness off or no analysis data.");
+                return; // Exit if context awareness is off or no data
+            }
+
+            // Find the leaf and index at the click position
+            const bounds = editorElement.getBoundingClientRect();
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const clickX = event.clientX - bounds.left + scrollLeft;
+            const clickY = event.clientY - bounds.top + scrollTop;
+
+            // Use Quill's method to get the leaf/index at the coordinates
+            // Note: This might not be perfectly accurate, especially with complex formatting.
+            // A more robust approach might involve iterating blots, but let's try this first.
+            // We need the index to find the sentence.
+            const [leaf, offset] = quill.getLeaf(quill.getIndex(quill.getSelection()?.index ?? 0)); // Fallback to selection if needed
+            let clickIndex = quill.getIndex(leaf) + offset;
+
+            // If getLeaf didn't work well, try finding based on selection if right-click was near it
+            const selection = quill.getSelection();
+            if (selection && Math.abs(clickIndex - selection.index) > 50) { // Heuristic: if click is far from selection index
+                 // Try to get index directly from coordinates (less reliable)
+                 // This part is tricky and might need refinement based on Quill's internal structure
+                 // For now, we'll rely on the selection or the leaf index found above.
+                 console.warn("Click position far from selection, index might be inaccurate.");
+            }
+             if (selection && selection.length === 0) { // If no text selected, use selection index
+                 clickIndex = selection.index;
+             }
+
+
+            // Find the sentence containing the click index
+            const clickedSentence = currentAnalysisData.results.find(res =>
+                clickIndex >= res.start && clickIndex < res.end
+            );
+
+            if (!clickedSentence || !clickedSentence.gemini_enhancement || clickedSentence.gemini_enhancement.error) {
+                console.log("No valid enhancement data found for the clicked sentence index:", clickIndex);
+                return; // Exit if no sentence found or no valid enhancement data
+            }
+
+            // Store data for the apply button
+            currentContextMenuSentenceData = clickedSentence;
+
+            // Build Tooltip Content
+            const enhancement = clickedSentence.gemini_enhancement;
+            let contentHTML = `<div class="p-2 text-sm dark:text-gray-200 bg-gray-900 border border-gray-700 rounded shadow-lg max-w-sm context-menu-tooltip">`; // Added class
+            contentHTML += `<strong class="block mb-1 text-base font-semibold text-purple-300">Contextual Feedback</strong>`;
+
+            contentHTML += `<div class="mb-2">`;
+            contentHTML += `<span class="font-semibold text-gray-400">Assessment:</span> `;
+            contentHTML += `<span class="text-gray-100">${enhancement.contextual_assessment || 'N/A'}</span>`;
+            contentHTML += `</div>`;
+
+            if (enhancement.reasoning) {
+                contentHTML += `<div class="mb-2">`;
+                contentHTML += `<span class="font-semibold text-gray-400">Reasoning:</span> `;
+                contentHTML += `<span class="text-gray-300 italic">${enhancement.reasoning}</span>`;
+                contentHTML += `</div>`;
+            }
+
+            if (enhancement.suggestion && enhancement.suggestion.trim() !== '') {
+                contentHTML += `<hr class="border-gray-600 my-2">`;
+                contentHTML += `<div class="mb-2">`;
+                contentHTML += `<span class="font-semibold text-gray-400">Suggestion:</span> `;
+                contentHTML += `<span class="text-green-300">${enhancement.suggestion}</span>`;
+                contentHTML += `</div>`;
+                // Add Apply button - Use specific ID
+                contentHTML += `<button id="apply-suggestion-btn" class="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded transition-colors duration-150">Apply Suggestion</button>`;
+            } else {
+                 contentHTML += `<div class="text-gray-500 text-xs italic mt-1">(No rewrite suggestion provided)</div>`;
+            }
+
+            contentHTML += `</div>`; // Close main div
+
+            // Position tooltip based on click event coordinates
+            const virtualEl = {
+                getBoundingClientRect: () => ({
+                    width: 0,
+                    height: 0,
+                    top: event.clientY,
+                    right: event.clientX,
+                    bottom: event.clientY,
+                    left: event.clientX,
+                }),
+            };
+
+            contextMenuTooltip.setProps({
+                getReferenceClientRect: virtualEl.getBoundingClientRect,
+                content: contentHTML,
+            });
+            contextMenuTooltip.show();
+        });
+    } else {
+        console.error("Quill editor container '#editor-container' not found for context menu listener.");
+    }
+
+    // --- NEW: Listener to Hide Context Menu Tooltip ---
+    document.addEventListener('click', (event) => {
+        // Hide context menu if click is outside the tooltip itself
+        if (contextMenuTooltip.state.isVisible && !event.target.closest('.context-menu-tooltip') && !event.target.closest('#apply-suggestion-btn')) {
+             contextMenuTooltip.hide();
+             currentContextMenuSentenceData = null; // Clear data when hiding
+        }
+
+        // Handle Apply Suggestion Button Click (delegated)
+        if (event.target.id === 'apply-suggestion-btn') {
+            if (currentContextMenuSentenceData && currentContextMenuSentenceData.gemini_enhancement && currentContextMenuSentenceData.gemini_enhancement.suggestion) {
+                const sentence = currentContextMenuSentenceData;
+                const suggestion = sentence.gemini_enhancement.suggestion;
+                const startIndex = sentence.start;
+                const length = sentence.end - startIndex;
+
+                if (startIndex !== undefined && length >= 0 && suggestion) { // Check length >= 0
+                    const Delta = Quill.import('delta');
+                    if (!Delta) {
+                        console.error("Quill Delta not found for applying suggestion.");
+                        return;
+                    }
+                    quill.focus(); // Ensure editor has focus
+                    quill.updateContents(new Delta()
+                        .retain(startIndex)
+                        .delete(length)
+                        .insert(suggestion),
+                    'user'); // Use 'user' source
+
+                    // Optionally, set cursor after the inserted text
+                    setTimeout(() => {
+                        quill.setSelection(startIndex + suggestion.length, 0, 'silent');
+                    }, 0);
+
+                    contextMenuTooltip.hide(); // Hide after applying
+                    currentContextMenuSentenceData = null; // Clear data
+                } else {
+                     console.error("Invalid data for applying suggestion:", { startIndex, length, suggestion });
+                }
+            } else {
+                 console.error("Could not apply suggestion: Missing data.");
+            }
+        }
+    });
+
+    // Hide context menu on editor scroll
+    const scrollContainer = quill.scroll.domNode; // Get the scrollable element within Quill
+    if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', () => {
+            if (contextMenuTooltip.state.isVisible) {
+                contextMenuTooltip.hide();
+                currentContextMenuSentenceData = null;
+            }
+        });
+    }
+
 
 }); // End DOMContentLoaded

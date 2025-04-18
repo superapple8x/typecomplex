@@ -3,15 +3,40 @@ import re
 import math
 import textstat # Import textstat
 from app.frequency import get_word_frequency # Import frequency function
+import torch
+import numpy as np
+from transformers import AutoTokenizer, AutoModel
+
+# --- Load Transformer Model ---
+# Load model & tokenizer once globally
+# Using a smaller BERT variant might be faster if performance is critical
+MODEL_NAME = 'bert-base-uncased'
+try:
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModel.from_pretrained(MODEL_NAME)
+    # Ensure model is in evaluation mode
+    model.eval()
+    # Move model to GPU if available
+    if torch.cuda.is_available():
+        model.to('cuda')
+    print(f"Successfully loaded transformer model '{MODEL_NAME}'.")
+except Exception as e:
+    print(f"ERROR loading transformer model '{MODEL_NAME}': {e}")
+    # Handle error: maybe fall back to statistical analysis only?
+    tokenizer = None
+    model = None
+
 
 # --- Audience Profiles ---
 # Define weights, normalization constants, thresholds, and target scores per audience.
+# Added 'embedding_complexity' weight and renormalized others
 AUDIENCE_PROFILES = {
     "Standard": {
         "weights": {
-            "sentence_length": 0.4,
-            "avg_word_length": 0.3,
-            "avg_word_frequency": 0.3,
+            "sentence_length": 0.32, # 0.4 * 0.8
+            "avg_word_length": 0.24, # 0.3 * 0.8
+            "avg_word_frequency": 0.24, # 0.3 * 0.8
+            "embedding_complexity": 0.2,
         },
         "normalization": {
             "sentence_length": 30.0,
@@ -31,9 +56,10 @@ AUDIENCE_PROFILES = {
     },
     "General Public": {
         "weights": { # Emphasize length more, frequency less
-            "sentence_length": 0.5,
-            "avg_word_length": 0.3,
-            "avg_word_frequency": 0.2,
+            "sentence_length": 0.40, # 0.5 * 0.8
+            "avg_word_length": 0.24, # 0.3 * 0.8
+            "avg_word_frequency": 0.16, # 0.2 * 0.8
+            "embedding_complexity": 0.2,
         },
         "normalization": { # Lower tolerance for length
             "sentence_length": 25.0,
@@ -53,9 +79,10 @@ AUDIENCE_PROFILES = {
     },
     "Academic / Technical": {
         "weights": { # Emphasize word length/frequency more, length less
-            "sentence_length": 0.3,
-            "avg_word_length": 0.4,
-            "avg_word_frequency": 0.3,
+            "sentence_length": 0.24, # 0.3 * 0.8
+            "avg_word_length": 0.32, # 0.4 * 0.8
+            "avg_word_frequency": 0.24, # 0.3 * 0.8
+            "embedding_complexity": 0.2,
         },
         "normalization": { # Higher tolerance
             "sentence_length": 35.0,
@@ -118,55 +145,170 @@ if sentence_tokenizer is None:
     # Depending on requirements, might raise an error or exit
 
 
+def _get_contextual_embedding_complexity(sentence, words):
+    """
+    Calculates complexity based on contextual word embeddings using transformers.
+    Higher score means words are used in more varied/distant contexts within the sentence.
+    Returns a score between 0 and 1 (or None if model failed).
+    """
+    if not model or not tokenizer:
+        print("WARN: Transformer model not available for embedding complexity.")
+        return None # Indicate failure
+
+    # Prepare input for the transformer model
+    inputs = tokenizer(sentence, return_tensors="pt", truncation=True, padding=True)
+    # Move inputs to GPU if model is on GPU
+    if torch.cuda.is_available():
+        inputs = {k: v.to('cuda') for k, v in inputs.items()}
+
+    # Get model outputs (hidden states)
+    with torch.no_grad():
+        outputs = model(**inputs, output_hidden_states=True)
+
+    # Use the last hidden state (embeddings for each token)
+    # Shape: (batch_size, sequence_length, hidden_size)
+    last_hidden_states = outputs.hidden_states[-1].squeeze(0) # Remove batch dim
+
+    # --- Map token embeddings back to original words ---
+    # This is complex due to subword tokenization (e.g., "running" -> "run", "##ning")
+    # We'll average embeddings for subwords belonging to the same original word.
+    token_to_word_mapping = []
+    current_word_index = -1
+    for i, token_id in enumerate(inputs['input_ids'].squeeze(0).tolist()):
+        token_str = tokenizer.decode([token_id])
+        # Check if it's a special token (like [CLS], [SEP], [PAD])
+        if token_str in tokenizer.all_special_tokens:
+            token_to_word_mapping.append(-1) # Mark as not belonging to a word
+            continue
+        # Check if it's a subword continuation (BERT uses ##)
+        if token_str.startswith("##"):
+            if current_word_index != -1:
+                 token_to_word_mapping.append(current_word_index)
+            else: # Should not happen if tokenization is correct
+                 token_to_word_mapping.append(-1)
+        else:
+            # Start of a new word - find the corresponding word in our 'words' list
+            # This simple alignment might break with complex punctuation/tokenization mismatches
+            current_word_index += 1
+            token_to_word_mapping.append(current_word_index)
+
+    # Aggregate embeddings for each word
+    word_embeddings = {}
+    token_counts = {}
+    for i, word_idx in enumerate(token_to_word_mapping):
+        if word_idx != -1 and word_idx < len(words): # Ensure index is valid
+            embedding = last_hidden_states[i].cpu().numpy() # Move to CPU, convert to numpy
+            if word_idx not in word_embeddings:
+                word_embeddings[word_idx] = np.zeros_like(embedding)
+                token_counts[word_idx] = 0
+            word_embeddings[word_idx] += embedding
+            token_counts[word_idx] += 1
+
+    # Average the embeddings for words split into multiple tokens
+    averaged_word_embeddings = []
+    valid_word_indices = sorted(word_embeddings.keys())
+    for word_idx in valid_word_indices:
+        if token_counts[word_idx] > 0:
+            averaged_word_embeddings.append(word_embeddings[word_idx] / token_counts[word_idx])
+
+    if not averaged_word_embeddings:
+        print("WARN: Could not extract valid word embeddings.")
+        return 0.0 # No embeddings, no complexity from this factor
+
+    # --- Calculate Contextual Deviation ---
+    embeddings_matrix = np.array(averaged_word_embeddings)
+    # Calculate the mean embedding (centroid) for the sentence
+    mean_embedding = np.mean(embeddings_matrix, axis=0)
+
+    # Calculate cosine distance of each word embedding from the mean
+    # Cosine distance = 1 - cosine similarity
+    distances = []
+    # Normalize embeddings for cosine similarity calculation
+    norm_mean = mean_embedding / np.linalg.norm(mean_embedding)
+    for emb in embeddings_matrix:
+        norm_emb = emb / np.linalg.norm(emb)
+        # Cosine similarity
+        similarity = np.dot(norm_emb, norm_mean)
+        # Clamp similarity to [-1, 1] due to potential floating point errors
+        similarity = np.clip(similarity, -1.0, 1.0)
+        # Cosine distance
+        distance = 1.0 - similarity
+        distances.append(distance)
+
+    # Average distance represents the embedding complexity factor
+    # Higher average distance means words are semantically further from the sentence's core meaning
+    # Normalize the average distance to be roughly between 0 and 1
+    # Cosine distance is already [0, 2]. Dividing by 2 scales it to [0, 1].
+    avg_distance = np.mean(distances) if distances else 0.0
+    embedding_complexity_factor = avg_distance / 2.0
+
+    # Ensure the factor is clamped between 0 and 1
+    embedding_complexity_factor = max(0.0, min(1.0, embedding_complexity_factor))
+
+    # Add confirmation log message
+    print(f"DEBUG: Calculated embedding complexity factor: {embedding_complexity_factor:.4f} for sentence: '{sentence[:50]}...'")
+
+    return embedding_complexity_factor
+
+
 def calculate_complexity(sentence, profile):
     """
     Calculates a complexity score for a single sentence based on the provided profile.
-    Considers sentence length, average word length, and average word frequency.
+    Considers sentence length, average word length, average word frequency,
+    and contextual embedding complexity.
     Returns a score (float).
     """
     # Use profile-specific constants
     weights = profile['weights']
     norm = profile['normalization']
-    # Tokenize into words, removing punctuation
-    words = [word.lower() for word in nltk.word_tokenize(sentence) if word.isalnum()]
 
-    if not words:
+    # --- Basic Tokenization (for statistical measures) ---
+    # Keep this simple tokenization for length/word stats as before
+    words_for_stats = [word.lower() for word in nltk.word_tokenize(sentence) if word.isalnum()]
+
+    if not words_for_stats:
         return 0.0 # Handle empty sentences
 
-    sentence_length = len(words)
-    total_word_length = sum(len(word) for word in words)
+    # --- Statistical Factors ---
+    sentence_length = len(words_for_stats)
+    total_word_length = sum(len(word) for word in words_for_stats)
     average_word_length = total_word_length / sentence_length if sentence_length > 0 else 0
 
-    # --- Calculate Frequency Score ---
     total_log_freq_score = 0
     words_with_freq = 0
-    max_log_freq = norm['max_log_frequency'] # Use profile norm
-    for word in words:
+    max_log_freq = norm['max_log_frequency']
+    for word in words_for_stats:
         freq = get_word_frequency(word)
-        if freq > 0: # Only consider words found in the frequency list
-            # Use log frequency to compress the scale. Add 1 to handle freq=0 (though we filter > 0)
+        if freq > 0:
             log_freq = math.log10(freq + 1)
-            # Score: Higher score for lower frequency. Normalize against max expected log freq.
-            # Ensure score is between 0 and 1.
             freq_score = max(0, (max_log_freq - log_freq)) / max_log_freq
             total_log_freq_score += freq_score
             words_with_freq += 1
-
     average_frequency_score = total_log_freq_score / words_with_freq if words_with_freq > 0 else 0
 
-    # --- Normalize Factors ---
-    length_factor = min(sentence_length / norm['sentence_length'], 1.5) # Use profile norm
-    word_len_factor = min(average_word_length / norm['avg_word_length'], 1.5) # Use profile norm
-    # Frequency factor is already normalized between 0 and 1 (higher score = lower frequency = more complex)
-    frequency_factor = average_frequency_score
+    length_factor = min(sentence_length / norm['sentence_length'], 1.5)
+    word_len_factor = min(average_word_length / norm['avg_word_length'], 1.5)
+    frequency_factor = average_frequency_score # Already 0-1
+
+    # --- Contextual Embedding Factor ---
+    # Pass the original sentence and the stat words list (for alignment reference)
+    embedding_factor_raw = _get_contextual_embedding_complexity(sentence, words_for_stats)
+
+    # If embedding calculation failed, use 0 for its contribution
+    embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
 
     # --- Combine Factors using Weights ---
     score = (length_factor * weights['sentence_length']) + \
             (word_len_factor * weights['avg_word_length']) + \
-            (frequency_factor * weights['avg_word_frequency']) # Use profile weights
+            (frequency_factor * weights['avg_word_frequency']) + \
+            (embedding_factor * weights['embedding_complexity']) # Add new factor
 
-    # Clamp score to a reasonable range if needed, e.g., 0.0 to potentially > 1.0
-    # For simplicity, we'll return the raw score for now.
+    # Normalize the final score? The max possible score is now sum of (max_factor * weight)
+    # Max statistical score part = (1.5 * w_len) + (1.5 * w_word) + (1.0 * w_freq)
+    # Max embedding score part = (1.0 * w_emb)
+    # For Standard: (1.5*0.32)+(1.5*0.24)+(1.0*0.24)+(1.0*0.2) = 0.48+0.36+0.24+0.2 = 1.28
+    # The thresholds might need adjustment later based on observed score ranges.
+
     return round(score, 3)
 
 # Removed get_sentence_level function as level is now determined on frontend
