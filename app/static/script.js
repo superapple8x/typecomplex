@@ -971,21 +971,33 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json(); // Expect { ranked_synonyms: [], llm_recommendation: {} | null } // Updated expected key
 
-            // Build tooltip content
-            let contentHTML = `<div id="${tooltipContentId}" class="p-1 text-xs dark:text-gray-200 bg-gray-800 border border-gray-700 rounded shadow-lg max-w-xs">`;
+            // Build tooltip content with consistent styling
+            let contentHTML = `
+                <div id="${tooltipContentId}"
+                     class="p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)]
+                            border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
+                            shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]
+                            max-w-xs transition-all duration-[var(--transition-speed)]">
+            `;
             const rankedSynonyms = data.ranked_synonyms || [];
-            const llmRec = data.llm_recommendation; // Use the new key
+            const llmRec = data.llm_recommendation;
 
             if (rankedSynonyms.length > 0) {
-                contentHTML += `<strong class="block mb-1 text-sm font-semibold">Synonyms for "${selectedText}"</strong>`;
-                contentHTML += `<ul class="list-none p-0 m-0 mb-1 space-y-0.5">`; // Add mb-1
+                contentHTML += `
+                    <strong class="block mb-2 text-base font-semibold text-[var(--accent-blue)]">
+                        Synonyms for "${selectedText}"
+                    </strong>
+                    <ul class="list-none p-0 m-0 mb-2 space-y-1">`;
 
                 const rankClasses = {
-                    1: 'bg-green-600 hover:bg-green-500', 2: 'bg-lime-600 hover:bg-lime-500', 3: 'bg-yellow-600 hover:bg-yellow-500',
-                    4: 'bg-orange-600 hover:bg-orange-500', 5: 'bg-red-600 hover:bg-red-500',
+                    1: 'bg-[var(--accent-green)] hover:opacity-90',
+                    2: 'bg-[#34d399] hover:opacity-90',
+                    3: 'bg-[var(--accent-yellow)] hover:opacity-90',
+                    4: 'bg-[var(--accent-red)] hover:opacity-90',
+                    5: 'bg-[#ef4444] hover:opacity-90'
                 };
-                const badgeBaseClass = 'inline-flex items-center justify-center w-4 h-4 mr-1.5 text-xs font-bold text-white rounded-sm transition-colors duration-150';
-                const listItemBaseClass = 'synonym-item flex items-center p-0.5 rounded cursor-pointer hover:bg-gray-700 transition-colors duration-150';
+                const badgeBaseClass = 'inline-flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded-[4px] transition-all duration-[var(--transition-speed)]';
+                const listItemBaseClass = 'synonym-item flex items-center p-2 rounded-[6px] cursor-pointer hover:bg-[rgba(108,111,147,0.1)] transition-all duration-[var(--transition-speed)]';
 
                 rankedSynonyms.forEach(syn => {
                     const rankClass = rankClasses[syn.rank] || 'bg-gray-500 hover:bg-gray-400';
@@ -1020,12 +1032,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             } else {
                 contentHTML += `No synonyms found for "${selectedText}".`;
             }
-            contentHTML += `</div>`; // Close main div
+            contentHTML += `</div>`; // Close tooltip container
 
-            // Set the final content. The listener is attached via onShow to the popper.
-            console.log("Synonym Tooltip: Setting final content. Is visible before setContent:", synonymTooltip.state.isVisible); // DEBUG
+            // Set the final content with consistent styling
             synonymTooltip.setContent(contentHTML);
-            console.log("Synonym Tooltip: Set final content. Is visible after setContent:", synonymTooltip.state.isVisible); // DEBUG
 
         } catch (error) {
             console.error('Error fetching synonyms:', error);
