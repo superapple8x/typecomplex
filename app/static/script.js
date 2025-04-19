@@ -134,6 +134,12 @@ document.addEventListener('DOMContentLoaded', () => {
         gray: 'rgba(108, 117, 125, 0.2)',
     };
 
+    // Define background colors for map segments (Tailwind classes)
+    const mapSegmentColors = {
+        green: 'bg-green-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500',
+        red: 'bg-red-500', gray: 'bg-gray-500',
+    };
+
     // Level descriptions and percentage mapping
     const levelDescriptions = {
         1: 'Very Simple (0-20%)',
@@ -746,12 +752,6 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             // documentMapContainer.textContent = 'No text to map.'; // Optional message
             return; // Exit if no results
         }
-
-        // Define background colors for map segments (Tailwind classes)
-        const mapSegmentColors = {
-            green: 'bg-green-500', yellow: 'bg-yellow-500', orange: 'bg-orange-500',
-            red: 'bg-red-500', gray: 'bg-gray-500',
-        };
 
         results.forEach((result, idx) => {
              if (result.index === undefined || result.score === undefined) {

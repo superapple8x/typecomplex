@@ -811,6 +811,10 @@ video {
   width: 16rem;
 }
 
+.w-\[18\.4rem\] {
+  width: 18.4rem;
+}
+
 .w-full {
   width: 100%;
 }
@@ -985,6 +989,10 @@ video {
 
 .overflow-hidden {
   overflow: hidden;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
 }
 
 .scroll-smooth {

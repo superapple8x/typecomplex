@@ -43,10 +43,50 @@ body {
 /* Quill Editor Customization */
 .ql-toolbar {
   background: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px);
   border-top-left-radius: var(--border-radius) !important;
   border-top-right-radius: var(--border-radius) !important;
   border: none !important;
   border-bottom: 1px solid rgba(108, 111, 147, 0.1) !important;
+  transition: all var(--transition-speed) ease;
+}
+
+.ql-toolbar .ql-stroke {
+  stroke: var(--text-primary) !important;
+}
+
+.ql-toolbar .ql-fill {
+  fill: var(--text-primary) !important;
+}
+
+.ql-toolbar button:hover,
+.ql-toolbar button:focus,
+.ql-toolbar button.ql-active {
+  color: var(--accent-blue) !important;
+}
+
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button:focus .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--accent-blue) !important;
+}
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button:focus .ql-fill,
+.ql-toolbar button.ql-active .ql-fill {
+  fill: var(--accent-blue) !important;
+}
+
+.ql-toolbar .ql-formats {
+  border-right: 1px solid rgba(108, 111, 147, 0.2);
+  padding-right: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.ql-toolbar .ql-formats:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
 }
 
 .ql-container {
@@ -67,6 +107,8 @@ body {
   background-color: var(--sidebar-bg);
   border-left: 1px solid rgba(108, 111, 147, 0.2);
   padding: 1.5rem;
+  width: 18.4rem;
+  min-width: 18.4rem;
 }
 
 /* Analysis Cards */
@@ -176,14 +218,20 @@ button:hover {
 }
 
 /* Document Map Styling */
+#document-map-container {
+  background-color: rgba(49, 50, 68, 0.3);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(108, 111, 147, 0.1);
+  overflow-x: auto;
+  height: 6rem;
+}
+
 #document-map {
   display: flex;
   gap: 1px;
-  height: 6rem;
-  background-color: rgba(49, 50, 68, 0.3);
-  border-radius: var(--border-radius);
+  height: 100%;
   padding: 0.5rem;
-  border: 1px solid rgba(108, 111, 147, 0.1);
+  min-width: min-content;
 }
 
 .map-segment {
