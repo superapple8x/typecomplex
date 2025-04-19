@@ -10,15 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <!-- Link to Tailwind generated CSS file -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Modern Editor Theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='editor-theme.css') }}">
     <!-- Link to Quill Snow theme CSS (we'll copy this file later) -->
     <link href="{{ url_for('static', filename='quill.snow.css') }}" rel="stylesheet">
 </head>
-<body class="font-sans bg-gray-900 dark:bg-gray-900 text-gray-200 dark:text-gray-200 flex flex-col min-h-screen">
+<body class="flex flex-col min-h-screen scroll-smooth">
     <!-- Enhanced Header -->
-    <header class="bg-gray-800 dark:bg-gray-800 py-4 px-3 mb-4 shadow-md">
+    <header class="bg-[var(--sidebar-bg)] py-4 px-4 shadow-md">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-semibold text-gray-100 dark:text-gray-100">Sentence Complexity Analyzer</h1>
-            <div class="text-sm text-gray-400">v1.0.0</div>
+            <h1 class="text-2xl font-semibold text-[var(--text-primary)]">Sentence Complexity Analyzer</h1>
+            <div class="text-xs text-[var(--text-secondary)]">v1.0.0</div>
         </div>
     </header>
 
@@ -26,25 +28,25 @@
     <div class="flex flex-grow">
 
         <!-- Main content area -->
-        <main class="flex-grow flex flex-col p-4 sm:p-6 md:p-8 lg:p-10">
+        <main class="flex-grow flex flex-col p-6">
             <!-- Editor Container - takes remaining vertical space -->
-            <div id="editor-container" class="flex-grow min-h-[300px] bg-gray-800 dark:bg-gray-800 rounded-md shadow-inner text-gray-100 dark:text-gray-100 overflow-hidden">
+            <div id="editor-container" class="flex-grow min-h-[300px] overflow-hidden">
                 <!-- Quill editor will be initialized here -->
             </div>
         </main>
 
         <!-- Collapsible Sidebar -->
-        <aside id="complexity-sidebar" class="w-64 bg-gray-850 dark:bg-gray-850 p-4 border-l border-gray-700 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col shrink-0">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-100 dark:text-gray-100 flex items-center">
-                    Analysis
+        <aside id="complexity-sidebar" class="w-64 bg-[var(--sidebar-bg)] p-4 border-l border-[var(--border-color)] flex flex-col shrink-0">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-semibold text-[var(--text-primary)] flex items-center">
+                    <span class="text-lg font-semibold">Analysis</span>
                     <span id="analysis-loading-indicator" class="ml-2 hidden"> <!-- Loading indicator span -->
                         <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle> <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
                     </span>
                     <!-- Analysis Phase Indicator -->
                     <span id="analysis-phase-indicator" class="ml-2 w-3 h-3 rounded-full hidden" title="Analysis Phase"></span>
                 </h2>
-                <button id="toggle-sidebar-btn" class="text-gray-400 hover:text-gray-200 focus:outline-none">
+                <button id="toggle-sidebar-btn" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none">
                     <!-- Heroicon: x-mark (for closing) -->
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -52,9 +54,9 @@
                 </button>
             </div>
             <div class="flex-grow">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-md font-medium text-gray-300 dark:text-gray-300">
-                        Overall Complexity
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-md font-medium text-[var(--text-primary)]">
+                        <span class="text-base font-medium">Overall Complexity</span>
                         <span id="overall-complexity-info" class="inline-block ml-1 cursor-help">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-gray-400 hover:text-gray-200">
                               <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
@@ -62,38 +64,38 @@
                         </span>
                     </h3>
                 </div>
-                <div id="overall-complexity-meter" class="bg-gray-700 dark:bg-gray-700 rounded p-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-md font-medium text-gray-300 dark:text-gray-300">Complexity Level</h3>
-                        <span id="complexity-percentage" class="text-xs font-mono bg-gray-600 px-2 py-1 rounded">0%</span>
+                <div id="overall-complexity-meter" class="bg-[rgba(49,50,68,0.5)] rounded p-3">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-medium text-[var(--text-primary)]">Complexity Level</h3>
+                        <span id="complexity-percentage" class="text-xs font-mono bg-[rgba(49,50,68,0.3)] px-2 py-1 rounded">0%</span>
                     </div>
                     <!-- Enhanced 5-Level Meter -->
                     <div class="flex space-x-1 h-4 w-full mb-2">
-                        <div data-level="1" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
-                        <div data-level="2" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
-                        <div data-level="3" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
-                        <div data-level="4" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
-                        <div data-level="5" class="complexity-level flex-1 bg-gray-600 rounded-sm transition-all duration-500 ease-in-out transform hover:scale-y-125"></div>
+                        <div data-level="1" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+                        <div data-level="2" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+                        <div data-level="3" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+                        <div data-level="4" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+                        <div data-level="5" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
                     </div>
                     <!-- New Labels Div -->
-                    <div class="flex flex-wrap justify-around text-xs text-gray-400 dark:text-gray-400 mt-1 px-0.5">
-                        <span class="text-center px-0.5">L1</span>
-                        <span class="text-center px-0.5">L2</span>
-                        <span class="text-center px-0.5">L3</span>
-                        <span class="text-center px-0.5">L4</span>
-                        <span class="text-center px-0.5">L5</span>
+                    <div class="flex flex-wrap justify-around text-xs text-[var(--text-secondary)] mt-1 px-0.5">
+                        <span class="text-center px-0.5 text-xs">L1</span>
+                        <span class="text-center px-0.5 text-xs">L2</span>
+                        <span class="text-center px-0.5 text-xs">L3</span>
+                        <span class="text-center px-0.5 text-xs">L4</span>
+                        <span class="text-center px-0.5 text-xs">L5</span>
                     </div>
-                    <div id="complexity-loading" class="h-1 w-full bg-gray-600 rounded-full overflow-hidden hidden mt-2"> <!-- Added mt-2 -->
-                        <div class="h-full bg-blue-500 rounded-full animate-pulse" style="width: 100%"></div>
+                    <div id="complexity-loading" class="h-1 w-full bg-[rgba(49,50,68,0.3)] rounded-full overflow-hidden hidden mt-2">
+                        <div class="h-full bg-[var(--accent-blue)] rounded-full animate-pulse" style="width: 100%"></div>
                     </div>
                     <!-- Description paragraph is now less prominent or can be removed by JS -->
                     <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p>
                 </div>
 
                 <!-- Target Audience Selector -->
-                <div class="mt-4">
-                    <label for="target-audience-select" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Target Audience</label>
-                    <select id="target-audience-select" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                <div class="mt-6">
+                    <label for="target-audience-select" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience</label>
+                    <select id="target-audience-select" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]">
                         <option value="Standard">Standard</option>
                         <option value="General Public">General Public (Grade 8-10)</option>
                         <option value="Academic / Technical">Academic / Technical</option>
@@ -104,12 +106,12 @@
                 </div>
 
                 <!-- Context Awareness Toggle -->
-                <div class="mt-4">
-                    <label for="context-awareness-toggle" class="flex items-center cursor-pointer text-gray-300 dark:text-gray-300 text-md font-medium">
-                        <input type="checkbox" id="context-awareness-toggle" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-700 border-gray-600 focus:ring-offset-gray-800 focus:ring-blue-500">
+                <div class="mt-6">
+                    <label for="context-awareness-toggle" class="flex items-center cursor-pointer text-[var(--text-primary)] text-sm font-medium">
+                        <input type="checkbox" id="context-awareness-toggle" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]">
                         <span class="ml-2">Enable Context Awareness</span>
                          <span id="context-awareness-info" class="inline-block ml-1 cursor-help">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-gray-400 hover:text-gray-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                               <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                             </svg>
                         </span>
@@ -122,36 +124,36 @@
                 </div>
 
                 <!-- Complexity Sensitivity Slider -->
-                <div class="mt-4">
-                    <label for="complexity-sensitivity-slider" class="block text-md font-medium text-gray-300 dark:text-gray-300 mb-1">Complexity Sensitivity</label>
+                <div class="mt-6">
+                    <label for="complexity-sensitivity-slider" class="block text-sm font-medium text-[var(--text-primary)] mb-1">Complexity Sensitivity</label>
                     <div class="flex items-center space-x-2">
-                        <input type="range" id="complexity-sensitivity-slider" min="1" max="5" step="1" value="3" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                        <span id="sensitivity-value-label" class="text-sm text-gray-400 w-24 text-right font-mono">Standard</span>
+                        <input type="range" id="complexity-sensitivity-slider" min="1" max="5" step="1" value="3" class="w-full h-2 bg-[var(--input-bg)] rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]">
+                        <span id="sensitivity-value-label" class="text-sm text-[var(--text-secondary)] w-24 text-right font-mono">Standard</span>
                     </div>
                 </div>
 
                 <!-- Readability Scores Section -->
-                <div class="mt-4">
-                    <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">
+                <div class="mt-6">
+                    <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">
                         Readability Scores
                         <span id="readability-scores-info" class="inline-block ml-1 cursor-help">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-gray-400 hover:text-gray-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline-block text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                               <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                             </svg>
                         </span>
                     </h3>
                     <div class="grid grid-cols-2 gap-2 text-center">
-                        <div class="bg-gray-700 dark:bg-gray-700 p-3 rounded">
-                            <div id="flesch-kincaid-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">Flesch-Kincaid Grade <span id="flesch-kincaid-target" class="text-xs text-gray-500 ml-1 hidden"></span></div>
+                        <div class="bg-[var(--input-bg)] p-3 rounded">
+                            <div id="flesch-kincaid-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                            <div class="text-xs text-[var(--text-secondary)]">Flesch-Kincaid Grade <span id="flesch-kincaid-target" class="text-xs text-[var(--text-secondary)] ml-1 hidden"></span></div>
                         </div>
-                        <div class="bg-gray-700 dark:bg-gray-700 p-3 rounded">
-                            <div id="gunning-fog-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">Gunning Fog <span id="gunning-fog-target" class="text-xs text-gray-500 ml-1 hidden"></span></div>
+                        <div class="bg-[var(--input-bg)] p-3 rounded">
+                            <div id="gunning-fog-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                            <div class="text-xs text-[var(--text-secondary)]">Gunning Fog <span id="gunning-fog-target" class="text-xs text-[var(--text-secondary)] ml-1 hidden"></span></div>
                         </div>
-                        <div class="bg-gray-700 dark:bg-gray-700 p-3 rounded col-span-2"> <!-- Span across 2 cols for SMOG -->
-                            <div id="smog-index-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">SMOG Index</div>
+                        <div class="bg-[var(--input-bg)] p-3 rounded col-span-2"> <!-- Span across 2 cols for SMOG -->
+                            <div id="smog-index-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                            <div class="text-xs text-[var(--text-secondary)]">SMOG Index</div>
                         </div>
                         <!-- Removed the old single 'Readability' score from status bar logic -->
                         <!-- <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
@@ -162,26 +164,26 @@
                 </div>
 
                 <!-- Visual Sentence Map Section (Add this inside the sidebar) -->
-                <div class="mt-4">
-                    <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Visual Sentence Map</h3>
-                    <div id="document-map" class="document-map bg-gray-700 dark:bg-gray-700 rounded p-3 h-24 flex items-end gap-px overflow-hidden">
+                <div class="mt-6">
+                    <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Visual Sentence Map</h3>
+                    <div id="document-map" class="rounded p-3 h-24 flex items-end gap-px overflow-hidden">
                         <!-- Map segments will be dynamically added here by JavaScript -->
                     </div>
                 </div>
 
                 <!-- Display Options Toggles -->
-                <div class="mt-4 pt-4 border-t border-gray-700 dark:border-gray-700">
-                     <h3 class="text-md font-medium text-gray-300 dark:text-gray-300 mb-2">Display Options</h3>
+                <div class="mt-6 pt-4 border-t border-[var(--border-color)]">
+                     <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Display Options</h3>
                      <div class="space-y-2 text-sm">
                         <div class="flex items-center justify-between">
-                            <label for="toggle-highlighting" class="flex items-center cursor-pointer text-gray-300">
-                                <input type="checkbox" id="toggle-highlighting" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-600 border-gray-500 focus:ring-offset-gray-800 focus:ring-blue-500" checked>
+                            <label for="toggle-highlighting" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                                <input type="checkbox" id="toggle-highlighting" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" checked>
                                 <span class="ml-2">Show Complexity Highlighting</span>
                             </label>
                         </div>
                          <div class="flex items-center justify-between">
-                            <label for="toggle-goal-indicators" class="flex items-center cursor-pointer text-gray-300">
-                                <input type="checkbox" id="toggle-goal-indicators" class="form-checkbox h-4 w-4 text-blue-600 rounded bg-gray-600 border-gray-500 focus:ring-offset-gray-800 focus:ring-blue-500" checked>
+                            <label for="toggle-goal-indicators" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                                <input type="checkbox" id="toggle-goal-indicators" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" checked>
                                 <span class="ml-2">Show Goal Indicators</span>
                             </label>
                         </div>
@@ -193,7 +195,7 @@
         </aside>
 
         <!-- Button to Open Sidebar (Initially Hidden, shown when sidebar is closed) -->
-         <button id="open-sidebar-btn" class="fixed top-1/2 right-0 transform -translate-y-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 p-2 rounded-l-md shadow-lg focus:outline-none hidden z-10">
+         <button id="open-sidebar-btn" class="fixed top-1/2 right-0 transform -translate-y-1/2 bg-[var(--input-bg)] hover:bg-[var(--border-color)] text-[var(--text-primary)] p-2 rounded-l-md shadow-lg focus:outline-none hidden z-10">
             <!-- Heroicon: chevron-left -->
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -203,7 +205,7 @@
     </div>
 
     <!-- Enhanced Status Bar -->
-    <footer id="status-bar" class="bg-gray-800 dark:bg-gray-800 text-gray-400 dark:text-gray-400 text-xs px-4 py-2 border-t border-gray-700 dark:border-gray-700 flex justify-between items-center">
+    <footer id="status-bar" class="bg-[var(--sidebar-bg)] text-[var(--text-secondary)] text-xs px-4 py-2 border-t border-[var(--border-color)] flex justify-between items-center">
         <div class="flex space-x-4">
             <span class="has-tooltip" data-tippy-content="Total words">Words: <span id="word-count">0</span></span>
             <span class="has-tooltip" data-tippy-content="Total sentences">Sentences: <span id="sentence-count">0</span></span>
