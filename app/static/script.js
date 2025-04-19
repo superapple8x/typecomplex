@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gunningFogTargetEl = document.getElementById('gunning-fog-target');
     // --- NEW Gemini/Context Awareness Elements ---
     const contextAwarenessToggle = document.getElementById('context-awareness-toggle');
+    const analysisLoadingIndicator = document.getElementById('analysis-loading-indicator'); // <<< ADD THIS LINE
     const goalContainer = document.getElementById('target-audience-goal-container'); // Keep container for toggle visibility
     // const goalInput = document.getElementById('target-audience-goal'); // REMOVED
     const contextAwarenessInfo = document.getElementById('context-awareness-info'); // Info icon
@@ -342,6 +343,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         if (!forceHighlightUpdate) {
             // Show loading state
             if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
+            if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // <<< SHOW INDICATOR
 
             // --- Prepare request body ---
             const requestBody = {
@@ -412,6 +414,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 // Map will be cleared in the finally block's updateDocumentMap call
             } finally {
                 if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+                if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR
             }
         }
 
@@ -1158,6 +1161,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             // --- Perform Final Overall Analysis Update ---
             console.log("[Seq] Fetching final overall analysis..."); // DEBUG
             // Call the original /analyze endpoint to get overall scores and readability
+            if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // <<< SHOW INDICATOR
             // This is necessary because the sequential endpoint only returns sentence data.
             const finalAnalysisResponse = await fetch('/analyze', {
                 method: 'POST',
@@ -1166,9 +1170,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             });
 
             if (!finalAnalysisResponse.ok) {
-                 let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
-                 try {
-                    const errorData = await finalAnalysisResponse.json();
+                 if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR on error
+                  let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
+                  try {
+                     const errorData = await finalAnalysisResponse.json();
                     errorMsg = errorData.error || errorMsg;
                  } catch (e) { /* Ignore parsing error */ }
                  console.error('Error fetching final analysis:', errorMsg);
@@ -1178,6 +1183,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             } else {
                 const finalAnalysisData = await finalAnalysisResponse.json();
+                if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR on success
                 currentAnalysisData = finalAnalysisData; // Update stored analysis data with full results
                 console.log("Received final analysis data:", currentAnalysisData); // DEBUG
 
