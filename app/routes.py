@@ -38,7 +38,8 @@ def analyze_text():
     # --- Perform Full Analysis ---
     # This will now use the refactored analyze_text_complexity which calls
     # analyze_single_spacy_sentence internally for all sentences.
-    analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile)
+    # Pass mode='full' for the standard analysis endpoint
+    analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile, mode='full')
 
     # --- Return Results ---
     return jsonify(analysis_results)
@@ -48,6 +49,7 @@ def analyze_text():
 def analyze_text_sequential():
     """
     Analyzes text complexity sentence by sentence and streams results back.
+    Uses 'fast' mode for quick per-sentence analysis.
     """
     data = request.get_json()
     if not data or 'text' not in data:
@@ -76,18 +78,14 @@ def analyze_text_sequential():
             profile = AUDIENCE_PROFILES.get(target_audience_profile, AUDIENCE_PROFILES["Standard"])
 
             for i, spacy_sentence in enumerate(doc.sents):
-                # Analyze the single sentence
-                sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i)
+                # Analyze the single sentence in 'fast' mode
+                sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i, mode='fast')
                 if sentence_result:
                     # Yield the JSON result for the sentence
                     yield json.dumps(sentence_result) + "\n"
 
-            # After all sentences, calculate and yield overall scores and readability
-            # This requires iterating through the doc again or storing results temporarily.
-            # For simplicity in streaming, let's calculate overall scores on the frontend
-            # based on the received sentence results.
-            # We can send a final message indicating completion or overall scores if needed.
-            # For now, just ending the stream signals completion.
+            # After all sentences, the frontend will trigger the full analysis.
+            # No need to calculate overall scores here in the sequential stream.
 
         except Exception as e:
             logging.error(f"Error during sequential analysis streaming: {e}", exc_info=True)
@@ -125,6 +123,7 @@ def get_synonyms():
 
     # --- 2. Get DeepSeek Recommendation (Conditional) ---
     deepseek_recommendation = None # Renamed variable
+    logging.debug(f"Synonym request debug: ranked_synonyms={ranked_synonyms}, sentence_context='{sentence_context}'") # ADDED LOG
     if context_awareness_enabled and ranked_synonyms and sentence_context:
         logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") # Updated log message
         try:

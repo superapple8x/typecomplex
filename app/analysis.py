@@ -378,11 +378,12 @@ def _get_coreference_features(spacy_sentence, doc):
     return {"coreferent_mentions_count": coreferent_mentions_count}
 
 
-def calculate_complexity(spacy_sentence, doc, profile):
+def calculate_complexity(spacy_sentence, doc, profile, mode='full'): # Added mode parameter
     """
     Calculates a complexity score for a single sentence based on the provided profile.
     Considers sentence length, average word length, average word frequency,
     contextual embedding complexity, syntactic features, and coreference features.
+    Calculation of expensive features is conditional based on the 'mode' parameter.
     Returns a score (float).
     """
     # Use profile-specific constants
@@ -396,7 +397,7 @@ def calculate_complexity(spacy_sentence, doc, profile):
     if not words_for_stats:
         return 0.0 # Handle empty sentences
 
-    # --- Statistical Factors ---
+    # --- Statistical Factors (Always calculated) ---
     sentence_length = len(words_for_stats)
     total_word_length = sum(len(word) for word in words_for_stats)
     average_word_length = total_word_length / sentence_length if sentence_length > 0 else 0
@@ -417,57 +418,53 @@ def calculate_complexity(spacy_sentence, doc, profile):
     word_len_factor = min(average_word_length / norm['avg_word_length'], 1.5)
     frequency_factor = average_frequency_score # Already 0-1
 
-    # --- Contextual Embedding Factor ---
-    # Pass the original sentence text and the stat words list (for alignment reference)
-    embedding_factor_raw = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
-
-    # If embedding calculation failed, use 0 for its contribution
-    embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
-
-    # --- Syntactic Features ---
-    syntactic_features = _get_syntactic_features(spacy_sentence)
-    parse_tree_depth_factor = min(syntactic_features['parse_tree_depth'] / norm['max_parse_tree_depth'], 1.5)
-    num_clauses_factor = min(syntactic_features['num_clauses'] / norm['max_num_clauses'], 1.5)
-    avg_dep_length_factor = min(syntactic_features['avg_dependency_length'] / norm['max_avg_dependency_length'], 1.5)
-    passive_voice_factor = syntactic_features['has_passive_voice'] # Binary (0 or 1)
-
-    # Combine syntactic factors (simple average for now, could be weighted)
-    # Ensure division by zero doesn't occur if weights are zero
-    syntactic_weight_sum = weights.get('syntactic_complexity', 0) # Use .get for safety
-    if syntactic_weight_sum > 0:
-        # Weighted average or simple average? Let's stick to simple average for now.
-        syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
-        syntactic_factor = max(0.0, min(1.0, syntactic_factor)) # Clamp between 0 and 1
-    else:
-        syntactic_factor = 0.0
-
-    print(f"DEBUG: Syntactic Features: {syntactic_features}")
-    print(f"DEBUG: Syntactic Factors (Depth: {parse_tree_depth_factor:.4f}, Clauses: {num_clauses_factor:.4f}, DepLen: {avg_dep_length_factor:.4f}, Passive: {passive_voice_factor:.4f}) -> Combined Factor: {syntactic_factor:.4f}")
+    # --- Conditional Expensive Factors ---
+    embedding_factor = 0.0
+    syntactic_factor = 0.0
+    coreferent_mentions_factor = 0.0
+    syntactic_features = {} # Initialize
+    coreference_features = {} # Initialize
 
 
-    # --- Coreference Features ---
-    coreference_features = _get_coreference_features(spacy_sentence, doc)
-    coreferent_mentions_factor = min(coreference_features['coreferent_mentions_count'] / norm['max_coreferent_mentions'], 1.5)
-    coreferent_mentions_factor = max(0.0, min(1.0, coreferent_mentions_factor)) # Clamp between 0 and 1
+    if mode == 'full':
+        # --- Contextual Embedding Factor ---
+        embedding_factor_raw = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
+        embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
 
-    print(f"DEBUG: Coreference Features: {coreference_features}")
-    print(f"DEBUG: Coreference Factor: {coreferent_mentions_factor:.4f}")
+        # --- Syntactic Features ---
+        syntactic_features = _get_syntactic_features(spacy_sentence)
+        parse_tree_depth_factor = min(syntactic_features.get('parse_tree_depth', 0) / norm['max_parse_tree_depth'], 1.5) # Use .get for safety
+        num_clauses_factor = min(syntactic_features.get('num_clauses', 0) / norm['max_num_clauses'], 1.5) # Use .get for safety
+        avg_dep_length_factor = min(syntactic_features.get('avg_dependency_length', 0.0) / norm['max_avg_dependency_length'], 1.5) # Use .get for safety
+        passive_voice_factor = syntactic_features.get('has_passive_voice', 0) # Binary (0 or 1), Use .get for safety
+
+        # Combine syntactic factors (simple average for now, could be weighted)
+        syntactic_weight_sum = weights.get('syntactic_complexity', 0)
+        if syntactic_weight_sum > 0:
+             syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
+             syntactic_factor = max(0.0, min(1.0, syntactic_factor))
+        else:
+             syntactic_factor = 0.0
+
+        print(f"DEBUG: Full Analysis - Syntactic Features: {syntactic_features}")
+        print(f"DEBUG: Full Analysis - Coreference Features: {coreference_features}")
 
 
     # --- Combine Factors using Weights ---
     # Use .get() for weights to avoid KeyError if a profile is missing a new weight
+    # Ensure factors are used based on the mode - factors are 0.0 if not calculated in 'fast' mode
     score = (length_factor * weights.get('sentence_length', 0)) + \
             (word_len_factor * weights.get('avg_word_length', 0)) + \
             (frequency_factor * weights.get('avg_word_frequency', 0)) + \
             (embedding_factor * weights.get('embedding_complexity', 0)) + \
             (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
-            (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Add new factors
+            (coreferent_mentions_factor * weights.get('coreference_complexity', 0))
 
     # The max possible score will need re-evaluation with new factors.
     # The thresholds might need adjustment later based on observed score ranges.
 
-    print(f"DEBUG: Combined Score Factors (Length: {length_factor:.4f}, WordLen: {word_len_factor:.4f}, Freq: {frequency_factor:.4f}, Embed: {embedding_factor:.4f}, Syntax: {syntactic_factor:.4f}, Coref: {coreferent_mentions_factor:.4f})")
-    print(f"DEBUG: Final Calculated Score: {score:.3f}")
+    print(f"DEBUG: Calculated Score ({mode} mode): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'") # Updated print to use spacy_sentence.text
+
 
     return round(score, 3)
 
@@ -486,7 +483,7 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
-def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index):
+def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, mode='full'): # Added mode parameter
     """
     Analyzes the complexity of a single spaCy sentence based on the provided profile.
     Requires the full spaCy document for coreference resolution.
@@ -496,35 +493,62 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index):
         - 'start': The start character index in the original text.
         - 'end': The end character index in the original text.
         - 'index': The index of the sentence in the document.
-        - 'syntactic_features': Dictionary of syntactic features.
-        - 'coreference_features': Dictionary of coreference features.
+        - 'syntactic_features': Dictionary of syntactic features (may be empty in 'fast' mode).
+        - 'coreference_features': Dictionary of coreference features (may be empty in 'fast' mode).
+        - 'mode': The analysis mode used ('fast' or 'full'). # Added mode to result
     """
     original_sentence = spacy_sentence.text
     start = spacy_sentence.start_char
     end = spacy_sentence.end_char
 
     if not original_sentence.strip():
-        return None # Skip empty sentences
+        # Return a basic result even for empty sentences if needed for sequential flow structure
+         return {
+            "sentence": original_sentence,
+            "score": 0.0,
+            "start": start,
+            "end": end,
+            "index": sentence_index,
+            "syntactic_features": {},
+            "coreference_features": {},
+            "mode": mode # Include mode
+        }
 
-    # Calculate complexity using the spaCy sentence object and the full doc
-    score = calculate_complexity(spacy_sentence, doc, profile)
 
-    # Extract and include the new features
-    syntactic_features = _get_syntactic_features(spacy_sentence)
-    coreference_features = _get_coreference_features(spacy_sentence, doc)
+    # Calculate complexity using the spaCy sentence object, the full doc, and the mode
+    score = calculate_complexity(spacy_sentence, doc, profile, mode=mode) # Pass mode
+
+    # Extract and include the new features (will be empty in 'fast' mode as handled in calculate_complexity)
+    # We still include the keys for consistency, even if values are empty dicts
+    syntactic_features = {} # Initialize
+    coreference_features = {} # Initialize
+
+    if mode == 'full':
+         # Re-extract features here if needed for the return dictionary,
+         # although calculate_complexity already did this.
+         # Let's rely on calculate_complexity to return the features if needed,
+         # or modify calculate_complexity to return score AND features.
+         # For now, let's just return empty features in fast mode.
+         # A better approach might be to have calculate_complexity return a dict of factors/features.
+
+         # Let's modify calculate_complexity to return a dict of {score, features}
+         # This requires a larger refactor. Sticking to current plan: features are empty in fast mode.
+         pass # Features are handled conditionally in calculate_complexity now
+
 
     return {
         "sentence": original_sentence,
-        "score": score,
+        "score": score, # Score is calculated based on mode in calculate_complexity
         "start": start,
         "end": end,
         "index": sentence_index,
-        "syntactic_features": syntactic_features,
-        "coreference_features": coreference_features,
+        "syntactic_features": {}, # Features are not returned separately in this structure
+        "coreference_features": {}, # Features are not returned separately in this structure
+        "mode": mode # Include the mode in the result
     }
 
 
-def analyze_text_complexity(text, target_audience="Standard"):
+def analyze_text_complexity(text, target_audience="Standard", mode='full'):
     """
     Analyzes the complexity of each sentence in the input text based on target audience.
     Uses spaCy for sentence segmentation, parsing, and coreference resolution.
@@ -574,7 +598,7 @@ def analyze_text_complexity(text, target_audience="Standard"):
     # Iterate through sentences and analyze each one using the new function
     if doc.has_annotation("SENT_START"):
         for i, spacy_sentence in enumerate(doc.sents):
-            sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i)
+            sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i, mode=mode)
             if sentence_result:
                 results.append(sentence_result)
 

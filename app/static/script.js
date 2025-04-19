@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const gunningFogTargetEl = document.getElementById('gunning-fog-target');
     // --- NEW Gemini/Context Awareness Elements ---
     const contextAwarenessToggle = document.getElementById('context-awareness-toggle');
-    const analysisLoadingIndicator = document.getElementById('analysis-loading-indicator'); // <<< ADD THIS LINE
+    const analysisLoadingIndicator = document.getElementById('analysis-loading-indicator'); // <<< KEPT FOR NOW, BUT WILL BE REMOVED LATER
+    const analysisPhaseIndicator = document.getElementById('analysis-phase-indicator'); // <<< NEW Phase Indicator
     const goalContainer = document.getElementById('target-audience-goal-container'); // Keep container for toggle visibility
     // const goalInput = document.getElementById('target-audience-goal'); // REMOVED
     const contextAwarenessInfo = document.getElementById('context-awareness-info'); // Info icon
@@ -154,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State for Context Awareness ---
     let contextAwarenessEnabled = false; // Default state, updated from checkbox
     // let currentGoalText = ''; // REMOVED
+    let phaseIndicatorTimeout = null; // Timeout for hiding the 'complete' indicator
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -316,9 +318,60 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         const score = 206.835 - 1.015 * (words.length / sentences.length) - 84.6 * (syllables / words.length);
         return Math.round(score);
     }
-
-    // --- Analysis & Highlighting ---
-    // --- Analysis & Highlighting (Modified) ---
+ 
+    // --- NEW: Phase Indicator Management ---
+    const phaseIndicatorClasses = {
+        idle: ['hidden'],
+        fast: ['bg-cyan-500', 'animate-pulse'], // Cyan, pulsing (Sequential sentence analysis)
+        full: ['bg-yellow-500', 'animate-pulse'], // Yellow, pulsing (Fetching overall analysis data)
+        processing_overall: ['bg-magenta-500', 'animate-pulse'], // Magenta, pulsing (Processing overall data for sidebar)
+        complete: ['bg-green-500'], // Green, static (briefly shown when all analysis is complete)
+        error: ['bg-red-500'], // Red, static
+    };
+ 
+    function updatePhaseIndicator(state) {
+        if (!analysisPhaseIndicator) return;
+ 
+        // Clear previous timeout if any
+        if (phaseIndicatorTimeout) {
+            clearTimeout(phaseIndicatorTimeout);
+            phaseIndicatorTimeout = null;
+        }
+ 
+        // Remove all state classes and hidden
+        analysisPhaseIndicator.classList.remove(
+            ...Object.values(phaseIndicatorClasses).flat(),
+            'hidden'
+        );
+ 
+        if (state === 'idle') {
+            analysisPhaseIndicator.classList.add('hidden');
+        } else if (phaseIndicatorClasses[state]) {
+            analysisPhaseIndicator.classList.add(...phaseIndicatorClasses[state]);
+            analysisPhaseIndicator.classList.remove('hidden'); // Ensure visible
+ 
+            // Set title for tooltip
+            let title = 'Analysis Phase';
+            if (state === 'fast') title = 'Fast Analysis Running...';
+            else if (state === 'full') title = 'Fetching Overall Analysis Data...'; // Updated title
+            else if (state === 'processing_overall') title = 'Processing Overall Analysis...'; // New title
+            else if (state === 'complete') title = 'Analysis Complete';
+            else if (state === 'error') title = 'Analysis Error';
+            analysisPhaseIndicator.setAttribute('title', title);
+ 
+            // Special handling for 'complete': hide after a delay
+            if (state === 'complete') {
+                phaseIndicatorTimeout = setTimeout(() => {
+                    updatePhaseIndicator('idle'); // Go back to idle state
+                }, 1500); // Hide after 1.5 seconds
+            }
+        } else {
+            console.warn("Unknown phase indicator state:", state);
+            analysisPhaseIndicator.classList.add('hidden'); // Hide if unknown state
+        }
+    }
+ 
+    // --- Analysis & Highlighting (Modified for Phase Indicator) ---
     async function analyzeAndHighlight(forceHighlightUpdate = false) {
         const text = quill.getText();
         const startTime = performance.now();
@@ -335,15 +388,17 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             updateReadabilityScores(null); // Clear scores and targets
             updateDocumentMap(null); // Clear map
             if (analysisTimeEl) analysisTimeEl.textContent = '0ms';
+            updatePhaseIndicator('idle'); // Set indicator to idle
             // applyHighlighting is implicitly handled by clearing formats above and returning
             return;
         }
 
         // Only fetch new analysis if not forcing highlight update
         if (!forceHighlightUpdate) {
-            // Show loading state
-            if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
-            if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // <<< SHOW INDICATOR
+            // Show loading state (using phase indicator)
+            // if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden'); // REMOVE old loading bar
+            // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // REMOVE old spinner
+            updatePhaseIndicator('full'); // <<< SET Phase Indicator to 'full' (Yellow)
 
             // --- Prepare request body ---
             const requestBody = {
@@ -411,10 +466,19 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 updateReadabilityScores(null); // Reset scores
                 clearLlmEnhancements(); // Renamed function call
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
+                updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
                 // Map will be cleared in the finally block's updateDocumentMap call
             } finally {
-                if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
-                if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR
+                // if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden'); // REMOVE old loading bar
+                // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
+                // Set to 'complete' only if no error occurred (handled in catch block)
+                if (!currentAnalysisData && !isOverallScoreOutOfBounds) { // Check if error occurred
+                   // Error state already set in catch
+                } else if (text.trim()) { // Only show complete if there's text
+                    updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
+                } else {
+                    updatePhaseIndicator('idle'); // Back to idle if text was cleared during analysis
+                }
             }
         }
 
@@ -995,7 +1059,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
         isSequentialAnalysisRunning = true;
         console.log("Starting sequential analysis...");
-        if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
+        // if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden'); // REMOVE old loading bar
+        updatePhaseIndicator('fast'); // <<< SET Phase Indicator to 'fast' (Cyan)
 
         // Clear existing highlights and enhancements before sequential analysis
         quill.formatText(0, quill.getLength(), 'background', false, 'api');
@@ -1004,8 +1069,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // Clear the document map as well
         if (documentMapContainer) documentMapContainer.innerHTML = '';
         // Reset overall complexity meter and scores
-        updateComplexityMeter(null);
-        updateReadabilityScores(null);
+        updateComplexityMeter(null); // Reset meter
+        updateReadabilityScores(null); // Reset scores
 
 
         const requestBody = {
@@ -1104,8 +1169,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                                 applyGoalIndicatorVisibility();
                             }
 
-                            // --- DEBUG: Add artificial delay ---
-                            await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay
+                            // REMOVED artificial delay
 
 
                         } catch (parseError) {
@@ -1171,8 +1235,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             // --- Perform Final Overall Analysis Update ---
             console.log("[Seq] Fetching final overall analysis..."); // DEBUG
+            updatePhaseIndicator('full'); // <<< SET Phase Indicator to 'full' (Yellow) - Indicates fetching
             // Call the original /analyze endpoint to get overall scores and readability
-            if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // <<< SHOW INDICATOR
+            // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // REMOVE old spinner
             // This is necessary because the sequential endpoint only returns sentence data.
             const finalAnalysisResponse = await fetch('/analyze', {
                 method: 'POST',
@@ -1180,8 +1245,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 body: JSON.stringify(requestBody), // Use the same request body
             });
 
+            // After fetching, transition to processing state
+            updatePhaseIndicator('processing_overall'); // <<< SET Phase Indicator to 'processing_overall' (Magenta)
+
             if (!finalAnalysisResponse.ok) {
-                 if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR on error
+                 // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
+                  updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
                   let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
                   try {
                      const errorData = await finalAnalysisResponse.json();
@@ -1194,9 +1263,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             } else {
                 const finalAnalysisData = await finalAnalysisResponse.json();
-                if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // <<< HIDE INDICATOR on success
+                // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
+                // Phase indicator will be set to 'complete' in the finally block
                 currentAnalysisData = finalAnalysisData; // Update stored analysis data with full results
                 console.log("Received final analysis data:", currentAnalysisData); // DEBUG
+
+                // The indicator is already set to 'processing_overall' before this block.
+                // It will transition to 'complete' in the finally block if successful.
 
                 // Update UI with final overall scores and readability
                 updateComplexityMeter(currentAnalysisData);
@@ -1229,13 +1302,21 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             console.error('Error during sequential analysis:', error);
             // Handle errors during the streaming process
             updateComplexityMeter({level: 0, description: "Sequential analysis error"});
-            updateReadabilityScores(null);
+            updateReadabilityScores(null); // Reset scores
             clearLlmEnhancements();
             if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
             if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
+            updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
         } finally {
-            if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+            // if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden'); // REMOVE old loading bar
             isSequentialAnalysisRunning = false; // Reset flag
+            // Set to 'complete' only if no error occurred during the *final* analysis fetch
+            if (currentAnalysisData && text.trim()) { // Check if final data exists and text is present
+                 updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
+            } else if (!text.trim()) {
+                 updatePhaseIndicator('idle'); // Back to idle if text was cleared
+            }
+            // Error state is handled in the catch blocks
         }
     }
 
@@ -1260,51 +1341,23 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 // Move cursor to the end of the pasted text
                 quill.setSelection(startIndex + pastedText.length, 0, 'silent');
 
-                // Check if the total text in the editor is "large" (e.g., > 50 words)
-                const totalText = quill.getText();
-                const wordCount = totalText.trim().split(/\s+/).filter(word => word.length > 0).length; // More robust word count
-
-                const largeTextThreshold = 50; // Define the threshold
-
-                if (wordCount > largeTextThreshold) {
-                    console.log(`Pasted large text (${wordCount} words). Triggering sequential analysis.`);
-                    // Cancel any pending standard analysis triggered by the insertText
-                    debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
-                    // Trigger sequential analysis
-                    const currentText = quill.getText(); // Get the text AFTER pasting
-                    const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
-                    const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                    analyzeSequentially(currentText, audience, contextAwarenessEnabled);
-
-                    // Prevent the debounced analyzeAndHighlight from running immediately after paste
-                    // This is handled by manually inserting text with 'user' source and then
-                    // calling analyzeSequentially directly. The debounced listener on 'text-change'
-                    // will still fire, but analyzeSequentially will clear highlights first.
-                    // A more robust approach might involve a flag or clearing the debounce timeout.
-                    // For now, clearing highlights in analyzeSequentially is the simplest way.
-
-                } else {
-                    console.log(`Pasted small text (${wordCount} words). Triggering standard analysis.`);
-                    // For small pastes, let the normal text-change handler trigger the debounced analysis
-                    // The manual insertText with 'user' source will trigger 'text-change'.
-                }
+                console.log("Pasted text. Triggering sequential analysis.");
+                // Always trigger sequential analysis on paste
+                debouncedAnalyzeSequentially.cancel(); // Cancel any pending sequential analysis
+                const currentText = quill.getText(); // Get the text AFTER pasting
+                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                analyzeSequentially(currentText, audience, contextAwarenessEnabled); // Call directly
             } else {
                  // If no selection, just insert at the end
                  quill.insertText(quill.getLength(), pastedText, 'user');
-                 const totalText = quill.getText();
-                 const wordCount = totalText.trim().split(/\s+/).filter(word => word.length > 0).length;
-                 const largeTextThreshold = 50;
-                 if (wordCount > largeTextThreshold) {
-                     console.log(`Pasted large text (${wordCount} words) at end. Triggering sequential analysis.`);
-                     // Cancel any pending standard analysis triggered by the insertText
-                     debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
-                     const currentText = quill.getText();
-                     const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
-                     const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                     analyzeSequentially(currentText, audience, contextAwarenessEnabled);
-                 } else {
-                     console.log(`Pasted small text (${wordCount} words) at end. Triggering standard analysis.`);
-                 }
+                 console.log("Pasted text at end. Triggering sequential analysis.");
+                 // Always trigger sequential analysis on paste
+                 debouncedAnalyzeSequentially.cancel(); // Cancel any pending sequential analysis
+                 const currentText = quill.getText();
+                 const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                 const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                 analyzeSequentially(currentText, audience, contextAwarenessEnabled); // Call directly
             }
 
             // Update stats immediately after paste
@@ -1315,14 +1368,19 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
 
 
+    // Define debounced sequential analysis function
+    const debouncedAnalyzeSequentially = debounce(analyzeSequentially, 750);
+ 
     // --- Text Change Listener ---
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
-            // Only trigger debounced analysis if sequential analysis is not running
-            if (!isSequentialAnalysisRunning) {
-                updateStats();
-                debouncedAnalyzeAndHighlight(); // Use the correctly defined debounced function
-            }
+            updateStats();
+            // Always trigger the debounced *sequential* analysis on user text change
+            const currentText = quill.getText();
+            const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+            const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+            // Pass necessary arguments to the debounced function
+            debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
         }
     });
 
@@ -1359,8 +1417,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (targetAudienceSelect) {
         targetAudienceSelect.addEventListener('change', (event) => {
             currentTargetAudience = event.target.value;
-            // When audience changes, re-analyze the current text (standard analysis)
-            analyzeAndHighlight(false);
+            // When audience changes, re-analyze the current text using standard analysis
+            // (as sequential is mainly for typing/pasting feedback)
+            analyzeAndHighlight(false); // Use standard full analysis here
         });
         currentTargetAudience = targetAudienceSelect.value; // Initial state
     } else {
@@ -1415,7 +1474,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             // Trigger a re-analysis when toggled to apply/clear enhancements
             // Use standard analysis for toggle changes
-            analyzeAndHighlight(false);
+            analyzeAndHighlight(false); // Use standard full analysis here
 
             // Explicitly clear enhancements if toggled OFF
             if (!contextAwarenessEnabled) {
@@ -1453,7 +1512,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     applyGoalIndicatorVisibility(); // Apply initial visibility
     // Initial analysis call (will now include context awareness state if enabled by default)
     // Use standard analysis on initial load
-    setTimeout(() => analyzeAndHighlight(false), 100);
+    setTimeout(() => analyzeAndHighlight(false), 100); // Use standard full analysis here
 
     // --- Sidebar Toggle Logic ---
     function openSidebar() {
