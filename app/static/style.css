@@ -779,10 +779,6 @@ video {
   width: 0px;
 }
 
-.w-1\/5 {
-  width: 20%;
-}
-
 .w-24 {
   width: 6rem;
 }
@@ -821,6 +817,10 @@ video {
 
 .shrink {
   flex-shrink: 1;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
 }
 
 .flex-grow {
@@ -894,6 +894,10 @@ video {
   flex-direction: column;
 }
 
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
 .items-end {
   align-items: flex-end;
 }
@@ -908,6 +912,10 @@ video {
 
 .justify-between {
   justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
 }
 
 .gap-2 {
@@ -1158,6 +1166,16 @@ video {
   padding-bottom: 0.25rem;
 }
 
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
 .pt-4 {
   padding-top: 1rem;
 }
@@ -1377,12 +1395,12 @@ video {
 /* Custom Tippy.js Dark Theme */
 
 .tippy-box[data-theme~='tippy-dark'] {
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   border-width: 1px;
   --tw-border-opacity: 1;
-  border-color: rgb(75 85 99 / var(--tw-border-opacity, 1));
+  border-color: rgb(55 65 81 / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(55 65 81 / var(--tw-bg-opacity, 1));
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1));
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   padding-top: 0.5rem;
@@ -1400,22 +1418,22 @@ video {
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='top'] > .tippy-arrow {
   --tw-border-opacity: 1;
-  border-top-color: rgb(55 65 81 / var(--tw-border-opacity, 1));
+  border-top-color: rgb(31 41 55 / var(--tw-border-opacity, 1));
 }
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='bottom'] > .tippy-arrow {
   --tw-border-opacity: 1;
-  border-bottom-color: rgb(55 65 81 / var(--tw-border-opacity, 1));
+  border-bottom-color: rgb(31 41 55 / var(--tw-border-opacity, 1));
 }
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='left'] > .tippy-arrow {
   --tw-border-opacity: 1;
-  border-left-color: rgb(55 65 81 / var(--tw-border-opacity, 1));
+  border-left-color: rgb(31 41 55 / var(--tw-border-opacity, 1));
 }
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='right'] > .tippy-arrow {
   --tw-border-opacity: 1;
-  border-right-color: rgb(55 65 81 / var(--tw-border-opacity, 1));
+  border-right-color: rgb(31 41 55 / var(--tw-border-opacity, 1));
 }
 
 .tippy-box[data-theme~='tippy-dark'] .tippy-content {
@@ -1449,7 +1467,7 @@ video {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
   --tw-border-opacity: 1;
-  border-color: rgb(107 114 128 / var(--tw-border-opacity, 1));
+  border-color: rgb(75 85 99 / var(--tw-border-opacity, 1));
 }
 
 /* Ensure Tailwind processes these custom styles */
@@ -1619,5 +1637,11 @@ video {
 @media (min-width: 768px) {
   .md\:p-8 {
     padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:p-10 {
+    padding: 2.5rem;
   }
 }

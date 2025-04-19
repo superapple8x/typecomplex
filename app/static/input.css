@@ -4,21 +4,21 @@
 
 /* Custom Tippy.js Dark Theme */
 .tippy-box[data-theme~='tippy-dark'] {
-    @apply bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 text-sm shadow-lg;
+    @apply bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-2 text-sm shadow-lg;
     font-family: inherit; /* Use the body font */
 }
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='top'] > .tippy-arrow {
-    @apply border-t-gray-700;
+    @apply border-t-gray-800;
 }
 .tippy-box[data-theme~='tippy-dark'][data-placement^='bottom'] > .tippy-arrow {
-    @apply border-b-gray-700;
+    @apply border-b-gray-800;
 }
 .tippy-box[data-theme~='tippy-dark'][data-placement^='left'] > .tippy-arrow {
-    @apply border-l-gray-700;
+    @apply border-l-gray-800;
 }
 .tippy-box[data-theme~='tippy-dark'][data-placement^='right'] > .tippy-arrow {
-    @apply border-r-gray-700;
+    @apply border-r-gray-800;
 }
 
 .tippy-box[data-theme~='tippy-dark'] .tippy-content {
@@ -37,7 +37,7 @@
 
 /* Optional: Style hr tags inside the dark tooltip */
 .tippy-box[data-theme~='tippy-dark'] hr {
-    @apply border-gray-500 my-1;
+    @apply border-gray-600 my-1;
 }
 
 /* Ensure Tailwind processes these custom styles */
