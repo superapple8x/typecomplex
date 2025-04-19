@@ -486,10 +486,52 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
+def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index):
+    """
+    Analyzes the complexity of a single spaCy sentence based on the provided profile.
+    Requires the full spaCy document for coreference resolution.
+    Returns a dictionary containing:
+        - 'sentence': The original sentence text.
+        - 'score': The complexity score (float).
+        - 'start': The start character index in the original text.
+        - 'end': The end character index in the original text.
+        - 'index': The index of the sentence in the document.
+        - 'syntactic_features': Dictionary of syntactic features.
+        - 'coreference_features': Dictionary of coreference features.
+    """
+    original_sentence = spacy_sentence.text
+    start = spacy_sentence.start_char
+    end = spacy_sentence.end_char
+
+    if not original_sentence.strip():
+        return None # Skip empty sentences
+
+    # Calculate complexity using the spaCy sentence object and the full doc
+    score = calculate_complexity(spacy_sentence, doc, profile)
+
+    # Extract and include the new features
+    syntactic_features = _get_syntactic_features(spacy_sentence)
+    coreference_features = _get_coreference_features(spacy_sentence, doc)
+
+    return {
+        "sentence": original_sentence,
+        "score": score,
+        "start": start,
+        "end": end,
+        "index": sentence_index,
+        "syntactic_features": syntactic_features,
+        "coreference_features": coreference_features,
+    }
+
+
 def analyze_text_complexity(text, target_audience="Standard"):
     """
     Analyzes the complexity of each sentence in the input text based on target audience.
     Uses spaCy for sentence segmentation, parsing, and coreference resolution.
+    This function is now primarily for calculating overall scores and readability
+    after all sentences have been analyzed (e.g., in the non-sequential flow).
+    It can also be used to get all sentence results at once.
+
     Returns a dictionary containing:
         - 'results': A list of dictionaries (sentence, score, start, end, syntactic_features, coreference_features).
         - 'overall_level': A dictionary (level, description, color_class).
@@ -500,10 +542,7 @@ def analyze_text_complexity(text, target_audience="Standard"):
     profile = AUDIENCE_PROFILES.get(target_audience, AUDIENCE_PROFILES["Standard"])
 
     if not text or not text.strip() or not nlp: # Check if spaCy model loaded
-        # Return default structure for empty/whitespace-only text or if spaCy failed
         print("WARN: spaCy model not loaded or text is empty. Returning basic analysis.")
-        # Fallback to basic analysis if spaCy is not available? Or just return empty?
-        # For now, return empty results if spaCy is required and not loaded.
         return {
             "results": [],
             "overall_level": {"level": 0, "description": "Enter text to analyze (spaCy unavailable)", "color_class": "bg-gray-600"},
@@ -511,57 +550,19 @@ def analyze_text_complexity(text, target_audience="Standard"):
             "target_readability_scores": profile['target_readability']
         }
 
-    # Process the entire text with spaCy once
+    # Process the entire text with spaCy once to get the document and sentences
     try:
-        # Add coref component if available (requires separate installation/model)
-        # Example using neuralcoref (needs installation: pip install neuralcoref)
-        # try:
-        #     import neuralcoref
-        #     if 'neuralcoref' not in nlp.pipe_names:
-        #         coref = neuralcoref.NeuralCoref(nlp.vocab)
-        #         nlp.add_pipe(coref, name='neuralcoref')
-        # except ImportError:
-        #     print("WARN: neuralcoref not installed. Coreference features will be zero.")
-        #     pass # Continue without coref if not installed
-
         doc = nlp(text)
-        # Check if sentence boundaries are detected
         if not doc.has_annotation("SENT_START"):
-             print("WARN: spaCy sentence segmentation failed. Falling back to NLTK.")
-             # Fallback to NLTK if spaCy sentence segmentation fails
-             if not sentence_tokenizer:
-                 print("ERROR: NLTK sentence tokenizer also not available. Cannot segment sentences.")
-                 return {
-                    "results": [],
-                    "overall_level": {"level": 0, "description": "Sentence segmentation failed", "color_class": "bg-gray-600"},
-                    "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
-                    "target_readability_scores": profile['target_readability']
-                 }
-             sentence_spans = sentence_tokenizer.span_tokenize(text)
-             results = []
-             # Cannot perform spaCy analysis on fallback sentences
-             # Calculate a dummy score or skip? Let's skip scoring for now in fallback.
-             # Readability can still be calculated.
-             # for i, (start, end) in enumerate(sentence_spans):
-             #     original_sentence = text[start:end]
-             #     if not original_sentence.strip():
-             #         continue
-             #     results.append({
-             #         "sentence": original_sentence,
-             #         "score": None, # Cannot calculate score without spaCy
-             #         "start": start,
-             #         "end": end,
-             #         "index": i,
-             #         "syntactic_features": {},
-             #         "coreference_features": {},
-             #     })
-             overall_level_details = {"level": 0, "description": "Analysis incomplete (segmentation fallback)", "color_class": "bg-yellow-600"}
-             overall_score = None
-             results = [] # No sentence results if fallback occurs
-
+             print("WARN: spaCy sentence segmentation failed. Cannot perform analysis.")
+             return {
+                "results": [],
+                "overall_level": {"level": 0, "description": "Sentence segmentation failed", "color_class": "bg-gray-600"},
+                "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+                "target_readability_scores": profile['target_readability']
+             }
     except Exception as e:
         print(f"ERROR processing text with spaCy: {e}")
-        # Handle spaCy processing errors
         return {
             "results": [],
             "overall_level": {"level": 0, "description": f"Analysis failed: {e}", "color_class": "bg-red-600"},
@@ -569,55 +570,30 @@ def analyze_text_complexity(text, target_audience="Standard"):
             "target_readability_scores": profile['target_readability']
         }
 
-
     results = []
-    # Iterate through sentences provided by spaCy if segmentation worked
+    # Iterate through sentences and analyze each one using the new function
     if doc.has_annotation("SENT_START"):
         for i, spacy_sentence in enumerate(doc.sents):
-            original_sentence = spacy_sentence.text # Use spaCy sentence text
-            start = spacy_sentence.start_char # Use spaCy start char index
-            end = spacy_sentence.end_char # Use spaCy end char index
+            sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i)
+            if sentence_result:
+                results.append(sentence_result)
 
-            if not original_sentence.strip(): # Check if sentence is just whitespace
-                 continue
-
-            # Calculate complexity using the spaCy sentence object and the full doc
-            score = calculate_complexity(spacy_sentence, doc, profile)
-
-            # Extract and include the new features in the results
-            syntactic_features = _get_syntactic_features(spacy_sentence)
-            coreference_features = _get_coreference_features(spacy_sentence, doc)
-
-
-            results.append({
-                "sentence": original_sentence,
-                "score": score,
-                "start": start,
-                "end": end,
-                "index": i,
-                "syntactic_features": syntactic_features, # Include syntactic features
-                "coreference_features": coreference_features, # Include coreference features
-            })
-
-        # Calculate overall score (average of sentence scores) only if results exist
-        if results:
-            total_score = sum(r['score'] for r in results)
-            num_sentences = len(results)
-            overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
-            overall_level_details = get_overall_complexity_level(overall_score, profile)
-        else: # Handle case where text had no valid sentences after processing
-             overall_score = 0.0
-             overall_level_details = {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"}
+    # Calculate overall score (average of sentence scores) only if results exist
+    if results:
+        total_score = sum(r['score'] for r in results)
+        num_sentences = len(results)
+        overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
+        overall_level_details = get_overall_complexity_level(overall_score, profile)
+    else: # Handle case where text had no valid sentences after processing
+         overall_score = 0.0
+         overall_level_details = {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"}
 
     # --- Calculate Standard Readability Scores ---
-    # (Readability calculation remains the same, independent of profile for now)
     try:
         flesch_kincaid_grade = round(textstat.flesch_kincaid_grade(text), 1)
         gunning_fog = round(textstat.gunning_fog(text), 1)
         smog_index = round(textstat.smog_index(text), 1)
-        # Add more scores if needed, e.g., textstat.flesch_reading_ease(text)
     except Exception as e:
-        # Handle potential errors in textstat calculation (e.g., text too short)
         print(f"Error calculating textstat scores: {e}")
         flesch_kincaid_grade = None
         gunning_fog = None
@@ -630,7 +606,6 @@ def analyze_text_complexity(text, target_audience="Standard"):
             "flesch_kincaid_grade": flesch_kincaid_grade,
             "gunning_fog": gunning_fog,
             "smog_index": smog_index
-            # Add other scores here if calculated
         },
         "target_readability_scores": profile['target_readability']
     }

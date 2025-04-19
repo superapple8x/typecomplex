@@ -5,7 +5,7 @@
 // --- Utility: Debounce ---
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
+    const debounced = function executedFunction(...args) {
         const later = () => {
             clearTimeout(timeout);
             func(...args);
@@ -13,6 +13,11 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+    // Add a cancel method
+    debounced.cancel = () => {
+        clearTimeout(timeout);
+    };
+    return debounced; // Return the function with the cancel method attached
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -965,76 +970,342 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // Define debounced function just before use
     const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750);
 
-    quill.on('text-change', (delta, oldDelta, source) => {
-        if (source === 'user') {
-            updateStats();
-            debouncedAnalyzeAndHighlight(); // Now this should be defined
+    // --- Sequential Analysis Function ---
+    let isSequentialAnalysisRunning = false; // Flag to prevent overlap
+    async function analyzeSequentially(text, audience, contextAwarenessEnabled) {
+        if (isSequentialAnalysisRunning) {
+            console.log("[Seq] Analysis already running, skipping new request.");
+            return;
         }
-    });
+        // Cancel any pending standard analysis before starting sequential
+        debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
+        isSequentialAnalysisRunning = true;
+        console.log("Starting sequential analysis...");
+        if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden');
 
-    // Function to update sensitivity label
-    function updateSensitivityLabel(level) {
-        if (sensitivityLabel) {
-            sensitivityLabel.textContent = sensitivityLabels[level] || 'Unknown';
-        }
-    }
+        // Clear existing highlights and enhancements before sequential analysis
+        quill.formatText(0, quill.getLength(), 'background', false, 'api');
+        quill.formatText(0, quill.getLength(), 'underline', false, 'api');
+        clearLlmEnhancements();
+        // Clear the document map as well
+        if (documentMapContainer) documentMapContainer.innerHTML = '';
+        // Reset overall complexity meter and scores
+        updateComplexityMeter(null);
+        updateReadabilityScores(null);
 
-    // Listener for Complexity Sensitivity Slider
-    if (sensitivitySlider) {
-        updateSensitivityLabel(parseInt(sensitivitySlider.value, 10)); // Initial label
-        sensitivitySlider.addEventListener('input', (event) => {
-            const newLevel = parseInt(event.target.value, 10);
-            currentSensitivityLevel = newLevel;
-            updateSensitivityLabel(newLevel);
-            // Re-apply statistical highlighting based on new sensitivity
-            applyStatisticalHighlighting(currentAnalysisData?.results || []);
-            // Re-apply LLM enhancements (they aren't sensitivity-dependent but might need redraw) // Renamed
-            // Ensure results exist before calling
-            if (currentAnalysisData?.results) {
-                applyLlmEnhancements(currentAnalysisData.results); // Renamed function call
-                // initializeGeminiTooltips(currentAnalysisData.results); // REMOVED undefined function call
+
+        const requestBody = {
+            text: text,
+            target_audience: audience,
+            context_awareness_enabled: contextAwarenessEnabled
+        };
+
+        try {
+            const response = await fetch('/analyze_sequential', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorMsg;
+                } catch (e) { /* Ignore parsing error */ }
+                throw new Error(errorMsg);
             }
-        });
+
+            const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+            let buffer = '';
+            const sentenceResults = []; // Store results for final overall calculation
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += value;
+                // Process lines from the buffer
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep the last incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const sentenceResult = JSON.parse(line);
+                            console.log(`[Seq] Received sentence ${sentenceResult.index}:`, sentenceResult); // DEBUG
+
+                            // Store the result
+                            sentenceResults.push(sentenceResult);
+
+                            // Apply statistical highlighting for the sentence
+                            if (showHighlighting && sentenceResult.score !== undefined) {
+                                const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
+                                const startIndex = sentenceResult.start;
+                                const endIndex = sentenceResult.end;
+                                const length = endIndex - startIndex;
+                                if (startIndex !== undefined && length > 0) {
+                                    console.log(`[Seq] Applying background ${color} to sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                                    quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                                    console.log(`[Seq] Applied background for sentence ${sentenceResult.index}`); // DEBUG
+
+                                    // Re-check and apply underline based on current overall state (might be inaccurate until final scores)
+                                    // For now, skip underline during sequential to avoid flickering.
+                                    // The final analyzeAndHighlight call will apply correct underlines.
+                                } else {
+                                     console.warn(`[Seq] Invalid indices for sequential highlighting: start=${startIndex}, end=${endIndex}`);
+                                }
+                            }
+
+                            // Apply LLM enhancement highlighting if enabled
+                            if (contextAwarenessEnabled && sentenceResult.gemini_enhancement && !sentenceResult.gemini_enhancement.error && sentenceResult.gemini_enhancement.contextual_assessment && sentenceResult.gemini_enhancement.contextual_assessment !== "Appropriate") {
+                                const startIndex = sentenceResult.start;
+                                const endIndex = sentenceResult.end;
+                                const length = endIndex - startIndex;
+                                if (startIndex !== undefined && length > 0) {
+                                     console.log(`[Seq] Applying LLM enhancement to sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                                     quill.formatText(startIndex, length, 'llm-enhancement', true, 'api');
+                                }
+                            }
+
+                            // Incrementally update the visual document map
+                            if (documentMapContainer && sentenceResult.score !== undefined) {
+                                console.log(`[Seq] Updating map for sentence ${sentenceResult.index}`); // DEBUG
+                                const segment = document.createElement('div');
+                                segment.classList.add('map-segment');
+                                segment.dataset.sentenceIndex = sentenceResult.index;
+
+                                const heightPercent = Math.min(100, Math.max(5, (sentenceResult.score || 0) * 60 + 5));
+                                segment.style.height = `${heightPercent}%`;
+
+                                const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
+                                segment.classList.add(colorClass);
+
+                                segment.title = `Sentence ${sentenceResult.index + 1}: Score ${sentenceResult.score.toFixed(2)}`;
+
+                                documentMapContainer.appendChild(segment);
+                                // Re-apply goal indicator visibility class to the map container
+                                applyGoalIndicatorVisibility();
+                            }
+
+                            // --- DEBUG: Add artificial delay ---
+                            await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay
+
+
+                        } catch (parseError) {
+                            console.error('[Seq] Error parsing streamed JSON:', parseError, 'Line:', line);
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining buffer content
+            if (buffer.trim()) {
+                 try {
+                    const sentenceResult = JSON.parse(buffer);
+                    console.log("[Seq] Received final buffer result:", sentenceResult); // DEBUG
+                    sentenceResults.push(sentenceResult);
+                    // Apply highlighting and map update for the last sentence if needed
+                     if (showHighlighting && sentenceResult.score !== undefined) {
+                        const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                        const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
+                        const startIndex = sentenceResult.start;
+                        const endIndex = sentenceResult.end;
+                        const length = endIndex - startIndex;
+                        if (startIndex !== undefined && length > 0) {
+                             console.log(`[Seq] Applying background ${color} to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                            quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                        }
+                    }
+                     if (contextAwarenessEnabled && sentenceResult.gemini_enhancement && !sentenceResult.gemini_enhancement.error && sentenceResult.gemini_enhancement.contextual_assessment && sentenceResult.gemini_enhancement.contextual_assessment !== "Appropriate") {
+                        const startIndex = sentenceResult.start;
+                        const endIndex = sentenceResult.end;
+                        const length = endIndex - startIndex;
+                        if (startIndex !== undefined && length > 0) {
+                             console.log(`[Seq] Applying LLM enhancement to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                             quill.formatText(startIndex, length, 'llm-enhancement', true, 'api');
+                        }
+                    }
+                     if (documentMapContainer && sentenceResult.score !== undefined) {
+                         console.log(`[Seq] Updating map for FINAL sentence ${sentenceResult.index}`); // DEBUG
+                        const segment = document.createElement('div');
+                        segment.classList.add('map-segment');
+                        segment.dataset.sentenceIndex = sentenceResult.index;
+
+                        const heightPercent = Math.min(100, Math.max(5, (sentenceResult.score || 0) * 60 + 5));
+                        segment.style.height = `${heightPercent}%`;
+
+                        const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                        const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
+                        segment.classList.add(colorClass);
+
+                        segment.title = `Sentence ${sentenceResult.index + 1}: Score ${sentenceResult.score.toFixed(2)}`;
+
+                        documentMapContainer.appendChild(segment);
+                         applyGoalIndicatorVisibility();
+                    }
+
+                 } catch (parseError) {
+                    console.error('[Seq] Error parsing remaining buffer JSON:', parseError, 'Buffer:', buffer);
+                 }
+            }
+
+
+            console.log("[Seq] Sequential analysis stream finished.");
+
+            // --- Perform Final Overall Analysis Update ---
+            console.log("[Seq] Fetching final overall analysis..."); // DEBUG
+            // Call the original /analyze endpoint to get overall scores and readability
+            // This is necessary because the sequential endpoint only returns sentence data.
+            const finalAnalysisResponse = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody), // Use the same request body
+            });
+
+            if (!finalAnalysisResponse.ok) {
+                 let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
+                 try {
+                    const errorData = await finalAnalysisResponse.json();
+                    errorMsg = errorData.error || errorMsg;
+                 } catch (e) { /* Ignore parsing error */ }
+                 console.error('Error fetching final analysis:', errorMsg);
+                 // Update UI to show error for overall scores
+                 updateComplexityMeter({level: 0, description: "Final analysis error"});
+                 updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores});
+
+            } else {
+                const finalAnalysisData = await finalAnalysisResponse.json();
+                currentAnalysisData = finalAnalysisData; // Update stored analysis data with full results
+                console.log("Received final analysis data:", currentAnalysisData); // DEBUG
+
+                // Update UI with final overall scores and readability
+                updateComplexityMeter(currentAnalysisData);
+                updateReadabilityScores(currentAnalysisData);
+
+                // Re-apply highlighting and map to ensure underlines and final state are correct
+                // This might cause a slight flicker but ensures consistency.
+                // Alternatively, modify applyStatisticalHighlighting to only apply underlines
+                // and update map heights based on the full data.
+                applyStatisticalHighlighting(currentAnalysisData?.results || []);
+                updateDocumentMap(currentAnalysisData); // Rebuild map with final data
+
+                 // --- NEW: Check if overall score is out of bounds ---
+                isOverallScoreOutOfBounds = checkIfOutOfBounds(
+                    currentAnalysisData?.readability_scores,
+                    currentAnalysisData?.target_readability_scores
+                );
+                 applyGoalIndicatorVisibility(); // Ensure goal indicators are correctly applied based on final state
+
+                 // Re-apply LLM enhancements based on final data (if any were missed or need update)
+                 if (contextAwarenessEnabled && currentAnalysisData?.results) {
+                     applyLlmEnhancements(currentAnalysisData.results);
+                 } else {
+                     clearLlmEnhancements();
+                 }
+            }
+
+
+        } catch (error) {
+            console.error('Error during sequential analysis:', error);
+            // Handle errors during the streaming process
+            updateComplexityMeter({level: 0, description: "Sequential analysis error"});
+            updateReadabilityScores(null);
+            clearLlmEnhancements();
+            if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
+            if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
+        } finally {
+            if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden');
+            isSequentialAnalysisRunning = false; // Reset flag
+        }
     }
 
-    // Initialize Tippy tooltips for status bar, etc.
-    setTimeout(initTooltips, 500); // Delay slightly
+    // --- Paste Event Listener ---
+    // Add a listener to the editor container for paste events
+    if (editorContainer) {
+        editorContainer.addEventListener('paste', (event) => {
+            // Prevent default paste behavior
+            event.preventDefault();
 
-    quill.on('selection-change', (range, oldRange, source) => {
-        if (source === 'user') {
-            if (range && range.length > 0) {
-                // Check if the selection is different from the one that triggered the current tooltip
-                if (!currentSynonymRange || range.index !== currentSynonymRange.index || range.length !== currentSynonymRange.length) {
-                    // Delay slightly to allow selection to finalize
-                    setTimeout(() => {
-                        const currentSelection = quill.getSelection();
-                        // Double check selection still exists after delay
-                        if (currentSelection && currentSelection.length > 0) {
-                            showSynonymTooltip(currentSelection);
-                        } else {
-                            synonymTooltip.hide();
-                            currentSynonymRange = null; // Clear stored range if selection disappears
-                        }
-                    }, 50); // Adjust delay if needed
+            // Get the pasted text
+            const pastedText = (event.clipboardData || window.clipboardData).getData('text/plain');
+
+            if (!pastedText) return; // Do nothing if no text was pasted
+
+            // Insert the plain text into the editor at the current cursor position
+            const range = quill.getSelection(true); // Get current selection, true to focus
+            if (range) {
+                const startIndex = range.index;
+                quill.insertText(startIndex, pastedText, 'user'); // Insert text, 'user' source
+
+                // Move cursor to the end of the pasted text
+                quill.setSelection(startIndex + pastedText.length, 0, 'silent');
+
+                // Check if the total text in the editor is "large" (e.g., > 50 words)
+                const totalText = quill.getText();
+                const wordCount = totalText.trim().split(/\s+/).filter(word => word.length > 0).length; // More robust word count
+
+                const largeTextThreshold = 50; // Define the threshold
+
+                if (wordCount > largeTextThreshold) {
+                    console.log(`Pasted large text (${wordCount} words). Triggering sequential analysis.`);
+                    // Cancel any pending standard analysis triggered by the insertText
+                    debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
+                    // Trigger sequential analysis
+                    const currentText = quill.getText(); // Get the text AFTER pasting
+                    const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                    const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                    analyzeSequentially(currentText, audience, contextAwarenessEnabled);
+
+                    // Prevent the debounced analyzeAndHighlight from running immediately after paste
+                    // This is handled by manually inserting text with 'user' source and then
+                    // calling analyzeSequentially directly. The debounced listener on 'text-change'
+                    // will still fire, but analyzeSequentially will clear highlights first.
+                    // A more robust approach might involve a flag or clearing the debounce timeout.
+                    // For now, clearing highlights in analyzeSequentially is the simplest way.
+
+                } else {
+                    console.log(`Pasted small text (${wordCount} words). Triggering standard analysis.`);
+                    // For small pastes, let the normal text-change handler trigger the debounced analysis
+                    // The manual insertText with 'user' source will trigger 'text-change'.
                 }
             } else {
-                synonymTooltip.hide();
-                currentSynonymRange = null; // Clear stored range when selection is lost
+                 // If no selection, just insert at the end
+                 quill.insertText(quill.getLength(), pastedText, 'user');
+                 const totalText = quill.getText();
+                 const wordCount = totalText.trim().split(/\s+/).filter(word => word.length > 0).length;
+                 const largeTextThreshold = 50;
+                 if (wordCount > largeTextThreshold) {
+                     console.log(`Pasted large text (${wordCount} words) at end. Triggering sequential analysis.`);
+                     // Cancel any pending standard analysis triggered by the insertText
+                     debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
+                     const currentText = quill.getText();
+                     const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                     const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                     analyzeSequentially(currentText, audience, contextAwarenessEnabled);
+                 } else {
+                     console.log(`Pasted small text (${wordCount} words) at end. Triggering standard analysis.`);
+                 }
             }
-        }
-    });
 
-    // --- Event Listeners ---
+            // Update stats immediately after paste
+            updateStats();
+        });
+    } else {
+        console.error("Quill editor container '#editor-container' not found for paste listener.");
+    }
 
-    // Define debounced function for analysis
-    const debouncedAnalyze = debounce(() => analyzeAndHighlight(false), 750);
-    // REMOVED debouncedGoalAnalyze
 
-
+    // --- Text Change Listener ---
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
-            updateStats();
-            debouncedAnalyze(); // Use the general debounced function
+            // Only trigger debounced analysis if sequential analysis is not running
+            if (!isSequentialAnalysisRunning) {
+                updateStats();
+                debouncedAnalyzeAndHighlight(); // Use the correctly defined debounced function
+            }
         }
     });
 
@@ -1042,7 +1313,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (targetAudienceSelect) {
         targetAudienceSelect.addEventListener('change', (event) => {
             currentTargetAudience = event.target.value;
-            analyzeAndHighlight(false); // Re-analyze with new audience profile
+            // When audience changes, re-analyze the current text (standard analysis)
+            analyzeAndHighlight(false);
         });
         currentTargetAudience = targetAudienceSelect.value; // Initial state
     } else {
@@ -1053,7 +1325,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     if (toggleHighlighting) {
         toggleHighlighting.addEventListener('change', (event) => {
             showHighlighting = event.target.checked;
-            // Immediately apply/remove statistical highlighting
+            // Immediately apply/remove statistical highlighting based on current data
             applyStatisticalHighlighting(currentAnalysisData?.results || []);
         });
         showHighlighting = toggleHighlighting.checked; // Initial state
@@ -1070,7 +1342,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         toggleGoalIndicators.addEventListener('change', (event) => {
             showGoalIndicators = event.target.checked;
             applyGoalIndicatorVisibility(); // Apply visibility changes
-            // Re-apply statistical highlighting to add/remove underlines
+            // Re-apply statistical highlighting to add/remove underlines based on current data
             applyStatisticalHighlighting(currentAnalysisData?.results || []);
         });
         // Initial state set above
@@ -1096,12 +1368,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             console.log(`Context Awareness Toggled: ${contextAwarenessEnabled}`); // DEBUG
 
             // Trigger a re-analysis when toggled to apply/clear enhancements
-            analyzeAndHighlight(false); // Force re-analysis
+            // Use standard analysis for toggle changes
+            analyzeAndHighlight(false);
 
             // Explicitly clear enhancements if toggled OFF
-            // (analyzeAndHighlight will handle applying if toggled ON)
             if (!contextAwarenessEnabled) {
-                 clearLlmEnhancements(); // Renamed function call
+                 clearLlmEnhancements();
             }
         });
 
@@ -1134,6 +1406,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     updateStats();
     applyGoalIndicatorVisibility(); // Apply initial visibility
     // Initial analysis call (will now include context awareness state if enabled by default)
+    // Use standard analysis on initial load
     setTimeout(() => analyzeAndHighlight(false), 100);
 
     // --- Sidebar Toggle Logic ---
@@ -1181,6 +1454,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+            // Need to get the sentence result from the stored data (currentAnalysisData)
             const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {
@@ -1198,6 +1472,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+             // Need to get the sentence result from the stored data (currentAnalysisData)
             const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {
@@ -1226,6 +1501,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!segment || !segment.dataset.sentenceIndex) return;
 
             const sentenceIndex = parseInt(segment.dataset.sentenceIndex, 10);
+             // Need to get the sentence result from the stored data (currentAnalysisData)
             const result = currentAnalysisData?.results?.[sentenceIndex]; // Safely access results
 
             if (result && result.start !== undefined && result.end !== undefined) {

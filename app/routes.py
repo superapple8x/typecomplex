@@ -1,12 +1,13 @@
 import logging # Add logging
-from flask import render_template, request, jsonify
+from flask import render_template, request, jsonify, Response # Import Response
 from app import app
 # Import the analysis and synonym functions
-from app.analysis import analyze_text_complexity
+from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, nlp, AUDIENCE_PROFILES # Import nlp, the new function, and AUDIENCE_PROFILES
 from app.synonyms import get_ranked_synonyms
 # Import the NEW DeepSeek enhancement functions (replacing Gemini)
 from app.deepseek_analysis import enhance_sentence_complexity, recommend_synonym
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
+import json # Import json for streaming
 
 @app.route('/')
 def index():
@@ -20,6 +21,8 @@ def analyze_text():
     """
     Analyzes the text complexity using statistical methods and optionally
     performs context-aware analysis using Gemini based on frontend inputs.
+    This endpoint is now primarily for overall analysis (readability scores, etc.)
+    and can return all sentence results at once for smaller texts or initial load.
     """
     data = request.get_json()
     if not data or 'text' not in data:
@@ -32,18 +35,67 @@ def analyze_text():
 
     logging.info(f"Received analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
-    # --- 1. Perform Statistical Analysis (Always) ---
+    # --- Perform Full Analysis ---
+    # This will now use the refactored analyze_text_complexity which calls
+    # analyze_single_spacy_sentence internally for all sentences.
     analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile)
 
-    # --- 2. LLM Enhancement Removed ---
-    # The call to analyze_text_complexity above now includes the local BERT-based
-    # contextual analysis. The external LLM call for complexity is no longer needed here.
-    # The context_awareness_enabled flag might still be used by the synonym endpoint
-    # or frontend, but it no longer triggers an LLM call for complexity analysis.
-
-    # --- 3. Return Results ---
-    # analysis_results already contains the scores calculated using the enhanced local method.
+    # --- Return Results ---
     return jsonify(analysis_results)
+
+# /analyze_sequential endpoint (POST)
+@app.route('/analyze_sequential', methods=['POST'])
+def analyze_text_sequential():
+    """
+    Analyzes text complexity sentence by sentence and streams results back.
+    """
+    data = request.get_json()
+    if not data or 'text' not in data:
+        logging.warning("'/analyze_sequential' request missing 'text' field.")
+        return jsonify({"error": "Missing 'text' in request body"}), 400
+
+    text_to_analyze = data.get('text', '')
+    target_audience_profile = data.get('target_audience', 'Standard')
+    context_awareness_enabled = data.get('context_awareness_enabled', False)
+
+    logging.info(f"Received sequential analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
+
+    if not nlp:
+         logging.error("spaCy model not loaded. Cannot perform sequential analysis.")
+         return jsonify({"error": "Analysis service not available (spaCy model not loaded)."}), 500
+
+    def generate_results():
+        """Generator function to yield sentence analysis results."""
+        try:
+            doc = nlp(text_to_analyze)
+            if not doc.has_annotation("SENT_START"):
+                yield json.dumps({"error": "Sentence segmentation failed."}) + "\n"
+                return # Stop generation
+
+            # Select the profile
+            profile = AUDIENCE_PROFILES.get(target_audience_profile, AUDIENCE_PROFILES["Standard"])
+
+            for i, spacy_sentence in enumerate(doc.sents):
+                # Analyze the single sentence
+                sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i)
+                if sentence_result:
+                    # Yield the JSON result for the sentence
+                    yield json.dumps(sentence_result) + "\n"
+
+            # After all sentences, calculate and yield overall scores and readability
+            # This requires iterating through the doc again or storing results temporarily.
+            # For simplicity in streaming, let's calculate overall scores on the frontend
+            # based on the received sentence results.
+            # We can send a final message indicating completion or overall scores if needed.
+            # For now, just ending the stream signals completion.
+
+        except Exception as e:
+            logging.error(f"Error during sequential analysis streaming: {e}", exc_info=True)
+            yield json.dumps({"error": f"Server error during analysis: {e}"}) + "\n"
+
+    # Return a streaming response
+    return Response(generate_results(), mimetype='application/json')
+
 
 # /synonyms endpoint (POST) - Remains unchanged for now
 # /synonyms endpoint (POST) - Updated for contextual enhancement
