@@ -6,6 +6,7 @@ from app.frequency import get_word_frequency # Import frequency function
 import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModel
+import spacy # Import spacy
 
 # --- Load Transformer Model ---
 # Load model & tokenizer once globally
@@ -27,23 +28,43 @@ except Exception as e:
     model = None
 
 
+# --- Load spaCy Model ---
+# Load spaCy English model once globally for parsing
+SPACY_MODEL_NAME = 'en_core_web_sm'
+try:
+    nlp = spacy.load(SPACY_MODEL_NAME)
+    print(f"Successfully loaded spaCy model '{SPACY_MODEL_NAME}'.")
+except Exception as e:
+    print(f"ERROR loading spaCy model '{SPACY_MODEL_NAME}': {e}")
+    nlp = None # Indicate failure
+
 # --- Audience Profiles ---
 # Define weights, normalization constants, thresholds, and target scores per audience.
 # Added 'embedding_complexity' weight and renormalized others
+# --- Audience Profiles ---
+# Define weights, normalization constants, thresholds, and target scores per audience.
+# Added 'syntactic_complexity' and 'coreference_complexity' weights.
+# Weights MUST sum to 1.0. Normalization constants are estimates and may need tuning.
 AUDIENCE_PROFILES = {
     "Standard": {
         "weights": {
-            "sentence_length": 0.32, # 0.4 * 0.8
-            "avg_word_length": 0.24, # 0.3 * 0.8
-            "avg_word_frequency": 0.24, # 0.3 * 0.8
-            "embedding_complexity": 0.2,
+            "sentence_length": 0.25, # Reduced
+            "avg_word_length": 0.20, # Reduced
+            "avg_word_frequency": 0.20, # Reduced
+            "embedding_complexity": 0.15, # Reduced
+            "syntactic_complexity": 0.15, # New factor (avg of 4 sub-features)
+            "coreference_complexity": 0.05, # New factor
         },
         "normalization": {
             "sentence_length": 30.0,
             "avg_word_length": 7.0,
             "max_log_frequency": 7.0,
+            "max_parse_tree_depth": 15.0, # Estimated max depth
+            "max_num_clauses": 5.0, # Estimated max clauses
+            "max_avg_dependency_length": 10.0, # Estimated max avg dep length
+            "max_coreferent_mentions": 5.0, # Estimated max mentions referring back
         },
-        "thresholds": { # Overall complexity level thresholds
+        "thresholds": { # Overall complexity level thresholds (may need adjustment)
             "very_simple": 0.3,
             "simple": 0.5,
             "moderate": 0.8,
@@ -55,22 +76,28 @@ AUDIENCE_PROFILES = {
         }
     },
     "General Public": {
-        "weights": { # Emphasize length more, frequency less
-            "sentence_length": 0.40, # 0.5 * 0.8
-            "avg_word_length": 0.24, # 0.3 * 0.8
-            "avg_word_frequency": 0.16, # 0.2 * 0.8
-            "embedding_complexity": 0.2,
+        "weights": { # Emphasize length more, syntax/coref less
+            "sentence_length": 0.30, # Reduced
+            "avg_word_length": 0.20, # Reduced
+            "avg_word_frequency": 0.15, # Reduced
+            "embedding_complexity": 0.15,
+            "syntactic_complexity": 0.12, # Lower weight
+            "coreference_complexity": 0.08, # Slightly higher weight than standard? Or lower? Let's try lower.
         },
-        "normalization": { # Lower tolerance for length
+        "normalization": { # Lower tolerance for length, syntax
             "sentence_length": 25.0,
             "avg_word_length": 7.0,
             "max_log_frequency": 7.0,
+            "max_parse_tree_depth": 12.0, # Lower tolerance
+            "max_num_clauses": 4.0, # Lower tolerance
+            "max_avg_dependency_length": 8.0, # Lower tolerance
+            "max_coreferent_mentions": 4.0, # Lower tolerance
         },
         "thresholds": { # Lower thresholds -> easier to be complex
             "very_simple": 0.25,
             "simple": 0.45,
-            "moderate": 0.7, # Lowered from standard 0.8
-            "complex": 1.0, # Lowered from standard 1.1
+            "moderate": 0.7,
+            "complex": 1.0,
         },
         "target_readability": {
             "flesch_kincaid_grade": (8.0, 10.9),
@@ -78,22 +105,28 @@ AUDIENCE_PROFILES = {
         }
     },
     "Academic / Technical": {
-        "weights": { # Emphasize word length/frequency more, length less
-            "sentence_length": 0.24, # 0.3 * 0.8
-            "avg_word_length": 0.32, # 0.4 * 0.8
-            "avg_word_frequency": 0.24, # 0.3 * 0.8
-            "embedding_complexity": 0.2,
+        "weights": { # Emphasize word choice, syntax, coref more
+            "sentence_length": 0.15, # Reduced
+            "avg_word_length": 0.25, # Reduced
+            "avg_word_frequency": 0.20, # Reduced
+            "embedding_complexity": 0.15,
+            "syntactic_complexity": 0.20, # Higher weight
+            "coreference_complexity": 0.05, # Standard weight
         },
         "normalization": { # Higher tolerance
             "sentence_length": 35.0,
             "avg_word_length": 8.0,
             "max_log_frequency": 7.0,
+            "max_parse_tree_depth": 20.0, # Higher tolerance
+            "max_num_clauses": 7.0, # Higher tolerance
+            "max_avg_dependency_length": 12.0, # Higher tolerance
+            "max_coreferent_mentions": 6.0, # Higher tolerance
         },
         "thresholds": { # Higher thresholds -> harder to be complex
             "very_simple": 0.35,
             "simple": 0.6,
-            "moderate": 0.9, # Higher than standard 0.8
-            "complex": 1.2, # Higher than standard 1.1
+            "moderate": 0.9,
+            "complex": 1.2,
         },
         "target_readability": {
             "flesch_kincaid_grade": (13.0, None), # 13.0 or higher
@@ -251,11 +284,105 @@ def _get_contextual_embedding_complexity(sentence, words):
     return embedding_complexity_factor
 
 
-def calculate_complexity(sentence, profile):
+def _get_syntactic_features(spacy_sentence):
+    """
+    Extracts syntactic features from a spaCy sentence.
+    Returns a dictionary of features.
+    """
+    if not spacy_sentence:
+        return {
+            "parse_tree_depth": 0,
+            "num_clauses": 0,
+            "avg_dependency_length": 0.0,
+            "has_passive_voice": 0,
+        }
+
+    # Parse Tree Depth (max depth of dependency tree)
+    # This is a simplified approach; a more robust method might traverse the tree
+    parse_tree_depth = 0
+    for token in spacy_sentence:
+        depth = 0
+        ancestor = token
+        while ancestor.head != ancestor:
+            depth += 1
+            ancestor = ancestor.head
+        parse_tree_depth = max(parse_tree_depth, depth)
+
+    # Number of Clauses (estimation based on verbs or conjunctions)
+    # A simple heuristic: count finite verbs or coordinating conjunctions
+    num_clauses = 0
+    for token in spacy_sentence:
+        # Count finite verbs (VB, VBD, VBG, VBN, VBP, VBZ)
+        if token.pos_ == "VERB" and token.tag_ in ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"]:
+             num_clauses += 1
+        # Or count coordinating conjunctions (CC) as potential clause separators
+        # if token.pos_ == "CC":
+        #     num_clauses += 1
+    # Ensure at least one clause if there's a verb
+    if num_clauses == 0 and any(token.pos_ == "VERB" for token in spacy_sentence):
+         num_clauses = 1
+    num_clauses = max(1, num_clauses) # Assume at least one clause per sentence
+
+    # Average Dependency Length
+    total_dep_length = 0
+    num_dependencies = 0
+    for token in spacy_sentence:
+        if token.head != token: # Exclude the root
+            total_dep_length += abs(token.i - token.head.i)
+            num_dependencies += 1
+    avg_dependency_length = total_dep_length / num_dependencies if num_dependencies > 0 else 0.0
+
+    # Passive Voice Detection (simplified)
+    # Look for 'auxpass' dependency (e.g., "was eaten")
+    has_passive_voice = 0
+    for token in spacy_sentence:
+        if token.dep_ == "auxpass":
+            has_passive_voice = 1
+            break
+
+    return {
+        "parse_tree_depth": parse_tree_depth,
+        "num_clauses": num_clauses,
+        "avg_dependency_length": avg_dependency_length,
+        "has_passive_voice": has_passive_voice,
+    }
+
+def _get_coreference_features(spacy_sentence, doc):
+    """
+    Extracts coreference features for a spaCy sentence.
+    Counts the number of mentions in the sentence that are part of a coreference chain
+    and are not the representative mention of the cluster.
+    Returns the count of coreferent mentions.
+    """
+    # Check if coreference resolution component is available and successful
+    # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
+    # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
+    # For now, we'll assume it might be available via extensions or larger models.
+    # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
+    # Placeholder check:
+    if not hasattr(doc._, 'coref_clusters'):
+        # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
+        return {"coreferent_mentions_count": 0}
+
+    coreferent_mentions_count = 0
+    # Iterate through all coreference clusters in the document
+    for cluster in doc._.coref_clusters:
+        # Iterate through mentions in the current cluster
+        for mention in cluster.mentions:
+            # Check if the mention falls within the current sentence's span
+            if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
+                # Check if this mention is NOT the representative mention of the cluster
+                if mention != cluster.main:
+                    coreferent_mentions_count += 1
+
+    return {"coreferent_mentions_count": coreferent_mentions_count}
+
+
+def calculate_complexity(spacy_sentence, doc, profile):
     """
     Calculates a complexity score for a single sentence based on the provided profile.
     Considers sentence length, average word length, average word frequency,
-    and contextual embedding complexity.
+    contextual embedding complexity, syntactic features, and coreference features.
     Returns a score (float).
     """
     # Use profile-specific constants
@@ -263,8 +390,8 @@ def calculate_complexity(sentence, profile):
     norm = profile['normalization']
 
     # --- Basic Tokenization (for statistical measures) ---
-    # Keep this simple tokenization for length/word stats as before
-    words_for_stats = [word.lower() for word in nltk.word_tokenize(sentence) if word.isalnum()]
+    # Use spaCy tokens for consistency
+    words_for_stats = [token.text.lower() for token in spacy_sentence if token.is_alpha]
 
     if not words_for_stats:
         return 0.0 # Handle empty sentences
@@ -291,27 +418,49 @@ def calculate_complexity(sentence, profile):
     frequency_factor = average_frequency_score # Already 0-1
 
     # --- Contextual Embedding Factor ---
-    # Pass the original sentence and the stat words list (for alignment reference)
-    embedding_factor_raw = _get_contextual_embedding_complexity(sentence, words_for_stats)
+    # Pass the original sentence text and the stat words list (for alignment reference)
+    embedding_factor_raw = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
 
     # If embedding calculation failed, use 0 for its contribution
     embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
 
-    # --- Combine Factors using Weights ---
-    score = (length_factor * weights['sentence_length']) + \
-            (word_len_factor * weights['avg_word_length']) + \
-            (frequency_factor * weights['avg_word_frequency']) + \
-            (embedding_factor * weights['embedding_complexity']) # Add new factor
+    # --- Syntactic Features ---
+    syntactic_features = _get_syntactic_features(spacy_sentence)
+    parse_tree_depth_factor = min(syntactic_features['parse_tree_depth'] / norm['max_parse_tree_depth'], 1.5)
+    num_clauses_factor = min(syntactic_features['num_clauses'] / norm['max_num_clauses'], 1.5)
+    avg_dep_length_factor = min(syntactic_features['avg_dependency_length'] / norm['max_avg_dependency_length'], 1.5)
+    passive_voice_factor = syntactic_features['has_passive_voice'] # Binary (0 or 1)
 
-    # Normalize the final score? The max possible score is now sum of (max_factor * weight)
-    # Max statistical score part = (1.5 * w_len) + (1.5 * w_word) + (1.0 * w_freq)
-    # Max embedding score part = (1.0 * w_emb)
-    # For Standard: (1.5*0.32)+(1.5*0.24)+(1.0*0.24)+(1.0*0.2) = 0.48+0.36+0.24+0.2 = 1.28
+    # Combine syntactic factors (simple average for now, could be weighted)
+    # Ensure division by zero doesn't occur if weights are zero
+    syntactic_weight_sum = weights.get('syntactic_complexity', 0) # Use .get for safety
+    if syntactic_weight_sum > 0:
+        # Weighted average or simple average? Let's stick to simple average for now.
+        syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
+        syntactic_factor = max(0.0, min(1.0, syntactic_factor)) # Clamp between 0 and 1
+    else:
+        syntactic_factor = 0.0
+
+
+    # --- Coreference Features ---
+    coreference_features = _get_coreference_features(spacy_sentence, doc)
+    coreferent_mentions_factor = min(coreference_features['coreferent_mentions_count'] / norm['max_coreferent_mentions'], 1.5)
+    coreferent_mentions_factor = max(0.0, min(1.0, coreferent_mentions_factor)) # Clamp between 0 and 1
+
+
+    # --- Combine Factors using Weights ---
+    # Use .get() for weights to avoid KeyError if a profile is missing a new weight
+    score = (length_factor * weights.get('sentence_length', 0)) + \
+            (word_len_factor * weights.get('avg_word_length', 0)) + \
+            (frequency_factor * weights.get('avg_word_frequency', 0)) + \
+            (embedding_factor * weights.get('embedding_complexity', 0)) + \
+            (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
+            (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Add new factors
+
+    # The max possible score will need re-evaluation with new factors.
     # The thresholds might need adjustment later based on observed score ranges.
 
     return round(score, 3)
-
-# Removed get_sentence_level function as level is now determined on frontend
 
 def get_overall_complexity_level(score, profile):
     """Maps an overall score to a level, description, and color class based on the profile."""
@@ -331,59 +480,125 @@ def get_overall_complexity_level(score, profile):
 def analyze_text_complexity(text, target_audience="Standard"):
     """
     Analyzes the complexity of each sentence in the input text based on target audience.
-    Uses nltk for sentence segmentation using span_tokenize.
+    Uses spaCy for sentence segmentation, parsing, and coreference resolution.
     Returns a dictionary containing:
-        - 'results': A list of dictionaries (sentence, score, start, end).
+        - 'results': A list of dictionaries (sentence, score, start, end, syntactic_features, coreference_features).
         - 'overall_level': A dictionary (level, description, color_class).
         - 'readability_scores': Calculated scores.
         - 'target_readability_scores': Target scores for the audience.
     """
     # Select the profile based on target_audience, default to Standard
     profile = AUDIENCE_PROFILES.get(target_audience, AUDIENCE_PROFILES["Standard"])
-    if not text or not text.strip() or not sentence_tokenizer:
-        # Return default structure for empty/whitespace-only text
+
+    if not text or not text.strip() or not nlp: # Check if spaCy model loaded
+        # Return default structure for empty/whitespace-only text or if spaCy failed
+        print("WARN: spaCy model not loaded or text is empty. Returning basic analysis.")
+        # Fallback to basic analysis if spaCy is not available? Or just return empty?
+        # For now, return empty results if spaCy is required and not loaded.
         return {
             "results": [],
-            "overall_level": {"level": 0, "description": "Enter text to analyze", "color_class": "bg-gray-600"},
+            "overall_level": {"level": 0, "description": "Enter text to analyze (spaCy unavailable)", "color_class": "bg-gray-600"},
             "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
-            "target_readability_scores": profile['target_readability'] # Return target even if no text
+            "target_readability_scores": profile['target_readability']
         }
 
-    # Use span_tokenize to get sentences with start/end indices
-    sentence_spans = sentence_tokenizer.span_tokenize(text)
+    # Process the entire text with spaCy once
+    try:
+        # Add coref component if available (requires separate installation/model)
+        # Example using neuralcoref (needs installation: pip install neuralcoref)
+        # try:
+        #     import neuralcoref
+        #     if 'neuralcoref' not in nlp.pipe_names:
+        #         coref = neuralcoref.NeuralCoref(nlp.vocab)
+        #         nlp.add_pipe(coref, name='neuralcoref')
+        # except ImportError:
+        #     print("WARN: neuralcoref not installed. Coreference features will be zero.")
+        #     pass # Continue without coref if not installed
+
+        doc = nlp(text)
+        # Check if sentence boundaries are detected
+        if not doc.has_annotation("SENT_START"):
+             print("WARN: spaCy sentence segmentation failed. Falling back to NLTK.")
+             # Fallback to NLTK if spaCy sentence segmentation fails
+             if not sentence_tokenizer:
+                 print("ERROR: NLTK sentence tokenizer also not available. Cannot segment sentences.")
+                 return {
+                    "results": [],
+                    "overall_level": {"level": 0, "description": "Sentence segmentation failed", "color_class": "bg-gray-600"},
+                    "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+                    "target_readability_scores": profile['target_readability']
+                 }
+             sentence_spans = sentence_tokenizer.span_tokenize(text)
+             results = []
+             # Cannot perform spaCy analysis on fallback sentences
+             # Calculate a dummy score or skip? Let's skip scoring for now in fallback.
+             # Readability can still be calculated.
+             # for i, (start, end) in enumerate(sentence_spans):
+             #     original_sentence = text[start:end]
+             #     if not original_sentence.strip():
+             #         continue
+             #     results.append({
+             #         "sentence": original_sentence,
+             #         "score": None, # Cannot calculate score without spaCy
+             #         "start": start,
+             #         "end": end,
+             #         "index": i,
+             #         "syntactic_features": {},
+             #         "coreference_features": {},
+             #     })
+             overall_level_details = {"level": 0, "description": "Analysis incomplete (segmentation fallback)", "color_class": "bg-yellow-600"}
+             overall_score = None
+             results = [] # No sentence results if fallback occurs
+
+    except Exception as e:
+        print(f"ERROR processing text with spaCy: {e}")
+        # Handle spaCy processing errors
+        return {
+            "results": [],
+            "overall_level": {"level": 0, "description": f"Analysis failed: {e}", "color_class": "bg-red-600"},
+            "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+            "target_readability_scores": profile['target_readability']
+        }
+
 
     results = []
-    # Use enumerate to get index along with spans
-    for i, (start, end) in enumerate(sentence_spans):
-        original_sentence = text[start:end] # Extract sentence using spans
-        if not original_sentence.strip(): # Check if sentence is just whitespace
-             continue
+    # Iterate through sentences provided by spaCy if segmentation worked
+    if doc.has_annotation("SENT_START"):
+        for i, spacy_sentence in enumerate(doc.sents):
+            original_sentence = spacy_sentence.text # Use spaCy sentence text
+            start = spacy_sentence.start_char # Use spaCy start char index
+            end = spacy_sentence.end_char # Use spaCy end char index
 
-        # Calculate complexity based on a cleaned version for metrics
-        cleaned_for_calc = re.sub(r'\s+', ' ', original_sentence).strip()
-        # Pass the selected profile to calculate_complexity
-        score = calculate_complexity(cleaned_for_calc, profile)
-        # level = get_sentence_level(score) # Level now determined on frontend
+            if not original_sentence.strip(): # Check if sentence is just whitespace
+                 continue
 
-        # Return the ORIGINAL sentence string, score, and indices
-        results.append({
-            "sentence": original_sentence, # Keep for potential debugging/display
-            "score": score,
-            # "color": color, # Color now determined on frontend
-            # "level": level, # Level now determined on frontend
-            "start": start, # Add start index
-            "end": end,     # Add end index
-            "index": i      # Add sentence index
-        })
+            # Calculate complexity using the spaCy sentence object and the full doc
+            score = calculate_complexity(spacy_sentence, doc, profile)
 
-    # Calculate overall score (average of sentence scores)
-    total_score = sum(r['score'] for r in results)
-    num_sentences = len(results)
-    overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
+            # Extract and include the new features in the results
+            syntactic_features = _get_syntactic_features(spacy_sentence)
+            coreference_features = _get_coreference_features(spacy_sentence, doc)
 
-    # Get the complexity level details based on the average score
-    # Pass the selected profile to get_overall_complexity_level
-    overall_level_details = get_overall_complexity_level(overall_score, profile)
+
+            results.append({
+                "sentence": original_sentence,
+                "score": score,
+                "start": start,
+                "end": end,
+                "index": i,
+                "syntactic_features": syntactic_features, # Include syntactic features
+                "coreference_features": coreference_features, # Include coreference features
+            })
+
+        # Calculate overall score (average of sentence scores) only if results exist
+        if results:
+            total_score = sum(r['score'] for r in results)
+            num_sentences = len(results)
+            overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
+            overall_level_details = get_overall_complexity_level(overall_score, profile)
+        else: # Handle case where text had no valid sentences after processing
+             overall_score = 0.0
+             overall_level_details = {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"}
 
     # --- Calculate Standard Readability Scores ---
     # (Readability calculation remains the same, independent of profile for now)
@@ -408,39 +623,73 @@ def analyze_text_complexity(text, target_audience="Standard"):
             "smog_index": smog_index
             # Add other scores here if calculated
         },
-        "target_readability_scores": profile['target_readability'] # Include target scores
+        "target_readability_scores": profile['target_readability']
     }
 
 # Example usage (for testing purposes)
 if __name__ == '__main__':
-    test_text = """
-    This is a simple sentence. It should be green.
-    This sentence, however, is potentially a little bit longer and might perhaps score slightly higher, maybe yellow.
-    Subsequently, utilizing considerably more sophisticated vocabulary and constructing elongated phrasal structures inevitably escalates the calculated complexity assessment towards the orange or even red spectrum.
-    What about this one?
-    """
-    print("--- Analysis for General Public ---")
-    analysis_results_gp = analyze_text_complexity(test_text, target_audience="General Public")
-    print(f"Overall Level: {analysis_results_gp['overall_level']['level']} ({analysis_results_gp['overall_level']['description']})")
-    if analysis_results_gp.get('readability_scores'):
-        print("Readability Scores:")
-        for name, score in analysis_results_gp['readability_scores'].items():
-            target = analysis_results_gp['target_readability_scores'].get(name)
-            target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
-            print(f"  {name}: {score} {target_str}")
-    print("\nSentence Analysis:")
-    for result in analysis_results_gp['results']:
-        print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
+    # Add neuralcoref if available
+    # try:
+    #     import neuralcoref
+    #     if nlp and 'neuralcoref' not in nlp.pipe_names:
+    #          coref = neuralcoref.NeuralCoref(nlp.vocab)
+    #          nlp.add_pipe(coref, name='neuralcoref')
+    # except ImportError:
+    #     print("INFO: neuralcoref not installed, coreference features will be zero.")
+    #     pass
 
-    print("\n--- Analysis for Academic / Technical ---")
-    analysis_results_acad = analyze_text_complexity(test_text, target_audience="Academic / Technical")
-    print(f"Overall Level: {analysis_results_acad['overall_level']['level']} ({analysis_results_acad['overall_level']['description']})")
-    if analysis_results_acad.get('readability_scores'):
+    test_text_simple = """
+    This is a simple sentence. It should be green. The cat sat on the mat.
+    """
+    test_text_complex = """
+    This sentence, however, is potentially a little bit longer and might perhaps score slightly higher, maybe yellow. Subsequently, utilizing considerably more sophisticated vocabulary and constructing elongated phrasal structures inevitably escalates the calculated complexity assessment towards the orange or even red spectrum.
+    """
+    test_text_coref = """
+    John Smith went to the park. He saw Mary there. She gave him a ball. He threw it back to her.
+    """
+
+    print("--- Analysis (Simple) for General Public ---")
+    analysis_results_gp_simple = analyze_text_complexity(test_text_simple, target_audience="General Public")
+    print(f"Overall Level: {analysis_results_gp_simple['overall_level']['level']} ({analysis_results_gp_simple['overall_level']['description']})")
+    if analysis_results_gp_simple.get('readability_scores'):
         print("Readability Scores:")
-        for name, score in analysis_results_acad['readability_scores'].items():
-            target = analysis_results_acad['target_readability_scores'].get(name)
+        for name, score in analysis_results_gp_simple['readability_scores'].items():
+            target = analysis_results_gp_simple['target_readability_scores'].get(name)
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
     print("\nSentence Analysis:")
-    for result in analysis_results_acad['results']:
+    for result in analysis_results_gp_simple['results']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
+        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        print(f"  Coreference Features: {result.get('coreference_features', {})}")
+
+
+    print("\n--- Analysis (Complex) for Academic / Technical ---")
+    analysis_results_acad_complex = analyze_text_complexity(test_text_complex, target_audience="Academic / Technical")
+    print(f"Overall Level: {analysis_results_acad_complex['overall_level']['level']} ({analysis_results_acad_complex['overall_level']['description']})")
+    if analysis_results_acad_complex.get('readability_scores'):
+        print("Readability Scores:")
+        for name, score in analysis_results_acad_complex['readability_scores'].items():
+            target = analysis_results_acad_complex['target_readability_scores'].get(name)
+            target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
+            print(f"  {name}: {score} {target_str}")
+    print("\nSentence Analysis:")
+    for result in analysis_results_acad_complex['results']:
+        print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
+        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        print(f"  Coreference Features: {result.get('coreference_features', {})}")
+
+    print("\n--- Analysis (Coref) for Standard ---")
+    analysis_results_std_coref = analyze_text_complexity(test_text_coref, target_audience="Standard")
+    print(f"Overall Level: {analysis_results_std_coref['overall_level']['level']} ({analysis_results_std_coref['overall_level']['description']})")
+    if analysis_results_std_coref.get('readability_scores'):
+        print("Readability Scores:")
+        for name, score in analysis_results_std_coref['readability_scores'].items():
+            target = analysis_results_std_coref['target_readability_scores'].get(name)
+            target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
+            print(f"  {name}: {score} {target_str}")
+    print("\nSentence Analysis:")
+    for result in analysis_results_std_coref['results']:
+        print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
+        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        print(f"  Coreference Features: {result.get('coreference_features', {})}")
