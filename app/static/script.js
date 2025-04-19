@@ -856,7 +856,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             content: `<div id="${tooltipContentId}" class="p-1 text-xs dark:text-gray-200">Loading synonyms...</div>`
             // REMOVED onShow/onHide callbacks for listener management
         });
-        synonymTooltip.show();
+        console.log("Synonym Tooltip: Showing with loading content. Instance:", synonymTooltip); // DEBUG
+        synonymTooltip.show(); // Reverted: Removed setTimeout
+        console.log("Synonym Tooltip: Called show(). Is visible:", synonymTooltip.state.isVisible); // DEBUG
 
         // --- Find Sentence Context ---
         let sentenceContext = '';
@@ -869,11 +871,18 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 sentenceContext = sentenceResult.sentence;
             } else {
                 console.warn("Could not find sentence context for synonym request.");
-                // Fallback: try getting a line around the selection? Less reliable.
-                const [line, offset] = quill.getLine(range.index);
-                if (line && line.domNode) {
-                    sentenceContext = line.domNode.textContent || ''; // Get text of the line
+                // --- Improved Fallback ---
+                const fullText = quill.getText();
+                const windowSize = 150; // Characters before/after selection index
+                const contextStart = Math.max(0, range.index - windowSize);
+                const contextEnd = Math.min(fullText.length, range.index + range.length + windowSize);
+                sentenceContext = fullText.substring(contextStart, contextEnd);
+                // Basic sentence boundary approximation (optional refinement)
+                const firstSentenceEnd = sentenceContext.search(/[.!?]/);
+                if (firstSentenceEnd > -1 && contextStart > 0) { // Try to start from beginning of sentence if possible
+                    sentenceContext = sentenceContext.substring(sentenceContext.substring(0, range.index - contextStart).lastIndexOf(/[.!?]/) + 1);
                 }
+                console.log("Fallback context:", sentenceContext); // DEBUG
             }
         }
         // --- End Find Sentence Context ---
@@ -950,7 +959,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             contentHTML += `</div>`; // Close main div
 
             // Set the final content. The listener is attached via onShow to the popper.
+            console.log("Synonym Tooltip: Setting final content. Is visible before setContent:", synonymTooltip.state.isVisible); // DEBUG
             synonymTooltip.setContent(contentHTML);
+            console.log("Synonym Tooltip: Set final content. Is visible after setContent:", synonymTooltip.state.isVisible); // DEBUG
 
         } catch (error) {
             console.error('Error fetching synonyms:', error);
@@ -1314,6 +1325,35 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             }
         }
     });
+
+    // --- Selection Change Listener (for Synonyms) ---
+    quill.on('selection-change', (range, oldRange, source) => {
+        // We only care about user-driven selection changes for triggering the tooltip
+        if (source === 'user') {
+            if (range && range.length > 0) {
+                // Text is selected, show the tooltip
+                // Add a small debounce here to prevent flickering
+                debouncedShowSynonymTooltip(range); // Use a debounced version
+            } else if (!range || range.length === 0) {
+                // Selection cleared or lost focus, hide the tooltip
+                // Cancel any pending debounced show calls
+                debouncedShowSynonymTooltip.cancel(); // Cancel pending show
+                if (synonymTooltip.state.isVisible) {
+                    synonymTooltip.hide();
+                    currentSynonymRange = null; // Clear stored range
+                }
+            }
+        } else if ((!range || range.length === 0) && synonymTooltip.state.isVisible) {
+            // Also hide if selection is cleared programmatically (source === 'api' or 'silent')
+            // Cancel any pending debounced show calls
+            debouncedShowSynonymTooltip.cancel(); // Cancel pending show
+            synonymTooltip.hide();
+            currentSynonymRange = null;
+        }
+    });
+
+    // Define a debounced version of showSynonymTooltip
+    const debouncedShowSynonymTooltip = debounce(showSynonymTooltip, 50); // 50ms debounce
 
     // Target Audience Select Listener
     if (targetAudienceSelect) {
