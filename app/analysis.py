@@ -441,11 +441,17 @@ def calculate_complexity(spacy_sentence, doc, profile):
     else:
         syntactic_factor = 0.0
 
+    print(f"DEBUG: Syntactic Features: {syntactic_features}")
+    print(f"DEBUG: Syntactic Factors (Depth: {parse_tree_depth_factor:.4f}, Clauses: {num_clauses_factor:.4f}, DepLen: {avg_dep_length_factor:.4f}, Passive: {passive_voice_factor:.4f}) -> Combined Factor: {syntactic_factor:.4f}")
+
 
     # --- Coreference Features ---
     coreference_features = _get_coreference_features(spacy_sentence, doc)
     coreferent_mentions_factor = min(coreference_features['coreferent_mentions_count'] / norm['max_coreferent_mentions'], 1.5)
     coreferent_mentions_factor = max(0.0, min(1.0, coreferent_mentions_factor)) # Clamp between 0 and 1
+
+    print(f"DEBUG: Coreference Features: {coreference_features}")
+    print(f"DEBUG: Coreference Factor: {coreferent_mentions_factor:.4f}")
 
 
     # --- Combine Factors using Weights ---
@@ -459,6 +465,9 @@ def calculate_complexity(spacy_sentence, doc, profile):
 
     # The max possible score will need re-evaluation with new factors.
     # The thresholds might need adjustment later based on observed score ranges.
+
+    print(f"DEBUG: Combined Score Factors (Length: {length_factor:.4f}, WordLen: {word_len_factor:.4f}, Freq: {frequency_factor:.4f}, Embed: {embedding_factor:.4f}, Syntax: {syntactic_factor:.4f}, Coref: {coreferent_mentions_factor:.4f})")
+    print(f"DEBUG: Final Calculated Score: {score:.3f}")
 
     return round(score, 3)
 
