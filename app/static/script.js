@@ -89,11 +89,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const quill = new Quill(editorContainer, {
         theme: 'snow', // Use the Snow theme
         modules: {
-            toolbar: [ // Basic toolbar, customize as needed
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['clean'] // remove formatting button
+            toolbar: [ // Revised toolbar structure
+                [{ 'header': [1, 2, 3, false] }],           // Group 1: Headings
+                ['bold', 'italic', 'underline'],            // Group 2: Basic inline
+                ['blockquote', 'code-block'],               // Group 3: Block elements (removed link)
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Group 4: Lists
+                [{ 'indent': '-1'}, { 'indent': '+1' }],      // Group 5: Indentation
+                [{ 'align': [] }],                           // Group 6: Alignment
+                ['clean']                                   // Group 7: Clean
+                // Undo/Redo are typically handled by the history module + keyboard shortcuts
             ],
+             history: { // Enable history module for undo/redo
+                 delay: 1000, // Debounce time for history entries (ms)
+                 maxStack: 500, // Max undo stack size
+                 userOnly: true // Only track user changes
+             },
             // Configure Quill's clipboard to paste plain text only
             clipboard: {
                 matchVisual: false, // Recommended when using matchers

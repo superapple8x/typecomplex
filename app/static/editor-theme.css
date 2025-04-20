@@ -99,6 +99,63 @@ body {
   margin-right: 0.5rem;
 }
 
+/* Fix for dropdown menus */
+.ql-toolbar {
+  position: relative;
+  z-index: 1;
+  font-family: 'Inter', sans-serif !important;
+}
+
+#editor-container {
+  position: relative;
+  z-index: 0;
+}
+
+.ql-toolbar .ql-picker-label,
+.ql-toolbar .ql-picker-item {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+}
+
+.ql-toolbar .ql-picker-options {
+  background: rgba(49, 50, 68, 0.9) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  z-index: 1000;
+  position: absolute;
+}
+
+.ql-toolbar .ql-picker-label {
+  color: var(--text-primary) !important;
+}
+
+.ql-toolbar .ql-picker-item {
+  color: var(--text-primary) !important;
+}
+
+.ql-toolbar .ql-picker-item:hover {
+  color: var(--accent-blue) !important;
+}
+
+/* Specific fixes for header dropdown */
+.ql-toolbar .ql-picker.ql-header .ql-picker-label::before,
+.ql-toolbar .ql-picker.ql-header .ql-picker-item::before {
+  color: var(--text-primary) !important;
+}
+
+/* Specific fixes for alignment dropdown */
+.ql-toolbar .ql-picker.ql-align .ql-picker-label svg,
+.ql-toolbar .ql-picker.ql-align .ql-picker-item svg {
+  stroke: var(--text-primary) !important;
+}
+
+.ql-toolbar .ql-picker.ql-align .ql-picker-label:hover svg,
+.ql-toolbar .ql-picker.ql-align .ql-picker-item:hover svg {
+  stroke: var(--accent-blue) !important;
+}
+
 .ql-toolbar .ql-formats:last-child {
   border-right: none;
   padding-right: 0;
