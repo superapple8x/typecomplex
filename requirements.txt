@@ -113,6 +113,10 @@ openai>=1.0 # Added for DeepSeek (OpenAI compatible)
 
 sentence-transformers
 torch
-spacy
+spacy==3.7.4
 
 nltk
+
+Flask-Caching
+
+blis==0.7.11

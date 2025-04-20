@@ -8,6 +8,8 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModel
 import spacy # Import spacy
 import logging # Import logging
+import hashlib # Import hashlib
+from app import cache # Import the initialized cache object
 from app import task_manager # Import task manager
 
 # --- Load Transformer Model ---
@@ -490,9 +492,10 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
-def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, mode='full', analysis_id=None): # Added analysis_id
+def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, target_audience_name, mode='full', analysis_id=None): # Added target_audience_name
     """
     Analyzes the complexity of a single spaCy sentence based on the provided profile.
+    Checks cache before calculation. Stores result in cache.
     Requires the full spaCy document for coreference resolution.
     Accepts an 'analysis_id' for cancellation checks.
     Returns a dictionary containing:
@@ -503,15 +506,31 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         - 'index': The index of the sentence in the document.
         - 'syntactic_features': Dictionary of syntactic features (may be empty in 'fast' mode).
         - 'coreference_features': Dictionary of coreference features (may be empty in 'fast' mode).
-        - 'mode': The analysis mode used ('fast' or 'full'). # Added mode to result
+        - 'mode': The analysis mode used ('fast' or 'full').
     """
     original_sentence = spacy_sentence.text
     start = spacy_sentence.start_char
     end = spacy_sentence.end_char
 
+    # --- Cache Check ---
+    # Use sentence text + profile name + mode for a unique key
+    cache_key_string = f"{original_sentence.strip()}|{target_audience_name}|{mode}"
+    cache_key = hashlib.sha1(cache_key_string.encode('utf-8')).hexdigest()
+
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        logging.debug(f"Cache HIT for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
+        # Ensure the cached result has the correct index and mode, just in case
+        cached_result['index'] = sentence_index
+        cached_result['mode'] = mode
+        return cached_result
+    else:
+        logging.debug(f"Cache MISS for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
+    # --- End Cache Check ---
+
     if not original_sentence.strip():
         # Return a basic result even for empty sentences if needed for sequential flow structure
-         return {
+         result = { # Define result dict
             "sentence": original_sentence,
             "score": 0.0,
             "start": start,
@@ -519,8 +538,12 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
             "index": sentence_index,
             "syntactic_features": {},
             "coreference_features": {},
-            "mode": mode # Include mode
+            "mode": mode
         }
+         # --- Cache Set (even for empty/basic) ---
+         cache.set(cache_key, result)
+         # --- End Cache Set ---
+         return result
 
 
     # Calculate complexity using the spaCy sentence object, the full doc, and the mode
@@ -544,7 +567,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
          pass # Features are handled conditionally in calculate_complexity now
 
 
-    return {
+    result = { # Define result dict
         "sentence": original_sentence,
         "score": score, # Score is calculated based on mode in calculate_complexity
         "start": start,
@@ -552,8 +575,15 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         "index": sentence_index,
         "syntactic_features": {}, # Features are not returned separately in this structure
         "coreference_features": {}, # Features are not returned separately in this structure
-        "mode": mode # Include the mode in the result
+        "mode": mode
     }
+
+    # --- Cache Set ---
+    cache.set(cache_key, result)
+    logging.debug(f"Stored result in cache for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
+    # --- End Cache Set ---
+
+    return result
 
 
 def analyze_text_complexity(text, target_audience="Standard", mode='full', analysis_id=None): # Added analysis_id
@@ -643,6 +673,7 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
                 doc,
                 profile,
                 i,
+                target_audience_name=target_audience, # Pass target_audience name
                 mode=mode,
                 analysis_id=analysis_id # Pass ID
             )
