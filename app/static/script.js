@@ -43,7 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Visual Map container
     const documentMapContainer = document.getElementById('document-map');
     // --- Target Audience / Display Options ---
-    const targetAudienceSelect = document.getElementById('target-audience-select');
+    // const targetAudienceSelect = document.getElementById('target-audience-select'); // OLD SELECT ELEMENT
+    const targetAudienceButton = document.getElementById('target-audience-button'); // NEW Custom Dropdown Button
+    const targetAudienceSelected = document.getElementById('target-audience-selected'); // NEW Display for selected value
+    const targetAudienceOptions = document.getElementById('target-audience-options'); // NEW Options container
     const toggleHighlighting = document.getElementById('toggle-highlighting');
     const toggleGoalIndicators = document.getElementById('toggle-goal-indicators');
     const fleschKincaidTargetEl = document.getElementById('flesch-kincaid-target');
@@ -193,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
     let isOverallScoreOutOfBounds = false; // Track if overall score is outside target
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
-    const sensitivityLabels = { 1: "V. Lenient", 2: "Lenient", 3: "Standard", 4: "Strict", 5: "V. Strict" };
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
     // --- State for Context Awareness ---
     let contextAwarenessEnabled = false; // Default state, updated from checkbox
@@ -1673,15 +1675,62 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // Define a debounced version of showSynonymTooltip
     const debouncedShowSynonymTooltip = debounce(showSynonymTooltip, 50); // 50ms debounce
 
-    // Target Audience Select Listener
+    // --- NEW: Custom Target Audience Dropdown Listeners ---
+    if (targetAudienceButton && targetAudienceSelected && targetAudienceOptions) {
+        // 1. Toggle options list visibility on button click
+        targetAudienceButton.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent click from immediately closing via document listener
+            targetAudienceOptions.classList.toggle('hidden');
+        });
+
+        // 2. Handle option selection (delegated listener on options container)
+        targetAudienceOptions.addEventListener('click', (event) => {
+            const link = event.target.closest('a');
+            if (link && link.dataset.value) {
+                event.preventDefault(); // Prevent default link navigation
+                const newValue = link.dataset.value;
+                const newText = link.textContent;
+
+                // Update display and state
+                targetAudienceSelected.textContent = newText;
+                currentTargetAudience = newValue;
+
+                // Hide options list
+                targetAudienceOptions.classList.add('hidden');
+
+                console.log(`Target Audience changed to: ${currentTargetAudience}`); // DEBUG
+
+                // Trigger re-analysis if not paused
+                if (!isAnalysisPaused) {
+                    analyzeAndHighlight(false); // Use standard full analysis
+                } else {
+                    console.log("Audience changed: Analysis paused, skipping trigger.");
+                }
+            }
+        });
+
+        // 3. Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!targetAudienceButton.contains(event.target) && !targetAudienceOptions.contains(event.target)) {
+                targetAudienceOptions.classList.add('hidden');
+            }
+        });
+
+        // Set initial state from the default display value (optional, could also read from button text)
+        currentTargetAudience = targetAudienceSelected.textContent || 'Standard'; // Fallback
+
+    } else {
+        console.warn("Custom target audience dropdown elements not found.");
+    }
+    // --- END NEW Custom Dropdown Listeners ---
+
+    // OLD Target Audience Select Listener (Commented out/Removed)
+    /*
     if (targetAudienceSelect) {
         targetAudienceSelect.addEventListener('change', (event) => {
             currentTargetAudience = event.target.value;
-            // When audience changes, re-analyze the current text using standard analysis
-            // (as sequential is mainly for typing/pasting feedback)
-            // Only trigger if analysis is not paused
-            if (!isAnalysisPaused) { // <<< ADDED PAUSE CHECK
-                analyzeAndHighlight(false); // Use standard full analysis here
+            if (!isAnalysisPaused) {
+                analyzeAndHighlight(false);
             } else {
                  console.log("Audience changed: Analysis paused, skipping trigger.");
             }
@@ -1690,6 +1739,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     } else {
         console.warn("Target audience select element not found.");
     }
+    */
 
     // Toggle Statistical Highlighting Listener
     if (toggleHighlighting) {
@@ -1757,6 +1807,35 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     } else {
         console.error("Context awareness toggle or container element not found!"); // Updated error message
     }
+
+    // --- Complexity Sensitivity Slider Listener ---
+    if (sensitivitySlider) { // Removed check for sensitivityLabel
+        // Initial state update on load
+        const initialSliderValue = parseInt(sensitivitySlider.value, 10);
+        currentSensitivityLevel = initialSliderValue; // Ensure state matches initial value
+
+        sensitivitySlider.addEventListener('input', (event) => {
+            const newLevel = parseInt(event.target.value, 10);
+            currentSensitivityLevel = newLevel;
+            // Removed label update: sensitivityLabel.textContent = `Level ${newLevel}: ${getSensitivityDescription(newLevel)}`;
+            console.log(`Sensitivity changed to: ${currentSensitivityLevel}`); // DEBUG
+
+            // Re-apply highlighting and map colors based on the new sensitivity
+            // Only do this if we have existing analysis data to work with
+            if (currentAnalysisData) {
+                console.log("Re-applying visuals with new sensitivity..."); // DEBUG
+                // Ensure these functions use the updated currentSensitivityLevel
+                applyStatisticalHighlighting(currentAnalysisData.results || []);
+                updateDocumentMap(currentAnalysisData);
+            } else {
+                 console.log("No current analysis data, skipping visual update on sensitivity change."); // DEBUG
+            }
+        });
+    } else {
+        console.warn("Complexity sensitivity slider element not found."); // Updated warning message
+    }
+    // --- End Complexity Sensitivity Slider Listener ---
+
 
     // Add Tooltip for Context Awareness Info Icon
     if (contextAwarenessInfo && typeof tippy === 'function') {
