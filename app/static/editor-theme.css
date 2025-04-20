@@ -46,9 +46,25 @@ body {
   backdrop-filter: blur(10px);
   border-top-left-radius: var(--border-radius) !important;
   border-top-right-radius: var(--border-radius) !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
   border: none !important;
   border-bottom: 1px solid rgba(108, 111, 147, 0.1) !important;
   transition: all var(--transition-speed) ease;
+}
+
+.ql-container {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-left-radius: var(--border-radius) !important;
+  border-bottom-right-radius: var(--border-radius) !important;
+  border: none !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: var(--text-secondary) !important;
+  font-style: normal !important;
 }
 
 .ql-toolbar .ql-stroke {
