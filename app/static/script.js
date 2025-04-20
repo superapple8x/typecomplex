@@ -55,6 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const goalContainer = document.getElementById('target-audience-goal-container'); // Keep container for toggle visibility
     // const goalInput = document.getElementById('target-audience-goal'); // REMOVED
     const contextAwarenessInfo = document.getElementById('context-awareness-info'); // Info icon
+    // --- NEW: Analysis Control Elements ---
+    const toggleAnalysisBtn = document.getElementById('toggle-analysis-btn');
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -182,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- State for Analysis ---
+    let isAnalysisPaused = true; // <<< NEW: Analysis starts paused
     let currentAnalysisData = null; // Store the full analysis response object { results: [], overall_level: {}, readability_scores: {}, target_readability_scores: {} }
     let currentTargetAudience = 'Standard'; // Default audience, updated from select element
     let showHighlighting = true; // Default state for toggle, updated from checkbox
@@ -1135,7 +1140,47 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // --- Event Listeners ---
     // Define debounced function just before use
-    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750);
+    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750); // Used for non-typing triggers
+
+    // --- NEW: Helper Function to Cancel Current Analysis ---
+    function cancelCurrentAnalysis() {
+        console.log(`%cCancel requested. Current ID: ${currentAnalysisId}`, 'color: orange;');
+        // 1. Cancel pending debounced call (important for typing)
+        debouncedAnalyzeSequentially.cancel();
+
+        // 2. Abort ongoing fetch requests
+        if (currentAbortController) {
+            console.log(`Aborting fetch for ID: ${currentAnalysisId}`);
+            currentAbortController.abort();
+            currentAbortController = null; // Clear controller after aborting
+        }
+
+        // 3. Notify backend to cancel (if an ID exists)
+        if (currentAnalysisId) {
+            const idToCancel = currentAnalysisId; // Capture ID before clearing
+            currentAnalysisId = null; // Clear ID immediately
+            console.log(`Sending backend cancellation for ID: ${idToCancel}`);
+            fetch('/cancel_analysis', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ analysisId: idToCancel }),
+                // keepalive: true // Consider if needed
+            })
+            .then(response => response.json())
+            .then(data => console.log('Backend cancellation response:', data))
+            .catch(err => console.error('Error sending backend cancellation:', err));
+        } else {
+            console.log("No current analysis ID to send cancellation for.");
+        }
+
+        // 4. Reset paste tracking state (might be relevant if pause happens during paste-delete window)
+        lastPasteInfo = null;
+
+        // 5. Update UI (e.g., set phase to idle) - This might be done by the caller
+        updatePhaseIndicator('idle');
+        isSequentialAnalysisRunning = false; // Reset sequential flag if it was running
+    }
+
 
     // --- Sequential Analysis Function ---
     let isSequentialAnalysisRunning = false; // Flag to prevent overlap
@@ -1583,14 +1628,18 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
             }
 
-            // --- Trigger Analysis (if not cancelled) ---
-            if (!cancelled) {
+            // --- Trigger Analysis (if not cancelled AND not paused) ---
+            if (!cancelled && !isAnalysisPaused) { // <<< ADDED PAUSE CHECK
                 // Always trigger the debounced *sequential* analysis on user text change
                 const currentText = quill.getText();
                 const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
                 const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
                 // Pass necessary arguments to the debounced function
                 debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
+            } else if (cancelled) {
+                 console.log("Text change: Analysis cancelled (paste-delete).");
+            } else if (isAnalysisPaused) {
+                 console.log("Text change: Analysis paused, skipping trigger.");
             }
         }
     });
@@ -1630,7 +1679,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             currentTargetAudience = event.target.value;
             // When audience changes, re-analyze the current text using standard analysis
             // (as sequential is mainly for typing/pasting feedback)
-            analyzeAndHighlight(false); // Use standard full analysis here
+            // Only trigger if analysis is not paused
+            if (!isAnalysisPaused) { // <<< ADDED PAUSE CHECK
+                analyzeAndHighlight(false); // Use standard full analysis here
+            } else {
+                 console.log("Audience changed: Analysis paused, skipping trigger.");
+            }
         });
         currentTargetAudience = targetAudienceSelect.value; // Initial state
     } else {
@@ -1685,9 +1739,14 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             // Trigger a re-analysis when toggled to apply/clear enhancements
             // Use standard analysis for toggle changes
-            analyzeAndHighlight(false); // Use standard full analysis here
+            // Only trigger if analysis is not paused
+            if (!isAnalysisPaused) { // <<< ADDED PAUSE CHECK
+                 analyzeAndHighlight(false); // Use standard full analysis here
+            } else {
+                 console.log("Context Awareness toggled: Analysis paused, skipping trigger.");
+            }
 
-            // Explicitly clear enhancements if toggled OFF
+            // Explicitly clear enhancements if toggled OFF (regardless of pause state)
             if (!contextAwarenessEnabled) {
                  clearLlmEnhancements();
             }
@@ -1723,7 +1782,50 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     applyGoalIndicatorVisibility(); // Apply initial visibility
     // Initial analysis call (will now include context awareness state if enabled by default)
     // Use standard analysis on initial load
-    setTimeout(() => analyzeAndHighlight(false), 100); // Use standard full analysis here
+    // Only trigger if analysis is not paused initially (it starts paused, so this won't run)
+    if (!isAnalysisPaused) { // <<< ADDED PAUSE CHECK
+        setTimeout(() => analyzeAndHighlight(false), 100); // Use standard full analysis here
+    } else {
+        console.log("Initial load: Analysis starts paused.");
+        // Ensure UI reflects paused state (e.g., meter empty, scores empty)
+        updateComplexityMeter(null);
+        updateReadabilityScores(null);
+        updateDocumentMap(null);
+        updatePhaseIndicator('idle'); // Ensure indicator is idle
+    }
+
+
+    // --- NEW: Analysis Toggle Button Listener ---
+    if (toggleAnalysisBtn && playIcon && pauseIcon) {
+        toggleAnalysisBtn.addEventListener('click', () => {
+            isAnalysisPaused = !isAnalysisPaused; // Toggle the state
+
+            // Update icon visibility
+            playIcon.classList.toggle('hidden', !isAnalysisPaused);
+            pauseIcon.classList.toggle('hidden', isAnalysisPaused);
+
+            if (isAnalysisPaused) {
+                console.log("Analysis Paused.");
+                toggleAnalysisBtn.setAttribute('title', 'Start Analysis');
+                cancelCurrentAnalysis(); // Cancel any ongoing analysis
+                // updatePhaseIndicator('idle'); // cancelCurrentAnalysis already does this
+            } else {
+                console.log("Analysis Resumed.");
+                toggleAnalysisBtn.setAttribute('title', 'Pause Analysis');
+                // Trigger analysis immediately (using sequential for consistency)
+                const currentText = quill.getText();
+                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                 // Use analyzeSequentially directly, not debounced, for immediate start
+                analyzeSequentially(currentText, audience, contextEnabled);
+            }
+        });
+         // Set initial title based on default paused state
+         toggleAnalysisBtn.setAttribute('title', 'Start Analysis');
+    } else {
+        console.error("Analysis toggle button or icons not found!");
+    }
+
 
     // --- Sidebar Toggle Logic ---
     function openSidebar() {
