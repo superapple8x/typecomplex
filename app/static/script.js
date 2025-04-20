@@ -1211,15 +1211,15 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden'); // REMOVE old loading bar
         updatePhaseIndicator('fast'); // <<< SET Phase Indicator to 'fast' (Cyan)
 
-        // Clear existing highlights and enhancements before sequential analysis
-        quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        quill.formatText(0, quill.getLength(), 'underline', false, 'api');
-        clearLlmEnhancements();
-        // Clear the document map as well
-        if (documentMapContainer) documentMapContainer.innerHTML = '';
-        // Reset overall complexity meter and scores
-        updateComplexityMeter(null); // Reset meter
-        updateReadabilityScores(null); // Reset scores
+        // --- REMOVED: Clear existing highlights and enhancements before sequential analysis ---
+        // quill.formatText(0, quill.getLength(), 'background', false, 'api');
+        // quill.formatText(0, quill.getLength(), 'underline', false, 'api');
+        // clearLlmEnhancements();
+        // --- REMOVED: Clear the document map as well ---
+        // if (documentMapContainer) documentMapContainer.innerHTML = '';
+        // --- REMOVED: Reset overall complexity meter and scores ---
+        // updateComplexityMeter(null); // Reset meter
+        // updateReadabilityScores(null); // Reset scores
 
 
         const requestBody = {

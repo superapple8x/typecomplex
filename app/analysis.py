@@ -507,6 +507,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         - 'syntactic_features': Dictionary of syntactic features (may be empty in 'fast' mode).
         - 'coreference_features': Dictionary of coreference features (may be empty in 'fast' mode).
         - 'mode': The analysis mode used ('fast' or 'full').
+    Returns a dictionary like: {'result': { ... sentence data ... }, 'from_cache': bool}
     """
     original_sentence = spacy_sentence.text
     start = spacy_sentence.start_char
@@ -523,7 +524,8 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         # Ensure the cached result has the correct index and mode, just in case
         cached_result['index'] = sentence_index
         cached_result['mode'] = mode
-        return cached_result
+        # Return wrapped result indicating it came from cache
+        return {'result': cached_result, 'from_cache': True}
     else:
         logging.debug(f"Cache MISS for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Check ---
@@ -543,7 +545,8 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
          # --- Cache Set (even for empty/basic) ---
          cache.set(cache_key, result)
          # --- End Cache Set ---
-         return result
+         # Return wrapped result for empty sentence (not from cache calculation)
+         return {'result': result, 'from_cache': False}
 
 
     # Calculate complexity using the spaCy sentence object, the full doc, and the mode
@@ -583,7 +586,8 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
     logging.debug(f"Stored result in cache for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Set ---
 
-    return result
+    # Return wrapped result indicating it was newly calculated
+    return {'result': result, 'from_cache': False}
 
 
 def analyze_text_complexity(text, target_audience="Standard", mode='full', analysis_id=None): # Added analysis_id
@@ -677,8 +681,9 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
                 mode=mode,
                 analysis_id=analysis_id # Pass ID
             )
-            if sentence_result:
-                results.append(sentence_result)
+            # IMPORTANT: analyze_text_complexity needs the raw result, not the wrapped one
+            if sentence_result and 'result' in sentence_result:
+                results.append(sentence_result['result'])
 
     # --- Handle Cancellation Mid-Loop ---
     if cancelled_mid_loop:

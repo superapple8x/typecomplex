@@ -145,17 +145,21 @@ def analyze_text_sequential():
 
                 # Analyze the single sentence in 'fast' mode
                 # Pass analysis_id for potential future checks within analyze_single_spacy_sentence if needed
-                sentence_result = analyze_single_spacy_sentence(
+                # Analyze the single sentence in 'fast' mode
+                # Pass target_audience_profile for cache key consistency
+                analysis_output = analyze_single_spacy_sentence(
                     spacy_sentence,
                     doc,
                     profile,
                     i,
+                    target_audience_name=target_audience_profile, # Pass name for cache key
                     mode='fast',
                     analysis_id=analysis_id # Pass ID
                 )
-                if sentence_result:
-                    # Yield the JSON result for the sentence
-                    yield json.dumps(sentence_result) + "\n"
+                # Only yield if the result was newly calculated (not from cache)
+                if analysis_output and not analysis_output['from_cache']:
+                    # Yield the actual result dictionary
+                    yield json.dumps(analysis_output['result']) + "\n"
 
             # After all sentences, the frontend will trigger the full analysis.
             # No need to calculate overall scores here in the sequential stream.
