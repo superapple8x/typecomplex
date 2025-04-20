@@ -93,7 +93,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 ['bold', 'italic', 'underline'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                 ['clean'] // remove formatting button
-            ]
+            ],
+            // Configure Quill's clipboard to paste plain text only
+            clipboard: {
+                matchVisual: false, // Recommended when using matchers
+                matchers: [
+                    // Match all nodes during paste
+                    [Node.ELEMENT_NODE, (node, delta) => {
+                        // Convert the pasted content (delta) to plain text
+                        let text = '';
+                        delta.ops.forEach(op => {
+                            if (typeof op.insert === 'string') {
+                                text += op.insert;
+                            } else {
+                                // Handle non-string inserts (like images, embeds) - replace with space or newline
+                                text += ' '; // Or '\n' if preferred
+                            }
+                        });
+                        // Return a new Delta containing only the plain text
+                        const Delta = Quill.import('delta');
+                        return new Delta().insert(text);
+                    }]
+                ]
+            }
         },
         placeholder: 'Start writing here...',
     });
@@ -665,29 +687,40 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const length = endIndex - startIndex; // Calculate length
 
             if (startIndex !== undefined && length > 0) {
-                // 1. Apply background color
-                quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                // Calculate delay for wave effect
+                const delay = result.index * 30; // 30ms stagger per sentence (adjust as needed)
 
-                // 2. Check conditions for underline
-                let shouldApplyUnderline = false;
-                if (showGoalIndicators && isOverallScoreOutOfBounds) {
-                    if (deviationDirection === "high" && (color === "red" || color === "orange")) {
-                        shouldApplyUnderline = true;
-                    } else if (deviationDirection === "low" && color === "green") {
-                        shouldApplyUnderline = true;
+                setTimeout(() => {
+                    // Apply background color inside timeout
+                    // Ensure highlighting is still enabled when the timeout runs
+                    if (showHighlighting) {
+                        quill.formatText(startIndex, length, 'background', bgColor, 'api');
                     }
-                }
 
-                // --- DEBUGGING LOG ---
-                if (result.index === 0) {
-                    console.log(`Sentence ${result.index}: showGoalIndicators=${showGoalIndicators}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}, color=${color}, deviationDirection=${deviationDirection}, shouldApplyUnderline=${shouldApplyUnderline}`);
-                }
-                // --- END DEBUGGING LOG ---
+                    // Check conditions for underline inside timeout
+                    let shouldApplyUnderline = false;
+                    // Ensure goal indicators are still enabled and relevant when timeout runs
+                    if (showGoalIndicators && isOverallScoreOutOfBounds) {
+                        if (deviationDirection === "high" && (color === "red" || color === "orange")) {
+                            shouldApplyUnderline = true;
+                        } else if (deviationDirection === "low" && color === "green") {
+                            shouldApplyUnderline = true;
+                        }
+                    }
 
-                // Apply standard underline format if needed (remains the same)
-                if (shouldApplyUnderline) {
-                    quill.formatText(startIndex, length, 'underline', true, 'api');
-                }
+                    // Apply standard underline format if needed inside timeout
+                    if (shouldApplyUnderline) {
+                        quill.formatText(startIndex, length, 'underline', true, 'api');
+                    }
+
+                    // --- DEBUGGING LOG (optional, keep inside timeout if needed) ---
+                    // if (result.index === 0) {
+                    //     console.log(`Delayed Sentence ${result.index}: showGoalIndicators=${showGoalIndicators}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}, color=${color}, deviationDirection=${deviationDirection}, shouldApplyUnderline=${shouldApplyUnderline}`);
+                    // }
+                    // --- END DEBUGGING LOG ---
+
+                }, delay);
+
             } else {
                  console.warn(`Invalid indices received for statistical sentence analysis: start=${startIndex}, end=${endIndex}`);
             }
@@ -1332,50 +1365,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // --- Paste Event Listener ---
     // Add a listener to the editor container for paste events
-    if (editorContainer) {
-        editorContainer.addEventListener('paste', (event) => {
-            // Prevent default paste behavior
-            event.preventDefault();
-
-            // Get the pasted text
-            const pastedText = (event.clipboardData || window.clipboardData).getData('text/plain');
-
-            if (!pastedText) return; // Do nothing if no text was pasted
-
-            // Insert the plain text into the editor at the current cursor position
-            const range = quill.getSelection(true); // Get current selection, true to focus
-            if (range) {
-                const startIndex = range.index;
-                quill.insertText(startIndex, pastedText, 'user'); // Insert text, 'user' source
-
-                // Move cursor to the end of the pasted text
-                quill.setSelection(startIndex + pastedText.length, 0, 'silent');
-
-                console.log("Pasted text. Triggering sequential analysis.");
-                // Always trigger sequential analysis on paste
-                debouncedAnalyzeSequentially.cancel(); // Cancel any pending sequential analysis
-                const currentText = quill.getText(); // Get the text AFTER pasting
-                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
-                const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                analyzeSequentially(currentText, audience, contextAwarenessEnabled); // Call directly
-            } else {
-                 // If no selection, just insert at the end
-                 quill.insertText(quill.getLength(), pastedText, 'user');
-                 console.log("Pasted text at end. Triggering sequential analysis.");
-                 // Always trigger sequential analysis on paste
-                 debouncedAnalyzeSequentially.cancel(); // Cancel any pending sequential analysis
-                 const currentText = quill.getText();
-                 const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
-                 const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                 analyzeSequentially(currentText, audience, contextAwarenessEnabled); // Call directly
-            }
-
-            // Update stats immediately after paste
-            updateStats();
-        });
-    } else {
-        console.error("Quill editor container '#editor-container' not found for paste listener.");
-    }
+    // Custom paste handler removed - Quill's configured clipboard module handles plain text pasting now.
 
 
     // Define debounced sequential analysis function
