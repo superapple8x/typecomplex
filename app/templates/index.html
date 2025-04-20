@@ -40,16 +40,48 @@
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-lg font-semibold text-[var(--text-primary)] flex items-center">
                     <span class="text-lg font-semibold">Analysis</span>
-                    <button id="toggle-analysis-btn" class="ml-2 p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-blue)] transition-colors duration-150" title="Start/Pause Analysis">
-                        <!-- Play Icon (Start Analysis) - Default Visible -->
-                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653Z" />
-                        </svg>
-                        <!-- Pause Icon (Pause Analysis) - Default Hidden -->
-                        <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 hidden">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-                        </svg>
-                    </button>
+                    <!-- NEW Analysis Controls Container -->
+                    <div id="analysis-controls-container" class="relative inline-flex items-center ml-2">
+                        <!-- Split Button Group -->
+                        <div class="inline-flex rounded shadow-sm">
+                            <!-- Main Play/Pause Button -->
+                            <button id="analysis-control-btn" class="p-1 rounded-l text-[var(--text-secondary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[var(--accent-blue)] transition-colors duration-150 border border-r-0 border-[var(--border-color)]" title="Start Analysis">
+                                <!-- Play Icon (Start Analysis) - Default Visible -->
+                                <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653Z" />
+                                </svg>
+                                <!-- Pause Icon (Pause Analysis) - Default Hidden -->
+                                <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 hidden">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+                                </svg>
+                            </button>
+                            <!-- Expand Button (Chevron Down) - Always Visible -->
+                            <button id="analysis-expand-btn" class="p-1 rounded-r text-[var(--text-secondary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[var(--accent-blue)] transition-colors duration-150 border border-[var(--border-color)]" title="More analysis options">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- Analysis Options Dropdown Menu - Hidden by default -->
+                        <div id="analysis-options-menu" class="absolute top-full left-0 mt-1 w-48 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded shadow-lg hidden z-20">
+                            <ul class="py-1 text-sm text-[var(--text-primary)]">
+                                <li>
+                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="fast-only">
+                                        <!-- Lightning Bolt Icon -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /> </svg>
+                                        Fast analysis only
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="full-only">
+                                        <!-- Magnifying Glass Icon -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"> <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /> </svg>
+                                        Full analysis only
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                     <span id="analysis-loading-indicator" class="ml-2 hidden"> <!-- Loading indicator span -->
                         <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle> <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
                     </span>

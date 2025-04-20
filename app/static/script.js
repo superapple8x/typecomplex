@@ -58,10 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const goalContainer = document.getElementById('target-audience-goal-container'); // Keep container for toggle visibility
     // const goalInput = document.getElementById('target-audience-goal'); // REMOVED
     const contextAwarenessInfo = document.getElementById('context-awareness-info'); // Info icon
-    // --- NEW: Analysis Control Elements ---
-    const toggleAnalysisBtn = document.getElementById('toggle-analysis-btn');
-    const playIcon = document.getElementById('play-icon');
-    const pauseIcon = document.getElementById('pause-icon');
+    // --- NEW: Analysis Control Elements (Updated) ---
+    const analysisControlsContainer = document.getElementById('analysis-controls-container'); // NEW: Container div
+    const analysisControlBtn = document.getElementById('analysis-control-btn'); // NEW: Main play/pause button
+    const analysisExpandBtn = document.getElementById('analysis-expand-btn'); // NEW: Expand button (chevron)
+    const analysisOptionsMenu = document.getElementById('analysis-options-menu'); // NEW: Dropdown menu
+    const playIcon = document.getElementById('play-icon'); // Existing icon
+    const pauseIcon = document.getElementById('pause-icon'); // Existing icon
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -424,8 +427,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }
     }
  
-    // --- Analysis & Highlighting (Modified for Phase Indicator) ---
-    async function analyzeAndHighlight(forceHighlightUpdate = false) {
+    // --- Analysis & Highlighting (Modified for Phase Indicator & Mode) ---
+    async function analyzeAndHighlight(forceHighlightUpdate = false, mode = 'full') { // Added mode parameter
+        console.log(`%c[analyzeAndHighlight] Called with mode: ${mode}`, 'color: blue'); // DEBUG
         const text = quill.getText();
         const startTime = performance.now();
 
@@ -457,9 +461,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const requestBody = {
                 text: text,
                 target_audience: audience, // For statistical analysis
-                context_awareness_enabled: contextAwarenessEnabled // Send toggle state ONLY
+                context_awareness_enabled: contextAwarenessEnabled, // Send toggle state ONLY
+                mode: mode // <<< NEW: Pass the analysis mode
             };
-            // console.log("Sending analysis request:", requestBody); // DEBUG
+            console.log("[analyzeAndHighlight] Sending analysis request:", requestBody); // DEBUG
 
             try {
                 // --- Abort previous analysis if any ---
@@ -1184,12 +1189,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
 
 
-    // --- Sequential Analysis Function ---
+    // --- Sequential Analysis Function (Modified for Mode) ---
     let isSequentialAnalysisRunning = false; // Flag to prevent overlap
-    async function analyzeSequentially(text, audience, contextAwarenessEnabled) {
+    async function analyzeSequentially(text, audience, contextAwarenessEnabled, mode = 'full') { // Added mode parameter
+        console.log(`%c[analyzeSequentially] Called with mode: ${mode}`, 'color: green'); // DEBUG
         // --- Abort previous analysis if any ---
         if (currentAbortController) {
-            console.log("[Seq] Aborting previous analysis ID:", currentAnalysisId);
+            console.log(`[Seq] Aborting previous analysis ID: ${currentAnalysisId} (requested mode: ${mode})`); // DEBUG
             currentAbortController.abort();
             // Note: isSequentialAnalysisRunning flag might still be true briefly,
             // but the new AbortController should prevent interference.
@@ -1228,8 +1234,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             text: text,
             target_audience: audience,
             context_awareness_enabled: contextAwarenessEnabled,
-            analysisId: analysisId // <<< Add analysisId
+            analysisId: analysisId, // <<< Add analysisId
+            // Mode is NOT sent to /analyze_sequential itself, only to the final /analyze call
         };
+        console.log("[Seq] Sending sequential request (body excludes mode):", requestBody); // DEBUG
 
         let sequentialStreamCompleted = false; // Flag to track if stream finished ok
 
@@ -1415,11 +1423,13 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
 
                 // Call the original /analyze endpoint to get overall scores and readability
-                // Use the *same* analysisId and signal
+                // Use the *same* analysisId and signal, BUT add the mode parameter here
+                const finalRequestBody = { ...requestBody, mode: mode }; // Add mode for the final call
+                console.log(`[Seq] Sending final /analyze request (ID: ${analysisId}, mode: ${mode}):`, finalRequestBody); // DEBUG
                 const finalAnalysisResponse = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody), // Body already includes analysisId
+                    body: JSON.stringify(finalRequestBody), // Send body *with* mode
                     signal: signal // Pass same abort signal
                 });
 
@@ -1634,9 +1644,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             if (!cancelled && !isAnalysisPaused) { // <<< ADDED PAUSE CHECK
                 // Always trigger the debounced *sequential* analysis on user text change
                 const currentText = quill.getText();
-                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                // Use the state variable updated by the custom dropdown listener
+                const audience = currentTargetAudience; // <<< FIX: Use state variable
                 const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
                 // Pass necessary arguments to the debounced function
+                // The default mode ('full') will be used by analyzeSequentially unless overridden
                 debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
             } else if (cancelled) {
                  console.log("Text change: Analysis cancelled (paste-delete).");
@@ -1874,36 +1886,127 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
 
 
-    // --- NEW: Analysis Toggle Button Listener ---
-    if (toggleAnalysisBtn && playIcon && pauseIcon) {
-        toggleAnalysisBtn.addEventListener('click', () => {
+    // --- NEW: Analysis Control Listeners (Replaces old toggle listener) ---
+    // Functions for specific analysis modes
+    function startFastAnalysisOnly() {
+        console.log("%cTriggering Fast Analysis Only...", 'color: orange; font-weight: bold;');
+        if (isAnalysisPaused) { // Ensure we only start if paused
+            isAnalysisPaused = false;
+            updateAnalysisButtonState(); // Update UI immediately
+            const currentText = quill.getText();
+            const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+            // Call sequential analysis, explicitly passing 'fast' mode for the *final* /analyze call
+            analyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
+        } else {
+            console.warn("Fast Analysis Only requested but analysis is already running.");
+        }
+    }
+
+    function startFullAnalysisOnly() {
+        console.log("%cTriggering Full Analysis Only...", 'color: purple; font-weight: bold;');
+         if (isAnalysisPaused) { // Ensure we only start if paused
+            isAnalysisPaused = false;
+            updateAnalysisButtonState(); // Update UI immediately
+            // Call the standard full analysis function directly, skipping sequential streaming
+            // Pass 'full' mode explicitly (or rely on default)
+            analyzeAndHighlight(false, 'full');
+        } else {
+            console.warn("Full Analysis Only requested but analysis is already running.");
+        }
+    }
+
+    // Helper to update button/icon visibility based on isAnalysisPaused
+    function updateAnalysisButtonState() {
+        // Only update elements confirmed to exist
+        if (!analysisControlBtn || !playIcon || !pauseIcon) return;
+
+        playIcon.classList.toggle('hidden', !isAnalysisPaused);
+        pauseIcon.classList.toggle('hidden', isAnalysisPaused);
+        // analysisControlsContainer.classList.toggle('analysis-paused', isAnalysisPaused); // Keep class if needed for styling paused state
+
+        if (isAnalysisPaused) {
+            analysisControlBtn.setAttribute('title', 'Start Analysis');
+            // Ensure menu is hidden when state changes (running or paused)
+            if (analysisOptionsMenu) analysisOptionsMenu.classList.add('hidden');
+            if (analysisControlsContainer) analysisControlsContainer.classList.remove('options-visible');
+        } else {
+            analysisControlBtn.setAttribute('title', 'Pause Analysis');
+            // Ensure menu is hidden when state changes (running or paused)
+            if (analysisOptionsMenu) analysisOptionsMenu.classList.add('hidden');
+            if (analysisControlsContainer) analysisControlsContainer.classList.remove('options-visible');
+        }
+        // NOTE: analysisExpandBtn visibility is no longer managed here as it's always visible in split button design.
+    }
+
+
+    // Main Play/Pause Button Listener
+    if (analysisControlBtn && playIcon && pauseIcon) {
+        analysisControlBtn.addEventListener('click', () => {
             isAnalysisPaused = !isAnalysisPaused; // Toggle the state
 
-            // Update icon visibility
-            playIcon.classList.toggle('hidden', !isAnalysisPaused);
-            pauseIcon.classList.toggle('hidden', isAnalysisPaused);
+            updateAnalysisButtonState(); // Update UI elements
 
             if (isAnalysisPaused) {
-                console.log("Analysis Paused.");
-                toggleAnalysisBtn.setAttribute('title', 'Start Analysis');
+                console.log("Analysis Paused (via main button).");
                 cancelCurrentAnalysis(); // Cancel any ongoing analysis
-                // updatePhaseIndicator('idle'); // cancelCurrentAnalysis already does this
             } else {
-                console.log("Analysis Resumed.");
-                toggleAnalysisBtn.setAttribute('title', 'Pause Analysis');
-                // Trigger analysis immediately (using sequential for consistency)
+                console.log("Analysis Resumed (via main button - default mode).");
+                // Trigger default analysis (sequential + full)
                 const currentText = quill.getText();
-                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                // Use currentTargetAudience state variable
                 const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                 // Use analyzeSequentially directly, not debounced, for immediate start
-                analyzeSequentially(currentText, audience, contextEnabled);
+                analyzeSequentially(currentText, currentTargetAudience, contextEnabled);
             }
         });
-         // Set initial title based on default paused state
-         toggleAnalysisBtn.setAttribute('title', 'Start Analysis');
     } else {
-        console.error("Analysis toggle button or icons not found!");
+        console.error("Analysis control button or icons not found!");
     }
+
+    // Expand Button Listener
+    if (analysisExpandBtn && analysisOptionsMenu && analysisControlsContainer) {
+        analysisExpandBtn.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent click from closing menu immediately via document listener
+            analysisOptionsMenu.classList.toggle('hidden');
+            analysisControlsContainer.classList.toggle('options-visible');
+        });
+    } else {
+         console.error("Analysis expand button or options menu not found!");
+    }
+
+    // Options Menu Listener (Delegated)
+    if (analysisOptionsMenu && analysisControlsContainer) {
+        analysisOptionsMenu.addEventListener('click', (event) => {
+            const link = event.target.closest('a[data-action]');
+            if (link) {
+                event.preventDefault();
+                const action = link.dataset.action;
+
+                // Hide menu immediately
+                analysisOptionsMenu.classList.add('hidden');
+                analysisControlsContainer.classList.remove('options-visible');
+
+                if (action === 'fast-only') {
+                    startFastAnalysisOnly();
+                } else if (action === 'full-only') {
+                    startFullAnalysisOnly();
+                }
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!analysisControlsContainer.contains(event.target) && !analysisOptionsMenu.classList.contains('hidden')) {
+                 analysisOptionsMenu.classList.add('hidden');
+                 analysisControlsContainer.classList.remove('options-visible');
+            }
+        });
+
+    } else {
+         console.error("Analysis options menu not found!");
+    }
+
+    // --- Initial State Setup ---
+    updateAnalysisButtonState(); // Set initial button state based on isAnalysisPaused (defaults to true)
 
 
     // --- Sidebar Toggle Logic ---

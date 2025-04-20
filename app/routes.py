@@ -36,8 +36,9 @@ def analyze_text():
     target_audience_profile = data.get('target_audience', 'Standard')
     context_awareness_enabled = data.get('context_awareness_enabled', False) # Keep the toggle state
     analysis_id = data.get('analysisId') # <<< Get analysisId from request
+    mode = data.get('mode', 'full') # <<< NEW: Get mode, default to 'full'
 
-    logging.info(f"Received analysis request (ID: {analysis_id}). Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
+    logging.info(f"Received analysis request (ID: {analysis_id}). Mode: {mode}, Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}") # Added mode to log
 
     # --- Register Task ---
     if analysis_id: # Only register if ID is provided
@@ -56,7 +57,7 @@ def analyze_text():
         analysis_results = analyze_text_complexity(
             text_to_analyze,
             target_audience=target_audience_profile,
-            mode='full',
+            mode=mode, # <<< Pass the extracted mode
             analysis_id=analysis_id # Pass ID
         )
     except Exception as e:
