@@ -743,6 +743,10 @@ video {
   display: none;
 }
 
+.h-0 {
+  height: 0px;
+}
+
 .h-1 {
   height: 0.25rem;
 }
@@ -993,6 +997,10 @@ video {
 
 .overflow-x-auto {
   overflow-x: auto;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
 }
 
 .scroll-smooth {
