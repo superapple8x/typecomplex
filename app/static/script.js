@@ -184,6 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let contextAwarenessEnabled = false; // Default state, updated from checkbox
     // let currentGoalText = ''; // REMOVED
     let phaseIndicatorTimeout = null; // Timeout for hiding the 'complete' indicator
+    // --- NEW: State for Analysis Cancellation ---
+    let currentAnalysisId = null; // Unique ID for the current analysis sequence
+    let currentAbortController = null; // AbortController for the current analysis fetches
+    let lastPasteInfo = null; // { timestamp: number, length: number } | null
+    const PASTE_DELETE_THRESHOLD_MS = 1500; // Time window to detect delete after paste (1.5 seconds)
+    const PASTE_LENGTH_THRESHOLD = 20; // Minimum length to consider an insert a 'paste'
+    const DELETE_MATCH_RATIO = 0.8; // Delete length must be at least 80% of paste length
+
 
     // --- Stats Calculation ---
     function updateStats() {
@@ -437,10 +445,24 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             // console.log("Sending analysis request:", requestBody); // DEBUG
 
             try {
+                // --- Abort previous analysis if any ---
+                if (currentAbortController) {
+                    console.log("analyzeAndHighlight: Aborting previous analysis ID:", currentAnalysisId);
+                    currentAbortController.abort();
+                }
+                // --- Setup new analysis tracking ---
+                currentAnalysisId = crypto.randomUUID();
+                currentAbortController = new AbortController();
+                requestBody.analysisId = currentAnalysisId; // Add ID to request
+                const signal = currentAbortController.signal;
+                console.log("analyzeAndHighlight: Starting analysis ID:", currentAnalysisId);
+
+
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody), // Use prepared body
+                    signal: signal // Pass abort signal
                 });
 
                 if (!response.ok) {
@@ -487,6 +509,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 // --- End Apply LLM Enhancements --- // Renamed section
 
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Analysis fetch aborted (analyzeAndHighlight). ID:', requestBody.analysisId);
+                    // Don't treat abort as a displayable error, just stop processing
+                    return; // Exit the function early
+                }
                 console.error('Error fetching analysis:', error);
                 currentAnalysisData = null; // Clear data on error
                 isOverallScoreOutOfBounds = false; // Reset flag on error
@@ -499,13 +526,22 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             } finally {
                 // if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden'); // REMOVE old loading bar
                 // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
-                // Set to 'complete' only if no error occurred (handled in catch block)
-                if (!currentAnalysisData && !isOverallScoreOutOfBounds) { // Check if error occurred
-                   // Error state already set in catch
-                } else if (text.trim()) { // Only show complete if there's text
-                    updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
+                // Set to 'complete' only if no error/abort occurred
+                const wasAborted = currentAbortController?.signal.aborted ?? false; // Check if aborted
+                if (!wasAborted) {
+                    if (!currentAnalysisData && !isOverallScoreOutOfBounds) { // Check if error occurred
+                       // Error state already set in catch
+                    } else if (text.trim()) { // Only show complete if there's text
+                        updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
+                    } else {
+                        updatePhaseIndicator('idle'); // Back to idle if text was cleared during analysis
+                    }
+                    // Clear tracking info if analysis completed naturally
+                    currentAnalysisId = null;
+                    currentAbortController = null;
                 } else {
-                    updatePhaseIndicator('idle'); // Back to idle if text was cleared during analysis
+                     console.log("analyzeAndHighlight finally: Analysis was aborted, not setting complete/idle.");
+                     // Keep currentAnalysisId/Controller null as they were likely cleared by cancellation logic
                 }
             }
         }
@@ -1094,14 +1130,29 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- Sequential Analysis Function ---
     let isSequentialAnalysisRunning = false; // Flag to prevent overlap
     async function analyzeSequentially(text, audience, contextAwarenessEnabled) {
-        if (isSequentialAnalysisRunning) {
-            console.log("[Seq] Analysis already running, skipping new request.");
-            return;
+        // --- Abort previous analysis if any ---
+        if (currentAbortController) {
+            console.log("[Seq] Aborting previous analysis ID:", currentAnalysisId);
+            currentAbortController.abort();
+            // Note: isSequentialAnalysisRunning flag might still be true briefly,
+            // but the new AbortController should prevent interference.
         }
+        // --- Setup new analysis tracking ---
+        currentAnalysisId = crypto.randomUUID();
+        currentAbortController = new AbortController();
+        const analysisId = currentAnalysisId; // Local copy for this run
+        const signal = currentAbortController.signal;
+        console.log("[Seq] Starting analysis ID:", analysisId);
+
+
+        // if (isSequentialAnalysisRunning) {
+        //     console.log("[Seq] Analysis already running, skipping new request.");
+        //     return; // Keep this check? Maybe not needed with AbortController
+        // }
         // Cancel any pending standard analysis before starting sequential
-        debouncedAnalyzeAndHighlight.cancel(); // <<< ADD THIS LINE
-        isSequentialAnalysisRunning = true;
-        console.log("Starting sequential analysis...");
+        debouncedAnalyzeAndHighlight.cancel();
+        isSequentialAnalysisRunning = true; // Still useful to prevent *starting* multiple streams?
+        // console.log("Starting sequential analysis..."); // Redundant with ID log
         // if (complexityLoadingEl) complexityLoadingEl.classList.remove('hidden'); // REMOVE old loading bar
         updatePhaseIndicator('fast'); // <<< SET Phase Indicator to 'fast' (Cyan)
 
@@ -1119,14 +1170,18 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         const requestBody = {
             text: text,
             target_audience: audience,
-            context_awareness_enabled: contextAwarenessEnabled
+            context_awareness_enabled: contextAwarenessEnabled,
+            analysisId: analysisId // <<< Add analysisId
         };
+
+        let sequentialStreamCompleted = false; // Flag to track if stream finished ok
 
         try {
             const response = await fetch('/analyze_sequential', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
+                signal: signal // <<< Pass abort signal
             });
 
             if (!response.ok) {
@@ -1143,8 +1198,17 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const sentenceResults = []; // Store results for final overall calculation
 
             while (true) {
+                // Check for abort signal before reading
+                if (signal.aborted) {
+                    console.log(`[Seq] Abort detected before reading stream chunk (ID: ${analysisId}).`);
+                    throw new DOMException('Aborted by user', 'AbortError'); // Simulate fetch abort error
+                }
+
                 const { value, done } = await reader.read();
-                if (done) break;
+                if (done) {
+                    sequentialStreamCompleted = true; // Mark stream as finished ok
+                    break;
+                }
 
                 buffer += value;
                 // Process lines from the buffer
@@ -1155,6 +1219,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     if (line.trim()) {
                         try {
                             const sentenceResult = JSON.parse(line);
+                            // --- Check for cancellation message from stream ---
+                            if (sentenceResult.status === 'cancelled') {
+                                console.log(`[Seq] Cancellation signal received from stream (ID: ${analysisId}).`);
+                                // Potentially update UI to reflect cancellation more clearly
+                                throw new DOMException('Cancelled by backend', 'AbortError'); // Treat as abort
+                            }
                             console.log(`[Seq] Received sentence ${sentenceResult.index}:`, sentenceResult); // DEBUG
 
                             // Store the result
@@ -1276,90 +1346,139 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
             console.log("[Seq] Sequential analysis stream finished.");
 
-            // --- Perform Final Overall Analysis Update ---
-            console.log("[Seq] Fetching final overall analysis..."); // DEBUG
-            updatePhaseIndicator('full'); // <<< SET Phase Indicator to 'full' (Yellow) - Indicates fetching
-            // Call the original /analyze endpoint to get overall scores and readability
-            // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.remove('hidden'); // REMOVE old spinner
-            // This is necessary because the sequential endpoint only returns sentence data.
-            const finalAnalysisResponse = await fetch('/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody), // Use the same request body
-            });
+            // --- Perform Final Overall Analysis Update (only if stream completed and not aborted) ---
+            if (sequentialStreamCompleted && !signal.aborted) {
+                console.log(`[Seq] Fetching final overall analysis (ID: ${analysisId})...`); // DEBUG
+                updatePhaseIndicator('full'); // <<< SET Phase Indicator to 'full' (Yellow) - Indicates fetching
 
-            // After fetching, transition to processing state
-            updatePhaseIndicator('processing_overall'); // <<< SET Phase Indicator to 'processing_overall' (Magenta)
+                // Check for abort signal again before final fetch
+                if (signal.aborted) {
+                     console.log(`[Seq] Abort detected before final /analyze fetch (ID: ${analysisId}).`);
+                     throw new DOMException('Aborted by user', 'AbortError');
+                }
 
-            if (!finalAnalysisResponse.ok) {
-                 // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
-                  updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
-                  let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
-                  try {
-                     const errorData = await finalAnalysisResponse.json();
-                    errorMsg = errorData.error || errorMsg;
-                 } catch (e) { /* Ignore parsing error */ }
-                 console.error('Error fetching final analysis:', errorMsg);
-                 // Update UI to show error for overall scores
-                 updateComplexityMeter({level: 0, description: "Final analysis error"});
-                 updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores});
+                // Call the original /analyze endpoint to get overall scores and readability
+                // Use the *same* analysisId and signal
+                const finalAnalysisResponse = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody), // Body already includes analysisId
+                    signal: signal // Pass same abort signal
+                });
 
+                // After fetching, transition to processing state
+                updatePhaseIndicator('processing_overall'); // <<< SET Phase Indicator to 'processing_overall' (Magenta)
+
+                if (!finalAnalysisResponse.ok) {
+                     // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
+                      updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
+                      let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
+                      try {
+                         const errorData = await finalAnalysisResponse.json();
+                        errorMsg = errorData.error || errorMsg;
+                     } catch (e) { /* Ignore parsing error */ }
+                     console.error('Error fetching final analysis:', errorMsg);
+                     // Update UI to show error for overall scores
+                     updateComplexityMeter({level: 0, description: "Final analysis error"});
+                     updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores});
+
+                } else {
+                    const finalAnalysisData = await finalAnalysisResponse.json();
+                    // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
+                    // Phase indicator will be set to 'complete' in the finally block
+
+                    // --- Check if final analysis was cancelled by backend ---
+                    if (finalAnalysisData?.overall_level?.description === "Analysis cancelled") {
+                         console.log(`[Seq] Final /analyze call returned cancelled status (ID: ${analysisId}).`);
+                         // Update UI to reflect cancellation
+                         updateComplexityMeter(finalAnalysisData.overall_level);
+                         updateReadabilityScores(null); // Clear scores
+                         clearLlmEnhancements();
+                         if (analysisTimeEl) analysisTimeEl.textContent = 'Cancelled';
+                         if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map
+                         // Throw abort error to prevent 'complete' state in finally
+                         throw new DOMException('Cancelled by backend', 'AbortError');
+                    } else {
+                        currentAnalysisData = finalAnalysisData; // Update stored analysis data with full results
+                        console.log("Received final analysis data:", currentAnalysisData); // DEBUG
+
+                        // The indicator is already set to 'processing_overall' before this block.
+                        // It will transition to 'complete' in the finally block if successful.
+
+                        // Update UI with final overall scores and readability
+                        updateComplexityMeter(currentAnalysisData);
+                        updateReadabilityScores(currentAnalysisData);
+
+                        // Re-apply highlighting and map to ensure underlines and final state are correct
+                        applyStatisticalHighlighting(currentAnalysisData?.results || []);
+                        updateDocumentMap(currentAnalysisData); // Rebuild map with final data
+
+                         // --- NEW: Check if overall score is out of bounds ---
+                        isOverallScoreOutOfBounds = checkIfOutOfBounds(
+                            currentAnalysisData?.readability_scores,
+                            currentAnalysisData?.target_readability_scores
+                        );
+                         applyGoalIndicatorVisibility(); // Ensure goal indicators are correctly applied based on final state
+
+                         // Re-apply LLM enhancements based on final data (if any were missed or need update)
+                         if (contextAwarenessEnabled && currentAnalysisData?.results) {
+                             applyLlmEnhancements(currentAnalysisData.results);
+                         } else {
+                             clearLlmEnhancements();
+                         }
+                    }
+                }
+            } else if (signal.aborted) {
+                 console.log(`[Seq] Skipping final /analyze call because analysis was aborted (ID: ${analysisId}).`);
             } else {
-                const finalAnalysisData = await finalAnalysisResponse.json();
-                // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
-                // Phase indicator will be set to 'complete' in the finally block
-                currentAnalysisData = finalAnalysisData; // Update stored analysis data with full results
-                console.log("Received final analysis data:", currentAnalysisData); // DEBUG
-
-                // The indicator is already set to 'processing_overall' before this block.
-                // It will transition to 'complete' in the finally block if successful.
-
-                // Update UI with final overall scores and readability
-                updateComplexityMeter(currentAnalysisData);
-                updateReadabilityScores(currentAnalysisData);
-
-                // Re-apply highlighting and map to ensure underlines and final state are correct
-                // This might cause a slight flicker but ensures consistency.
-                // Alternatively, modify applyStatisticalHighlighting to only apply underlines
-                // and update map heights based on the full data.
-                applyStatisticalHighlighting(currentAnalysisData?.results || []);
-                updateDocumentMap(currentAnalysisData); // Rebuild map with final data
-
-                 // --- NEW: Check if overall score is out of bounds ---
-                isOverallScoreOutOfBounds = checkIfOutOfBounds(
-                    currentAnalysisData?.readability_scores,
-                    currentAnalysisData?.target_readability_scores
-                );
-                 applyGoalIndicatorVisibility(); // Ensure goal indicators are correctly applied based on final state
-
-                 // Re-apply LLM enhancements based on final data (if any were missed or need update)
-                 if (contextAwarenessEnabled && currentAnalysisData?.results) {
-                     applyLlmEnhancements(currentAnalysisData.results);
-                 } else {
-                     clearLlmEnhancements();
+                 console.log(`[Seq] Skipping final /analyze call because sequential stream did not complete successfully (ID: ${analysisId}).`);
+                 // Potentially set an error state if stream failed without abort
+                 if (!signal.aborted) { // Only set error if not aborted
+                     updatePhaseIndicator('error');
                  }
             }
 
 
         } catch (error) {
-            console.error('Error during sequential analysis:', error);
-            // Handle errors during the streaming process
-            updateComplexityMeter({level: 0, description: "Sequential analysis error"});
-            updateReadabilityScores(null); // Reset scores
-            clearLlmEnhancements();
-            if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
-            if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
-            updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
+             if (error.name === 'AbortError') {
+                 console.log(`Sequential analysis fetch aborted or cancelled by backend (ID: ${analysisId}).`);
+                 // Update UI minimally to show cancellation, avoid error state
+                 updatePhaseIndicator('idle'); // Go idle after abort
+                 // Optionally clear highlights/map if desired after abort
+                 // quill.formatText(0, quill.getLength(), 'background', false, 'api');
+                 // if (documentMapContainer) documentMapContainer.innerHTML = '';
+             } else {
+                 console.error('Error during sequential analysis:', error);
+                 // Handle other errors during the streaming process
+                 updateComplexityMeter({level: 0, description: "Sequential analysis error"});
+                 updateReadabilityScores(null); // Reset scores
+                 clearLlmEnhancements();
+                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
+                 if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
+                 updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
+             }
         } finally {
             // if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden'); // REMOVE old loading bar
             isSequentialAnalysisRunning = false; // Reset flag
-            // Set to 'complete' only if no error occurred during the *final* analysis fetch
-            if (currentAnalysisData && text.trim()) { // Check if final data exists and text is present
+
+            const wasAborted = currentAbortController?.signal.aborted ?? false; // Check if aborted
+
+            // Set to 'complete' only if no error/abort occurred during the *final* analysis fetch
+            if (!wasAborted && currentAnalysisData && text.trim()) { // Check if final data exists and text is present
                  updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
-            } else if (!text.trim()) {
+            } else if (!wasAborted && !text.trim()) {
                  updatePhaseIndicator('idle'); // Back to idle if text was cleared
             }
-            // Error state is handled in the catch blocks
+            // Abort/Error states handled in catch block
+
+            // Clear tracking info if analysis completed naturally or was aborted
+            if (analysisId === currentAnalysisId) { // Only clear if this is the *current* analysis being tracked
+                 currentAnalysisId = null;
+                 currentAbortController = null;
+                 console.log(`[Seq] Cleared tracking for analysis ID: ${analysisId}`);
+            } else {
+                 console.log(`[Seq] Finally block for ${analysisId}, but current tracked ID is ${currentAnalysisId}. Not clearing.`);
+            }
         }
     }
 
@@ -1375,12 +1494,94 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
             updateStats();
-            // Always trigger the debounced *sequential* analysis on user text change
-            const currentText = quill.getText();
-            const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
-            const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-            // Pass necessary arguments to the debounced function
-            debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
+
+            let isPaste = false;
+            let isSignificantDelete = false;
+            let deleteLength = 0;
+            let insertLength = 0; // Track insert length for paste detection
+
+            // --- Detect Paste / Delete ---
+            delta.ops.forEach(op => {
+                if (op.insert && typeof op.insert === 'string') {
+                    insertLength += op.insert.length; // Accumulate insert length
+                } else if (op.delete) {
+                    isSignificantDelete = true; // Mark that a delete happened
+                    deleteLength = op.delete; // Record delete length (assumes one delete op per change)
+                }
+            });
+
+            // Check if the total insertion meets the paste threshold
+            if (insertLength >= PASTE_LENGTH_THRESHOLD) {
+                 isPaste = true;
+                 lastPasteInfo = { timestamp: Date.now(), length: insertLength };
+                 console.log(`Paste detected: length ${insertLength}`);
+            }
+
+            // Reset paste info if the change wasn't a paste
+            if (!isPaste) {
+                // Don't reset immediately on delete, check for paste-delete first
+                if (!isSignificantDelete) {
+                     lastPasteInfo = null;
+                }
+            }
+
+            // --- Check for Paste-Delete Cancellation ---
+            let cancelled = false;
+            if (isSignificantDelete && lastPasteInfo) {
+                const timeDiff = Date.now() - lastPasteInfo.timestamp;
+                const lengthRatio = deleteLength / lastPasteInfo.length;
+                console.log(`Delete detected: length ${deleteLength}, time since paste: ${timeDiff}ms, paste length: ${lastPasteInfo.length}, ratio: ${lengthRatio.toFixed(2)}`);
+
+                if (timeDiff < PASTE_DELETE_THRESHOLD_MS && lengthRatio >= DELETE_MATCH_RATIO) {
+                    console.log(`%cPaste-delete detected! Cancelling analysis ID: ${currentAnalysisId}`, 'color: orange; font-weight: bold;');
+                    cancelled = true;
+
+                    // 1. Cancel pending debounced call
+                    debouncedAnalyzeSequentially.cancel();
+
+                    // 2. Abort ongoing fetch requests
+                    if (currentAbortController) {
+                        currentAbortController.abort();
+                        currentAbortController = null; // Clear controller after aborting
+                    }
+
+                    // 3. Notify backend to cancel
+                    if (currentAnalysisId) {
+                        const idToCancel = currentAnalysisId; // Capture ID before clearing
+                        currentAnalysisId = null; // Clear ID immediately
+                        fetch('/cancel_analysis', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ analysisId: idToCancel }),
+                            // Keepalive might help ensure this request is sent even if page navigation happens soon after
+                            // keepalive: true
+                        })
+                        .then(response => response.json())
+                        .then(data => console.log('Backend cancellation requested:', data))
+                        .catch(err => console.error('Error sending backend cancellation:', err));
+
+                    }
+
+                    // 4. Reset paste tracking state
+                    lastPasteInfo = null;
+
+                    // 5. Optionally update UI immediately (e.g., set phase to idle)
+                    updatePhaseIndicator('idle');
+                } else {
+                    // If it was a delete but didn't meet paste-delete criteria, clear paste info
+                    lastPasteInfo = null;
+                }
+            }
+
+            // --- Trigger Analysis (if not cancelled) ---
+            if (!cancelled) {
+                // Always trigger the debounced *sequential* analysis on user text change
+                const currentText = quill.getText();
+                const audience = targetAudienceSelect ? targetAudienceSelect.value : 'Standard';
+                const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                // Pass necessary arguments to the debounced function
+                debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
+            }
         }
     });
 

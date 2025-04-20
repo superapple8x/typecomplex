@@ -7,6 +7,8 @@ import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModel
 import spacy # Import spacy
+import logging # Import logging
+from app import task_manager # Import task manager
 
 # --- Load Transformer Model ---
 # Load model & tokenizer once globally
@@ -378,7 +380,7 @@ def _get_coreference_features(spacy_sentence, doc):
     return {"coreferent_mentions_count": coreferent_mentions_count}
 
 
-def calculate_complexity(spacy_sentence, doc, profile, mode='full'): # Added mode parameter
+def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=None): # Added analysis_id
     """
     Calculates a complexity score for a single sentence based on the provided profile.
     Considers sentence length, average word length, average word frequency,
@@ -427,6 +429,11 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full'): # Added mod
 
 
     if mode == 'full':
+        # --- Check for cancellation before expensive embedding calculation ---
+        if analysis_id and task_manager.is_cancelled(analysis_id):
+            logging.info(f"Task {analysis_id}: Cancelled before embedding calculation for sentence: '{spacy_sentence.text[:50]}...'")
+            return 0.0 # Return neutral score if cancelled here
+
         # --- Contextual Embedding Factor ---
         embedding_factor_raw = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
         embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
@@ -483,10 +490,11 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
-def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, mode='full'): # Added mode parameter
+def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, mode='full', analysis_id=None): # Added analysis_id
     """
     Analyzes the complexity of a single spaCy sentence based on the provided profile.
     Requires the full spaCy document for coreference resolution.
+    Accepts an 'analysis_id' for cancellation checks.
     Returns a dictionary containing:
         - 'sentence': The original sentence text.
         - 'score': The complexity score (float).
@@ -516,7 +524,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
 
 
     # Calculate complexity using the spaCy sentence object, the full doc, and the mode
-    score = calculate_complexity(spacy_sentence, doc, profile, mode=mode) # Pass mode
+    score = calculate_complexity(spacy_sentence, doc, profile, mode=mode, analysis_id=analysis_id) # Pass analysis_id
 
     # Extract and include the new features (will be empty in 'fast' mode as handled in calculate_complexity)
     # We still include the keys for consistency, even if values are empty dicts
@@ -548,10 +556,11 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
     }
 
 
-def analyze_text_complexity(text, target_audience="Standard", mode='full'):
+def analyze_text_complexity(text, target_audience="Standard", mode='full', analysis_id=None): # Added analysis_id
     """
     Analyzes the complexity of each sentence in the input text based on target audience.
     Uses spaCy for sentence segmentation, parsing, and coreference resolution.
+    Accepts an 'analysis_id' for cancellation checks.
     This function is now primarily for calculating overall scores and readability
     after all sentences have been analyzed (e.g., in the non-sequential flow).
     It can also be used to get all sentence results at once.
@@ -565,6 +574,16 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full'):
     # Select the profile based on target_audience, default to Standard
     profile = AUDIENCE_PROFILES.get(target_audience, AUDIENCE_PROFILES["Standard"])
 
+    # --- Check for cancellation before starting ---
+    if analysis_id and task_manager.is_cancelled(analysis_id):
+        logging.info(f"Analysis (ID: {analysis_id}) cancelled before starting.")
+        return {
+            "results": [],
+            "overall_level": {"level": 0, "description": "Analysis cancelled", "color_class": "bg-gray-600"},
+            "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+            "target_readability_scores": profile['target_readability']
+        }
+
     if not text or not text.strip() or not nlp: # Check if spaCy model loaded
         print("WARN: spaCy model not loaded or text is empty. Returning basic analysis.")
         return {
@@ -574,17 +593,31 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full'):
             "target_readability_scores": profile['target_readability']
         }
 
+    # --- Check for cancellation before potentially long spaCy processing ---
+    if analysis_id and task_manager.is_cancelled(analysis_id):
+        logging.info(f"Analysis (ID: {analysis_id}) cancelled before spaCy processing.")
+        # Return cancelled status (consistent with check above)
+        return {
+            "results": [],
+            "overall_level": {"level": 0, "description": "Analysis cancelled", "color_class": "bg-gray-600"},
+            "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+            "target_readability_scores": profile['target_readability']
+        }
+
     # Process the entire text with spaCy once to get the document and sentences
     try:
+        logging.debug(f"Task {analysis_id}: Starting spaCy processing in analyze_text_complexity.")
         doc = nlp(text)
+        logging.debug(f"Task {analysis_id}: Finished spaCy processing in analyze_text_complexity.")
         if not doc.has_annotation("SENT_START"):
-             print("WARN: spaCy sentence segmentation failed. Cannot perform analysis.")
-             return {
-                "results": [],
-                "overall_level": {"level": 0, "description": "Sentence segmentation failed", "color_class": "bg-gray-600"},
-                "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
-                "target_readability_scores": profile['target_readability']
-             }
+              print("WARN: spaCy sentence segmentation failed. Cannot perform analysis.")
+              # Correctly indented return block
+              return {
+                  "results": [],
+                  "overall_level": {"level": 0, "description": "Sentence segmentation failed", "color_class": "bg-gray-600"},
+                  "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+                  "target_readability_scores": profile['target_readability']
+              }
     except Exception as e:
         print(f"ERROR processing text with spaCy: {e}")
         return {
@@ -595,14 +628,40 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full'):
         }
 
     results = []
+    cancelled_mid_loop = False # Flag to track cancellation during loop
     # Iterate through sentences and analyze each one using the new function
     if doc.has_annotation("SENT_START"):
         for i, spacy_sentence in enumerate(doc.sents):
-            sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i, mode=mode)
+            # --- Check for cancellation before processing each sentence ---
+            if analysis_id and task_manager.is_cancelled(analysis_id):
+                logging.info(f"Analysis (ID: {analysis_id}) cancelled during sentence loop at index {i}.")
+                cancelled_mid_loop = True
+                break # Exit the loop
+
+            sentence_result = analyze_single_spacy_sentence(
+                spacy_sentence,
+                doc,
+                profile,
+                i,
+                mode=mode,
+                analysis_id=analysis_id # Pass ID
+            )
             if sentence_result:
                 results.append(sentence_result)
 
-    # Calculate overall score (average of sentence scores) only if results exist
+    # --- Handle Cancellation Mid-Loop ---
+    if cancelled_mid_loop:
+        # Return partial results but indicate cancellation in overall level
+        logging.info(f"Analysis (ID: {analysis_id}) returning partial results due to cancellation.")
+        return {
+            "results": results, # Return results processed so far
+            "overall_level": {"level": 0, "description": "Analysis cancelled", "color_class": "bg-gray-600"},
+            "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None}, # Or calculate based on partial text? For now, None.
+            "target_readability_scores": profile['target_readability']
+        }
+
+    # Calculate overall score (average of sentence scores) only if results exist and not cancelled
+    # This block should be at the same indentation level as the 'if cancelled_mid_loop:' block
     if results:
         total_score = sum(r['score'] for r in results)
         num_sentences = len(results)

@@ -8,6 +8,8 @@ from app.synonyms import get_ranked_synonyms
 from app.deepseek_analysis import enhance_sentence_complexity, recommend_synonym
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
 import json # Import json for streaming
+# Import the task manager
+from app import task_manager
 
 @app.route('/')
 def index():
@@ -23,6 +25,7 @@ def analyze_text():
     performs context-aware analysis using Gemini based on frontend inputs.
     This endpoint is now primarily for overall analysis (readability scores, etc.)
     and can return all sentence results at once for smaller texts or initial load.
+    Accepts an 'analysisId' for cancellation tracking.
     """
     data = request.get_json()
     if not data or 'text' not in data:
@@ -32,16 +35,49 @@ def analyze_text():
     text_to_analyze = data.get('text', '')
     target_audience_profile = data.get('target_audience', 'Standard')
     context_awareness_enabled = data.get('context_awareness_enabled', False) # Keep the toggle state
+    analysis_id = data.get('analysisId') # <<< Get analysisId from request
 
-    logging.info(f"Received analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
+    logging.info(f"Received analysis request (ID: {analysis_id}). Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
-    # --- Perform Full Analysis ---
-    # This will now use the refactored analyze_text_complexity which calls
-    # analyze_single_spacy_sentence internally for all sentences.
-    # Pass mode='full' for the standard analysis endpoint
-    analysis_results = analyze_text_complexity(text_to_analyze, target_audience=target_audience_profile, mode='full')
+    # --- Register Task ---
+    if analysis_id: # Only register if ID is provided
+        task_manager.register_task(analysis_id)
+    else:
+        logging.warning("'/analyze' request received without analysisId.")
+
+
+    analysis_results = None # Initialize
+    try:
+        # --- Perform Full Analysis ---
+        # This will now use the refactored analyze_text_complexity which calls
+        # analyze_single_spacy_sentence internally for all sentences.
+        # Pass mode='full' for the standard analysis endpoint
+        # Pass analysis_id for cancellation checks
+        analysis_results = analyze_text_complexity(
+            text_to_analyze,
+            target_audience=target_audience_profile,
+            mode='full',
+            analysis_id=analysis_id # Pass ID
+        )
+    except Exception as e:
+        logging.error(f"Error during full analysis (ID: {analysis_id}): {e}", exc_info=True)
+        # Ensure task is removed even on error
+        if analysis_id:
+            task_manager.remove_task(analysis_id)
+        return jsonify({"error": f"Server error during analysis: {e}"}), 500
+    finally:
+        # --- Remove Task ---
+        if analysis_id:
+            task_manager.remove_task(analysis_id)
 
     # --- Return Results ---
+    # Check if analysis was cancelled internally
+    if analysis_results and analysis_results.get("overall_level", {}).get("description") == "Analysis cancelled":
+         logging.info(f"Analysis (ID: {analysis_id}) was cancelled. Returning cancelled status.")
+         # Return a specific response or the partial results indicating cancellation
+         return jsonify(analysis_results) # Return the result dict which indicates cancellation
+
+    logging.info(f"Analysis (ID: {analysis_id}) completed successfully.")
     return jsonify(analysis_results)
 
 # /analyze_sequential endpoint (POST)
@@ -50,6 +86,7 @@ def analyze_text_sequential():
     """
     Analyzes text complexity sentence by sentence and streams results back.
     Uses 'fast' mode for quick per-sentence analysis.
+    Accepts an 'analysisId' for cancellation tracking.
     """
     data = request.get_json()
     if not data or 'text' not in data:
@@ -59,17 +96,39 @@ def analyze_text_sequential():
     text_to_analyze = data.get('text', '')
     target_audience_profile = data.get('target_audience', 'Standard')
     context_awareness_enabled = data.get('context_awareness_enabled', False)
+    analysis_id = data.get('analysisId') # <<< Get analysisId from request
 
-    logging.info(f"Received sequential analysis request. Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
+    logging.info(f"Received sequential analysis request (ID: {analysis_id}). Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
     if not nlp:
          logging.error("spaCy model not loaded. Cannot perform sequential analysis.")
          return jsonify({"error": "Analysis service not available (spaCy model not loaded)."}), 500
 
+    if not analysis_id:
+        logging.error("'/analyze_sequential' request received without analysisId.")
+        return jsonify({"error": "Missing 'analysisId' in request body"}), 400
+
     def generate_results():
         """Generator function to yield sentence analysis results."""
+        # --- Register Task ---
+        task_manager.register_task(analysis_id)
         try:
+            # --- Check for immediate cancellation ---
+            if task_manager.is_cancelled(analysis_id):
+                logging.info(f"Sequential analysis (ID: {analysis_id}) cancelled before starting.")
+                yield json.dumps({"status": "cancelled"}) + "\n"
+                return
+
+            # --- Check cancellation before potentially long spaCy processing ---
+            logging.debug(f"Task {analysis_id}: Starting spaCy processing.")
             doc = nlp(text_to_analyze)
+            logging.debug(f"Task {analysis_id}: Finished spaCy processing.")
+
+            if task_manager.is_cancelled(analysis_id):
+                logging.info(f"Sequential analysis (ID: {analysis_id}) cancelled after spaCy processing, before sentence iteration.")
+                yield json.dumps({"status": "cancelled"}) + "\n"
+                return
+
             if not doc.has_annotation("SENT_START"):
                 yield json.dumps({"error": "Sentence segmentation failed."}) + "\n"
                 return # Stop generation
@@ -78,8 +137,22 @@ def analyze_text_sequential():
             profile = AUDIENCE_PROFILES.get(target_audience_profile, AUDIENCE_PROFILES["Standard"])
 
             for i, spacy_sentence in enumerate(doc.sents):
+                # --- Check for cancellation before processing each sentence ---
+                if task_manager.is_cancelled(analysis_id):
+                    logging.info(f"Sequential analysis (ID: {analysis_id}) cancelled during processing at sentence {i}.")
+                    yield json.dumps({"status": "cancelled"}) + "\n"
+                    break # Exit the loop
+
                 # Analyze the single sentence in 'fast' mode
-                sentence_result = analyze_single_spacy_sentence(spacy_sentence, doc, profile, i, mode='fast')
+                # Pass analysis_id for potential future checks within analyze_single_spacy_sentence if needed
+                sentence_result = analyze_single_spacy_sentence(
+                    spacy_sentence,
+                    doc,
+                    profile,
+                    i,
+                    mode='fast',
+                    analysis_id=analysis_id # Pass ID
+                )
                 if sentence_result:
                     # Yield the JSON result for the sentence
                     yield json.dumps(sentence_result) + "\n"
@@ -88,8 +161,12 @@ def analyze_text_sequential():
             # No need to calculate overall scores here in the sequential stream.
 
         except Exception as e:
-            logging.error(f"Error during sequential analysis streaming: {e}", exc_info=True)
+            logging.error(f"Error during sequential analysis streaming (ID: {analysis_id}): {e}", exc_info=True)
             yield json.dumps({"error": f"Server error during analysis: {e}"}) + "\n"
+        finally:
+            # --- Remove Task ---
+            task_manager.remove_task(analysis_id)
+            logging.info(f"Sequential analysis (ID: {analysis_id}) stream finished or cancelled.")
 
     # Return a streaming response
     return Response(generate_results(), mimetype='application/json')
@@ -149,3 +226,19 @@ def get_synonyms():
         "ranked_synonyms": ranked_synonyms, # Always return the base list
         "llm_recommendation": deepseek_recommendation # Use a generic key 'llm_recommendation'
     })
+
+# --- NEW: Cancellation Endpoint ---
+@app.route('/cancel_analysis', methods=['POST'])
+def cancel_analysis_task():
+    """Endpoint for the frontend to request cancellation of an ongoing analysis task."""
+    data = request.get_json()
+    if not data or 'analysisId' not in data:
+        logging.warning("'/cancel_analysis' request missing 'analysisId'.")
+        return jsonify({"error": "Missing 'analysisId' in request body"}), 400
+
+    analysis_id_to_cancel = data.get('analysisId')
+    logging.info(f"Received cancellation request for analysis ID: {analysis_id_to_cancel}")
+
+    task_manager.cancel_task(analysis_id_to_cancel)
+
+    return jsonify({"status": "Cancellation requested", "analysisId": analysis_id_to_cancel})
