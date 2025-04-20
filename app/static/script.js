@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const gunningFogScoreEl = document.getElementById('gunning-fog-score');
     const smogIndexScoreEl = document.getElementById('smog-index-score');
     // Visual Map container
-    const documentMapContainer = document.getElementById('document-map');
+    const documentMapContainer = document.getElementById('document-map'); // Inner container for bars
+    const documentMapOuterContainer = document.getElementById('document-map-container'); // Outer container for scrolling
     // --- Target Audience / Display Options ---
     // const targetAudienceSelect = document.getElementById('target-audience-select'); // OLD SELECT ELEMENT
     const targetAudienceButton = document.getElementById('target-audience-button'); // NEW Custom Dropdown Button
@@ -137,7 +138,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]
             }
         },
-        placeholder: 'Start writing here...',
+    });
+    quill.on('focus', function() {
+        quill.root.setAttribute('data-placeholder', '');  // Clear placeholder on focus
+    });
+    
+    quill.on('blur', function() {
+        if (quill.getText().trim() === '') {
+            quill.root.setAttribute('data-placeholder', 'Start writing here...');  // Restore placeholder if empty
+        }
     });
 
     // --- Tippy Initialization ---
@@ -825,9 +834,30 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- Visual Document Map Update ---
     // --- Visual Document Map Update (Modified) ---
     function updateDocumentMap(analysisData) { // Modified to accept full data
-        const results = analysisData?.results; // Get results array from full data
+        const results = analysisData?.results || []; // Get results or default to empty array
+        const barCount = results.length;
+        const barWidth = 8; // px - Should match CSS
+        const barGap = 1;  // px - Corresponds to gap-px
 
-        if (!documentMapContainer) return;
+        // --- Conditional Overflow and Width (Applied to Inner Container) ---
+        if (documentMapContainer) { // Check if inner container exists
+            if (barCount >= 15) {
+                const totalWidth = barCount * (barWidth + barGap) - barGap; // Calculate total width needed
+                documentMapContainer.style.minWidth = `${totalWidth}px`;
+                documentMapContainer.style.overflowX = 'auto'; // Apply overflow directly
+                // console.log(`Map update: ${barCount} bars >= 15. Set inner overflow-x: auto, min-width: ${totalWidth}px`); // DEBUG
+            } else {
+                documentMapContainer.style.minWidth = ''; // Reset min-width
+                documentMapContainer.style.overflowX = ''; // Reset overflow
+                // console.log(`Map update: ${barCount} bars < 15. Reset inner overflow-x, reset min-width.`); // DEBUG
+            }
+        } else {
+             console.warn("Map update skipped: Inner map container (#document-map) not found."); // DEBUG
+        }
+        // --- End Conditional Logic ---
+
+        // Clear existing map (keep this)
+        if (!documentMapContainer) return; // Keep check for inner container
         documentMapContainer.innerHTML = ''; // Clear previous map segments and lines
 
         // --- Target Line Logic --- (Moved to applyGoalIndicatorVisibility)
@@ -839,12 +869,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // }
         // --- End Target Line Logic ---
 
-        if (!results || results.length === 0) {
+        if (!results || results.length === 0) { // Use the 'results' variable defined above
             // documentMapContainer.textContent = 'No text to map.'; // Optional message
             return; // Exit if no results
         }
 
-        results.forEach((result, idx) => {
+        results.forEach((result, idx) => { // Use the 'results' variable defined above
              if (result.index === undefined || result.score === undefined) {
                  console.warn(`Skipping map segment for result index ${idx} due to missing index or score.`);
                  return; // Skip this iteration if data is missing

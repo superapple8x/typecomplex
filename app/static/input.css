@@ -44,8 +44,9 @@
 
 /* Styles for the visual document map segments */
 .map-segment {
-  @apply flex-grow transition-all duration-300 ease-in-out;
-  min-width: 2px; /* Ensure segments have a minimum width */
+  @apply flex-shrink-0 transition-all duration-300 ease-in-out; /* Removed flex-grow, added flex-shrink-0 */
+  width: 8px; /* Added fixed width */
+  min-width: 2px; /* Kept min-width, might be redundant */
 }
 
 /* Custom underline for goal deviation (now using Quill's <u> tag) */
@@ -56,3 +57,5 @@
   /* Optional: Adjust thickness if needed */
   /* text-decoration-thickness: 1px !important; */
 }
+
+/* Removed manual .overflow-x-auto definition */

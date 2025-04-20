@@ -11,6 +11,7 @@ module.exports = {
     'bg-orange-500',
     'bg-red-500',
     'bg-gray-600', // Also safelist the default/inactive color
+    'overflow-x-auto', // Added for conditional scrolling
   ],
   darkMode: 'class', // Enable dark mode using a class
   theme: {
