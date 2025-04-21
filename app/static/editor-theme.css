@@ -181,9 +181,29 @@ body {
 #complexity-sidebar {
   background-color: var(--sidebar-bg);
   border-left: 1px solid rgba(108, 111, 147, 0.2);
-  padding: 1.5rem;
+  padding: 1.25rem 1rem 1.25rem 1.5rem;
   width: 18.4rem;
   min-width: 18.4rem;
+  backdrop-filter: blur(10px);
+  margin-left: -0.5rem;
+}
+
+/* Ensure proper spacing for all elements */
+#complexity-sidebar > *:not(:last-child) {
+  margin-bottom: 1.25rem;
+}
+
+/* Special spacing for tightly grouped elements */
+#analysis-controls-container {
+  margin-left: 0.5rem;
+}
+
+/* Focus states that don't overlap */
+[type="checkbox"]:focus,
+[type="range"]:focus,
+button:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 /* Analysis Cards */
@@ -216,6 +236,74 @@ select, input[type="range"] {
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
+  background-color: rgba(49, 50, 68, 0.5);
+  border: 1px solid rgba(108, 111, 147, 0.2);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+  backdrop-filter: blur(10px);
+}
+
+select:focus, input[type="range"]:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+/* Custom Range Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 6px;
+  background: rgba(108, 111, 147, 0.2);
+  border-radius: 3px;
+  padding: 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  #complexity-sidebar {
+    background-color: var(--sidebar-bg);
+    border-left:
+  1px solid rgba(108, 111, 147, 0.2);
+    padding:
+  1.5rem 1.5rem 1.5rem 1rem;
+    width: 18.4rem;
+    min-width: 18.4rem;
+    backdrop-filter: blur(10px);
+    margin-left: -0.5rem;
+  }  transform: scale(1.2);
+}
+
+/* Target Audience Dropdown Button */
+#target-audience-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(49, 50, 68, 0.5);
+  border: 1px solid rgba(108, 111, 147, 0.2);
+  border-radius: 8px;
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+  backdrop-filter: blur(10px);
+}
+
+#target-audience-button:hover {
+  background-color: rgba(108, 111, 147, 0.2);
+}
+
+#target-audience-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue);
+  border-color: var(--accent-blue);
 }
 
 /* Toggles and Checkboxes */
@@ -230,6 +318,34 @@ label {
 input[type="checkbox"] {
   width: 1.25rem;
   height: 1.25rem;
+  background-color: rgba(49, 50, 68, 0.5);
+  border: 1px solid rgba(108, 111, 147, 0.2);
+  border-radius: 4px;
+  appearance: none;
+  position: relative;
+  transition: all var(--transition-speed) ease;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent-blue);
 }
 
 /* Meter Styling */
@@ -253,10 +369,108 @@ button, select, input[type="range"] {
   background-color: rgba(49, 50, 68, 0.5);
   border: 1px solid rgba(108, 111, 147, 0.2);
   transition: all var(--transition-speed) ease;
+  backdrop-filter: blur(10px);
 }
 
 button:hover {
   background-color: rgba(108, 111, 147, 0.2);
+}
+
+/* Analysis Control Buttons - Split Button Group */
+#analysis-controls-container .inline-flex {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: rgba(49, 50, 68, 0.5);
+  border: 1px solid rgba(108, 111, 147, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+#analysis-control-btn {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: 1px solid rgba(108, 111, 147, 0.2) !important;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+#analysis-expand-btn {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-left: none !important;
+  width: 28px;
+  min-width: 28px;
+  padding: 0.5rem;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+#analysis-control-btn:hover,
+#analysis-expand-btn:hover {
+  background-color: rgba(108, 111, 147, 0.1) !important;
+}
+
+#analysis-control-btn:focus,
+#analysis-expand-btn:focus {
+  box-shadow: none;
+}
+
+#analysis-options-menu {
+  background: rgba(49, 50, 68, 0.95) !important;
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+}
+
+#analysis-control-btn,
+#analysis-expand-btn {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-speed) ease;
+  padding: 0.5rem;
+}
+
+#analysis-control-btn:hover,
+#analysis-expand-btn:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+#analysis-control-btn:focus,
+#analysis-expand-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue);
+  z-index: 1;
+  position: relative;
+}
+
+#analysis-controls-container:hover .inline-flex {
+  box-shadow: 0 0 0 1px var(--accent-blue);
+}
+
+/* Dropdown Menus */
+#analysis-options-menu,
+#target-audience-options {
+  background: rgba(49, 50, 68, 0.9) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  z-index: 1000;
+}
+
+#analysis-options-menu a,
+#target-audience-options a {
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease;
+}
+
+#analysis-options-menu a:hover,
+#target-audience-options a:hover {
+  background-color: rgba(108, 111, 147, 0.1) !important;
+  color: var(--accent-blue) !important;
 }
 
 /* Enhanced Tooltips */
