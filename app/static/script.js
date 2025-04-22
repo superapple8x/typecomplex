@@ -1095,7 +1095,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             // Build tooltip content with consistent styling
             let contentHTML = `
                 <div id="${tooltipContentId}"
-                     class="p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)]
+                     class="p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-h-60 overflow-y-auto
                             border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
                             shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]
                             max-w-xs transition-all duration-[var(--transition-speed)]">
