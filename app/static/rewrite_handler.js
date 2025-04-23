@@ -30,72 +30,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper function to format the API response for the tooltip
     function formatRewriteResponse(data) {
-        if (!data) return "<div class='p-2 text-sm text-red-400'>Error: Invalid response data.</div>";
-        if (data.error) return `<div class='p-2 text-sm text-red-400'>Error: ${data.error}</div>`;
-
-        let html = `<div class='p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
-                           border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
-                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]'>`;
-
-        if (data.is_sufficient) {
-            html += `<strong class='block mb-1 text-green-400'>Suggestion:</strong>`;
-            html += `<p class='mb-2 text-gray-300'>${data.feedback || 'The original sentence is suitable.'}</p>`;
-        } else {
-            html += `<strong class='block mb-1 text-yellow-400'>Suggestion:</strong>`;
-            if (data.feedback) {
-                html += `<p class='mb-1 text-gray-400 italic'>Feedback: ${data.feedback}</p>`;
-            }
-            if (data.suggestion) {
-                html += `<p class='mb-2 p-2 bg-[rgba(0,0,0,0.2)] rounded text-gray-200'>${data.suggestion}</p>`;
-            } else {
-                 html += `<p class='mb-2 text-gray-400 italic'>No specific rewrite suggested, but feedback provided above.</p>`;
-            }
-            if (data.reasoning) {
-                html += `<p class='text-xs text-gray-500'>Reasoning: ${data.reasoning}</p>`;
-            }
-        }
-        html += `</div>`;
-        return html;
+           // Base structure (no close button)
+           let baseHtml = `<div class='rewrite-tooltip-content p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
+                              border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
+                              shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]'>`;
+   
+           if (!data) {
+               // Append error message directly to base HTML structure
+               return baseHtml + "<div class='text-sm text-red-400'>Error: Invalid response data.</div></div>";
+           }
+           if (data.error) {
+               // Append error message directly to base HTML structure
+               return baseHtml + `<div class='text-sm text-red-400'>Error: ${data.error}</div></div>`;
+           }
+   
+           let contentHtml = "<div>"; // No extra padding needed now
+    	if (data.is_sufficient) {
+    		contentHtml += `<strong class='block mb-1 text-green-400'>Suggestion:</strong>`;
+    		contentHtml += `<p class='mb-2 text-gray-300'>${data.feedback || 'The original sentence is suitable.'}</p>`;
+    	} else {
+    		contentHtml += `<strong class='block mb-1 text-yellow-400'>Suggestion:</strong>`;
+    		if (data.feedback) {
+    			contentHtml += `<p class='mb-1 text-gray-400 italic'>Feedback: ${data.feedback}</p>`;
+    		}
+    		if (data.suggestion) {
+    			contentHtml += `<p class='mb-2 p-2 bg-[rgba(0,0,0,0.2)] rounded text-gray-200'>${data.suggestion}</p>`;
+    		} else {
+    			 contentHtml += `<p class='mb-2 text-gray-400 italic'>No specific rewrite suggested, but feedback provided above.</p>`;
+    		}
+    		if (data.reasoning) {
+    			contentHtml += `<p class='text-xs text-gray-500'>Reasoning: ${data.reasoning}</p>`;
+    		}
+    	}
+           contentHtml += "</div>"; // Close content area
+    	return baseHtml + contentHtml + `</div>`; // Combine base (with button) and content
     }
 
     // --- Right-Click (Context Menu) Listener ---
     quill.root.addEventListener('contextmenu', async (event) => {
         event.preventDefault(); // Prevent the default browser context menu
 
-        // Get Quill index from click position
-        // This might need refinement depending on browser compatibility
-        let index;
-        if (document.caretPositionFromPoint) {
-            const range = document.caretPositionFromPoint(event.clientX, event.clientY);
-            index = range.offset;
-            // Adjust index based on the container offset if necessary (complex)
-            // For simplicity, let's assume the offset is relative to the start of the text node
-            // We might need Quill's own methods if this isn't reliable
-            const leaf = quill.getLeaf(index)[0];
-            if (leaf) {
-                 index = quill.getIndex(leaf) + range.offset; // Try to get absolute index
-            } else {
-                 console.warn("Rewrite Handler: Could not find leaf at click position.");
-                 // Fallback: Get selection index if text is selected
-                 const selection = quill.getSelection();
-                 if (selection) {
-                     index = selection.index;
-                 } else {
-                     contextMenuTooltip.hide(); // Hide if we can't determine position
-                     return;
-                 }
-            }
-
-        } else { // Fallback for browsers without caretPositionFromPoint
-             const selection = quill.getSelection();
-             if (selection) {
-                 index = selection.index; // Use selection start if available
-             } else {
-                 console.warn("Rewrite Handler: Cannot determine click index (caretPositionFromPoint not supported and no selection).");
-                 contextMenuTooltip.hide();
-                 return;
-             }
-        }
+        // Get Quill index from the current text cursor position or selection
+              const selection = quill.getSelection(true); // true ensures we get selection even if editor isn't focused
+      
+              if (!selection) {
+                  console.warn("Rewrite Handler: Cannot get cursor position or selection.");
+                  contextMenuTooltip.hide(); // Hide if we can't determine position
+                  return;
+              }
+      
+              // Use the index where the selection starts (cursor position if length is 0)
+              const index = selection.index;
 
         console.log(`Rewrite Handler: Right-click detected at approximate index: ${index}`); // DEBUG
 
@@ -131,8 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
         contextMenuTooltip.setProps({
             getReferenceClientRect: () => clickBounds,
             placement: 'right-start', // Or adjust as needed
-            content: "<div class='p-2 text-sm text-gray-400'>Loading rewrite suggestion...</div>"
-        });
+                     // Simple loading message (no close button)
+            content: `<div class='rewrite-tooltip-content p-3 text-sm text-gray-400 bg-[var(--sidebar-bg)] max-w-md
+                                    border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)] shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]'>
+                                    <div>Loading rewrite suggestion...</div></div>`
+           });
         contextMenuTooltip.show();
 
         // --- API Call ---
@@ -155,26 +143,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Update tooltip with formatted results
-            contextMenuTooltip.setContent(formatRewriteResponse(data));
-
-        } catch (error) {
-            console.error('Rewrite Handler: Error fetching rewrite suggestion:', error);
-            contextMenuTooltip.setContent(`<div class='p-2 text-sm text-red-400'>Error: ${error.message}</div>`);
-        }
+                     const formattedContent = formatRewriteResponse(data);
+            contextMenuTooltip.setContent(formattedContent);
+         
+                     // --- Close Button Listener REMOVED ---
+         
+                 } catch (error) {
+                     console.error('Rewrite Handler: Error fetching rewrite suggestion:', error);
+                     // Format error message (no close button structure needed)
+            	contextMenuTooltip.setContent(formatRewriteResponse({ error: error.message }));
+                     // --- Close Button Listener REMOVED ---
+                 }
     });
 
     // --- Tooltip Dismissal Listener ---
     // Hide the context menu tooltip when clicking anywhere outside of it
     document.addEventListener('click', (event) => {
-        if (contextMenuTooltip.state.isVisible) {
-            const tooltipElement = contextMenuTooltip.popperInstance ? contextMenuTooltip.popperInstance.popper : null;
-            // Check if the click was outside the tooltip itself
-            if (tooltipElement && !tooltipElement.contains(event.target)) {
-                 // Also check if the click wasn't on the original trigger element (though tricky with contextmenu)
-                 // For simplicity, just hide if click is outside the tooltip popper
-                 contextMenuTooltip.hide();
-            }
-        }
+    	// Use the same logic as the synonym tooltip dismissal
+    	if (contextMenuTooltip.state.isVisible) {
+               const target = event.target;
+               const tooltipElement = contextMenuTooltip.popperInstance?.popper; // The actual tooltip DOM element
+   
+               // Check if the click target is the close button OR if the click is outside the tippy-box
+               const isCloseButtonClick = target.classList.contains('rewrite-tooltip-close-btn');
+               const isClickOutsideTippyBox = !target.closest('.tippy-box'); // Check if click is outside the main tippy container
+   
+               if (!isCloseButtonClick && isClickOutsideTippyBox) {
+                    // Hide if the click was outside the tippy box and wasn't the close button itself
+                    // (The close button's own listener handles its clicks)
+                    console.log("Hiding context menu tooltip due to outside click."); // DEBUG
+                    contextMenuTooltip.hide();
+               } else if (isCloseButtonClick) {
+                   // The close button has its own dedicated listener set via setTimeout,
+                   // so we don't strictly need to do anything here, but adding a log for clarity.
+                   console.log("Close button clicked (handled by its own listener)."); // DEBUG
+               }
+           }
     }, true); // Use capture phase to catch clicks early
 
     console.log("Rewrite Handler: Initialized successfully."); // DEBUG
