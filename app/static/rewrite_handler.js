@@ -82,8 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let contentHtml = `
             <div class="status-bar ${config.barClass}"></div>
             <div class="p-4 ${config.bgClass} rounded-t-[var(--border-radius)] shrink-0">
-                <div class="flex items-center gap-2">
-                    <span class="${config.colorClass}">${config.icon}</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="inline-block tooltip-status-icon ${config.colorClass}">${config.icon}</span>
                     <h3 class="font-semibold ${config.colorClass}">${data.status}</h3>
                 </div>
             </div>
