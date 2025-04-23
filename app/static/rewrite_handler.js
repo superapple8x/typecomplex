@@ -221,7 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         contextMenuTooltip.hide();
                         // Call the newly exposed function from script.js
                         if (window.typecomplexApp && typeof window.typecomplexApp.triggerAnalysis === 'function') {
-                            window.typecomplexApp.triggerAnalysis(); // Re-analyze after applying change
+                            // Add a short delay to allow Quill to process the update before re-analyzing
+                            setTimeout(() => {
+                                console.log("Rewrite Handler: Triggering analysis after apply (100ms delay)."); // DEBUG
+                                window.typecomplexApp.triggerAnalysis(); // Re-analyze after applying change
+                            }, 100); // 100ms delay
                         } else {
                             console.error("Rewrite Handler: Could not find window.typecomplexApp.triggerAnalysis function.");
                         }

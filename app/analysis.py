@@ -492,10 +492,10 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
-def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, target_audience_name, current_start, current_end, mode='full', analysis_id=None): # Added current_start, current_end
+def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, target_audience_name, mode='full', analysis_id=None): # Added target_audience_name
     """
     Analyzes the complexity of a single spaCy sentence based on the provided profile.
-    Checks cache before calculation. Stores result in cache. Uses current start/end indices.
+    Checks cache before calculation. Stores result in cache.
     Requires the full spaCy document for coreference resolution.
     Accepts an 'analysis_id' for cancellation checks.
     Returns a dictionary containing:
@@ -510,8 +510,8 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
     Returns a dictionary like: {'result': { ... sentence data ... }, 'from_cache': bool}
     """
     original_sentence = spacy_sentence.text
-    start = current_start
-    end = current_end
+    start = spacy_sentence.start_char
+    end = spacy_sentence.end_char
 
     # --- Cache Check ---
     # Use sentence text + profile name + mode for a unique key
@@ -521,16 +521,17 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
     cached_result = cache.get(cache_key)
     if cached_result:
         logging.debug(f"Cache HIT for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
-        # IMPORTANT: Overwrite cached indices with CURRENT indices
-        cached_result['start'] = current_start
-        cached_result['end'] = current_end
-        cached_result['index'] = sentence_index # Ensure index is also current
+        # Ensure the cached result has the correct index and mode, just in case
+        cached_result['index'] = sentence_index
         cached_result['mode'] = mode
-        logging.debug(f"Cache HIT - Using cached score but updated indices: start={current_start}, end={current_end}")
-        # Return wrapped result indicating it came from cache (but with updated indices)
+        # --- FIX: Update start/end indices from current spacy_sentence ---
+        cached_result['start'] = spacy_sentence.start_char
+        cached_result['end'] = spacy_sentence.end_char
+        # --- End FIX ---
+        # Return wrapped result indicating it came from cache
         return {'result': cached_result, 'from_cache': True}
     else:
-        logging.debug(f"Cache MISS for sentence index {sentence_index} (Key: {cache_key[:8]}...) - Calculating score.")
+        logging.debug(f"Cache MISS for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Check ---
 
     if not original_sentence.strip():
@@ -681,8 +682,6 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
                 profile,
                 i,
                 target_audience_name=target_audience, # Pass target_audience name
-                current_start=spacy_sentence.start_char, # Pass current start index
-                current_end=spacy_sentence.end_char,     # Pass current end index
                 mode=mode,
                 analysis_id=analysis_id # Pass ID
             )
