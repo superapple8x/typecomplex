@@ -4,8 +4,8 @@ from app import app
 # Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, nlp, AUDIENCE_PROFILES # Import nlp, the new function, and AUDIENCE_PROFILES
 from app.synonyms import get_ranked_synonyms
-# Import the NEW DeepSeek enhancement functions (replacing Gemini)
-from app.deepseek_analysis import enhance_sentence_complexity, recommend_synonym
+# Import the DeepSeek synonym function (complexity enhancement was unused)
+from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion # Import new function
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
 import json # Import json for streaming
 # Import the task manager
@@ -247,3 +247,35 @@ def cancel_analysis_task():
     task_manager.cancel_task(analysis_id_to_cancel)
 
     return jsonify({"status": "Cancellation requested", "analysisId": analysis_id_to_cancel})
+
+# --- NEW: Rewrite Suggestion Endpoint ---
+@app.route('/rewrite_suggestion', methods=['POST'])
+def rewrite_suggestion():
+    """
+    Provides feedback and rewrite suggestions for a specific sentence using DeepSeek.
+    """
+    data = request.get_json()
+    required_fields = ['sentence_text', 'surrounding_context', 'target_audience', 'complexity_score']
+    if not data or not all(field in data for field in required_fields):
+        missing = [field for field in required_fields if field not in (data or {})]
+        logging.warning(f"'/rewrite_suggestion' request missing fields: {missing}")
+        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    sentence_text = data.get('sentence_text')
+    surrounding_context = data.get('surrounding_context')
+    target_audience = data.get('target_audience')
+    complexity_score = data.get('complexity_score') # Frontend sends this directly
+
+    logging.info(f"Received rewrite suggestion request. Audience: {target_audience}, Score: {complexity_score:.2f}")
+
+    try:
+        result = get_rewrite_suggestion(
+            sentence_text=sentence_text,
+            surrounding_context=surrounding_context,
+            target_audience_profile=target_audience,
+            complexity_score=complexity_score
+        )
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"Error during rewrite suggestion call: {e}", exc_info=True)
+        return jsonify({"error": f"Server error during rewrite suggestion: {e}"}), 500

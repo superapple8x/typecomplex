@@ -247,6 +247,14 @@
                                 <span class="ml-2">Show Goal Indicators</span>
                             </label>
                         </div>
+                        <!-- NEW: Rewrite Context Toggle -->
+                        <div class="flex items-center justify-between">
+                            <label for="rewrite-context-toggle" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                                <input type="checkbox" id="rewrite-context-toggle" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]">
+                                <span class="ml-2">Use Full Document Context for Rewrites</span>
+                            </label>
+                        </div>
+                        <!-- END NEW -->
                     </div>
                 </div>
 
@@ -288,6 +296,7 @@
 
     <!-- Link to our main JavaScript file (no longer a module) -->
     <script defer src="{{ url_for('static', filename='script.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='rewrite_handler.js') }}"></script> <!-- NEW: Load rewrite handler -->
 
     <!-- Tooltip Initialization Script -->
     <script>

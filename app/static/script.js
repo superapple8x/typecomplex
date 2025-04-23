@@ -73,29 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // REMOVED Custom Format Registration for GoalDeviationUnderline
     
-    // --- NEW: Register Custom Format for LLM Enhancements --- // Renamed comment
-    const Inline = Quill.import('blots/inline');
-    class LlmEnhancement extends Inline { // Renamed class
-        static create(value) {
-            let node = super.create();
-            // Add a class for CSS styling and potentially JS selection
-            node.setAttribute('class', 'llm-complexity-enhancement'); // Renamed class attribute
-            // You could store data attributes here if needed, e.g.:
-            // node.setAttribute('data-reasoning', value.reasoning || '');
-            // node.setAttribute('data-suggestion', value.suggestion || '');
-            return node;
-        }
-
-        static formats(node) {
-             // If you store data attributes, retrieve them here
-             // return { reasoning: node.getAttribute('data-reasoning'), suggestion: node.getAttribute('data-suggestion') };
-             return true; // For a simple boolean format
-        }
-    }
-    LlmEnhancement.blotName = 'llm-enhancement'; // Renamed blotName
-    LlmEnhancement.tagName = 'SPAN'; // Render as a span
-    Quill.register(LlmEnhancement); // Register renamed class
-    // --- END NEW ---
+    // --- LLM Enhancement Format REMOVED ---
 
     const quill = new Quill(editorContainer, {
         theme: 'snow', // Use the Snow theme
@@ -213,6 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let contextAwarenessEnabled = false; // Default state, updated from checkbox
     // let currentGoalText = ''; // REMOVED
     let phaseIndicatorTimeout = null; // Timeout for hiding the 'complete' indicator
+    // --- NEW: State for Rewrite Context ---
+    let useFullRewriteContext = false; // Default to partial context for rewrites
     // --- NEW: State for Analysis Cancellation ---
     let currentAnalysisId = null; // Unique ID for the current analysis sequence
     let currentAbortController = null; // AbortController for the current analysis fetches
@@ -529,15 +509,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 // --- Explicitly apply visibility state AFTER data is processed ---
                 applyGoalIndicatorVisibility();
 
-                // --- Apply LLM Enhancements (if enabled and data exists) --- // Renamed section
-                // This happens regardless of statistical highlighting toggle
-                if (contextAwarenessEnabled && currentAnalysisData?.results) {
-                    applyLlmEnhancements(currentAnalysisData.results); // Renamed function call
-                    // initializeGeminiTooltips(currentAnalysisData.results); // REMOVED undefined function call
-                } else {
-                    clearLlmEnhancements(); // Renamed function call
-                }
-                // --- End Apply LLM Enhancements --- // Renamed section
+                // --- LLM Enhancement logic REMOVED ---
 
             } catch (error) {
                 if (error.name === 'AbortError') {
@@ -550,7 +522,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 isOverallScoreOutOfBounds = false; // Reset flag on error
                 updateComplexityMeter(null); // Reset meter
                 updateReadabilityScores(null); // Reset scores
-                clearLlmEnhancements(); // Renamed function call
+                // clearLlmEnhancements(); // Call REMOVED
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
                 // Map will be cleared in the finally block's updateDocumentMap call
@@ -794,42 +766,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }); // <<< ADDED MISSING CLOSING BRACE AND PARENTHESIS HERE
     }
 
-    // --- NEW: Apply LLM Enhancements --- // Renamed function
-    // Applies the 'llm-enhancement' format (styled via CSS)
-    function applyLlmEnhancements(results) { // Renamed function
-        if (!results || !contextAwarenessEnabled) return; // Also check toggle state
-
-        // Clear previous enhancements first (important!)
-        // clearLlmEnhancements(); // Clearing is now done explicitly below // Renamed comment
-
-        results.forEach(result => {
-            const enhancement = result.gemini_enhancement;
-            const startIndex = result.start;
-            const endIndex = result.end;
-            const length = endIndex - startIndex;
-
-            if (startIndex !== undefined && length > 0) {
-                // Check if enhancement exists, has no error, and indicates an issue
-                if (enhancement && !enhancement.error && enhancement.contextual_assessment && enhancement.contextual_assessment !== "Appropriate") {
-                    // Apply the boolean format. CSS will style based on the class added by the blot.
-                    // Pass the enhancement data if the blot is configured to accept it (optional)
-                    // quill.formatText(startIndex, length, 'llm-enhancement', { reasoning: enhancement.reasoning, suggestion: enhancement.suggestion }, 'api'); // Renamed format
-                    quill.formatText(startIndex, length, 'llm-enhancement', true, 'api'); // Renamed format
-                } else {
-                    // Ensure the format is explicitly removed if no enhancement applies or is appropriate
-                    // This prevents stale formatting if text changes but doesn't re-trigger full clear
-                    quill.formatText(startIndex, length, 'llm-enhancement', false, 'api'); // Renamed format
-                }
-            }
-        });
-    }
-
-    // --- NEW: Clear LLM Enhancements --- // Renamed function
-    function clearLlmEnhancements() { // Renamed function
-        // Clear the specific format across the whole document
-        quill.formatText(0, quill.getLength(), 'llm-enhancement', false, 'api'); // Renamed format
-        // console.log("Cleared LLM enhancement formats."); // DEBUG Renamed comment
-    }
+    // --- LLM Enhancement Functions REMOVED ---
 
     // --- Visual Document Map Update ---
     // --- Visual Document Map Update (Modified) ---
@@ -1345,16 +1282,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                                 }
                             }
 
-                            // Apply LLM enhancement highlighting if enabled
-                            if (contextAwarenessEnabled && sentenceResult.gemini_enhancement && !sentenceResult.gemini_enhancement.error && sentenceResult.gemini_enhancement.contextual_assessment && sentenceResult.gemini_enhancement.contextual_assessment !== "Appropriate") {
-                                const startIndex = sentenceResult.start;
-                                const endIndex = sentenceResult.end;
-                                const length = endIndex - startIndex;
-                                if (startIndex !== undefined && length > 0) {
-                                     console.log(`[Seq] Applying LLM enhancement to sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
-                                     quill.formatText(startIndex, length, 'llm-enhancement', true, 'api');
-                                }
-                            }
+                            // Apply LLM enhancement highlighting if enabled - REMOVED
 
                             // Incrementally update the visual document map
                             if (documentMapContainer && sentenceResult.score !== undefined) {
@@ -1404,18 +1332,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                              console.log(`[Seq] Applying background ${color} to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
                             quill.formatText(startIndex, length, 'background', bgColor, 'api');
                         }
-                    }
-                     if (contextAwarenessEnabled && sentenceResult.gemini_enhancement && !sentenceResult.gemini_enhancement.error && sentenceResult.gemini_enhancement.contextual_assessment && sentenceResult.gemini_enhancement.contextual_assessment !== "Appropriate") {
-                        const startIndex = sentenceResult.start;
-                        const endIndex = sentenceResult.end;
-                        const length = endIndex - startIndex;
-                        if (startIndex !== undefined && length > 0) {
-                             console.log(`[Seq] Applying LLM enhancement to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
-                             quill.formatText(startIndex, length, 'llm-enhancement', true, 'api');
-                        }
-                    }
-                     if (documentMapContainer && sentenceResult.score !== undefined) {
-                         console.log(`[Seq] Updating map for FINAL sentence ${sentenceResult.index}`); // DEBUG
+                     }
+                      // Apply LLM enhancement highlighting if enabled - REMOVED
+
+                      if (documentMapContainer && sentenceResult.score !== undefined) {
+                          console.log(`[Seq] Updating map for FINAL sentence ${sentenceResult.index}`); // DEBUG
                         const segment = document.createElement('div');
                         segment.classList.add('map-segment');
                         segment.dataset.sentenceIndex = sentenceResult.index;
@@ -1477,9 +1398,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                      console.error('Error fetching final analysis:', errorMsg);
                      // Update UI to show error for overall scores
                      updateComplexityMeter({level: 0, description: "Final analysis error"});
-                     updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores});
+                     updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores}); // Keep target scores if available
 
-                } else {
+             } else {
                     const finalAnalysisData = await finalAnalysisResponse.json();
                     // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
                     // Phase indicator will be set to 'complete' in the finally block
@@ -1490,7 +1411,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                          // Update UI to reflect cancellation
                          updateComplexityMeter(finalAnalysisData.overall_level);
                          updateReadabilityScores(null); // Clear scores
-                         clearLlmEnhancements();
+                         // clearLlmEnhancements(); // Call REMOVED
                          if (analysisTimeEl) analysisTimeEl.textContent = 'Cancelled';
                          if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map
                          // Throw abort error to prevent 'complete' state in finally
@@ -1517,12 +1438,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                         );
                          applyGoalIndicatorVisibility(); // Ensure goal indicators are correctly applied based on final state
 
-                         // Re-apply LLM enhancements based on final data (if any were missed or need update)
-                         if (contextAwarenessEnabled && currentAnalysisData?.results) {
-                             applyLlmEnhancements(currentAnalysisData.results);
-                         } else {
-                             clearLlmEnhancements();
-                         }
+                         // Re-apply LLM enhancements based on final data - REMOVED
                     }
                 }
             } else if (signal.aborted) {
@@ -1549,7 +1465,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                  // Handle other errors during the streaming process
                  updateComplexityMeter({level: 0, description: "Sequential analysis error"});
                  updateReadabilityScores(null); // Reset scores
-                 clearLlmEnhancements();
+                 // clearLlmEnhancements(); // Call REMOVED
                  if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                  if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
                  updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
@@ -1812,7 +1728,25 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         console.warn("Toggle goal indicators element not found.");
         showGoalIndicators = true; // Default
     }
-
+ 
+    // --- NEW: Rewrite Context Toggle Listener ---
+    const rewriteContextToggle = document.getElementById('rewrite-context-toggle');
+    if (rewriteContextToggle) {
+        // Initial state from checkbox (assuming default is unchecked/false)
+        useFullRewriteContext = rewriteContextToggle.checked;
+        console.log(`Initial Rewrite Context Mode: ${useFullRewriteContext ? 'Full' : 'Partial'}`); // DEBUG
+ 
+        rewriteContextToggle.addEventListener('change', (event) => {
+            useFullRewriteContext = event.target.checked;
+            console.log(`Rewrite Context Mode changed to: ${useFullRewriteContext ? 'Full' : 'Partial'}`); // DEBUG
+            // No re-analysis needed, this only affects future rewrite requests
+        });
+    } else {
+        console.warn("Rewrite context toggle element (#rewrite-context-toggle) not found.");
+        useFullRewriteContext = false; // Default if element is missing
+    }
+    // --- END NEW ---
+ 
     // --- Context Awareness Toggle Listener ---
     if (contextAwarenessToggle && goalContainer) { // Removed goalInput from check
         // Initial state setup
@@ -1838,10 +1772,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                  console.log("Context Awareness toggled: Analysis paused, skipping trigger.");
             }
 
-            // Explicitly clear enhancements if toggled OFF (regardless of pause state)
-            if (!contextAwarenessEnabled) {
-                 clearLlmEnhancements();
-            }
+            // Explicitly clear enhancements if toggled OFF - REMOVED (no longer applying enhancements)
         });
 
         // REMOVED goalInput listener
@@ -1879,17 +1810,16 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- End Complexity Sensitivity Slider Listener ---
 
 
-    // Add Tooltip for Context Awareness Info Icon
+    // Add Tooltip for Context Awareness Info Icon (Updated Content)
     if (contextAwarenessInfo && typeof tippy === 'function') {
         tippy(contextAwarenessInfo, {
             content: `<div class='text-left p-1 max-w-xs'>
-                        <strong class='block mb-1 text-gray-100'>Context Awareness (via DeepSeek)</strong> <!-- Updated provider -->
-                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses the configured LLM (currently DeepSeek) to enhance the analysis based on the selected 'Target Audience' profile.</p> <!-- Updated provider -->
+                        <strong class='block mb-1 text-gray-100'>Context Awareness (via DeepSeek)</strong>
+                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses the configured LLM (currently DeepSeek) to enhance synonym suggestions based on the selected 'Target Audience' profile.</p>
                         <ul class='list-disc list-inside text-xs space-y-0.5 text-gray-400'>
-                            <li>Provides contextual feedback and rewrite suggestions for sentences flagged by the complexity analysis.</li>
                             <li>Recommends the most suitable synonym from the provided list based on sentence context and audience profile.</li>
                         </ul>
-                        <p class='text-xs text-gray-500 mt-1'>Requires a configured API Key and may incur costs.</p>
+                        <p class='text-xs text-gray-500 mt-1'>Requires a configured DeepSeek API Key and may incur costs.</p>
                       </div>`,
             allowHTML: true,
             placement: 'top-start',
@@ -2146,166 +2076,19 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         });
     }
 
-    // --- NEW: Context Menu Event Listener ---
-    const editorElement = document.getElementById('editor-container'); // Get the Quill container
-    if (editorElement) {
-        editorElement.addEventListener('contextmenu', (event) => {
-            event.preventDefault(); // Prevent default browser right-click menu
-            contextMenuTooltip.hide(); // Hide any existing context menu first
-
-            if (!contextAwarenessEnabled || !currentAnalysisData || !currentAnalysisData.results) {
-                console.log("Context menu trigger skipped: Context awareness off or no analysis data.");
-                return; // Exit if context awareness is off or no data
-            }
-
-            // Find the leaf and index at the click position
-            const bounds = editorElement.getBoundingClientRect();
-            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const clickX = event.clientX - bounds.left + scrollLeft;
-            const clickY = event.clientY - bounds.top + scrollTop;
-
-            // Use Quill's method to get the leaf/index at the coordinates
-            // Note: This might not be perfectly accurate, especially with complex formatting.
-            // A more robust approach might involve iterating blots, but let's try this first.
-            // We need the index to find the sentence.
-            const [leaf, offset] = quill.getLeaf(quill.getIndex(quill.getSelection()?.index ?? 0)); // Fallback to selection if needed
-            let clickIndex = quill.getIndex(leaf) + offset;
-
-            // If getLeaf didn't work well, try finding based on selection if right-click was near it
-            const selection = quill.getSelection();
-            if (selection && Math.abs(clickIndex - selection.index) > 50) { // Heuristic: if click is far from selection index
-                 // Try to get index directly from coordinates (less reliable)
-                 // This part is tricky and might need refinement based on Quill's internal structure
-                 // For now, we'll rely on the selection or the leaf index found above.
-                 console.warn("Click position far from selection, index might be inaccurate.");
-            }
-             if (selection && selection.length === 0) { // If no text selected, use selection index
-                 clickIndex = selection.index;
-             }
+    // --- Context Menu Event Listener REMOVED ---
 
 
-            // Find the sentence containing the click index
-            const clickedSentence = currentAnalysisData.results.find(res =>
-                clickIndex >= res.start && clickIndex < res.end
-            );
-
-            if (!clickedSentence || !clickedSentence.gemini_enhancement || clickedSentence.gemini_enhancement.error) {
-                console.log("No valid enhancement data found for the clicked sentence index:", clickIndex);
-                return; // Exit if no sentence found or no valid enhancement data
-            }
-
-            // Store data for the apply button
-            currentContextMenuSentenceData = clickedSentence;
-
-            // Build Tooltip Content
-            const enhancement = clickedSentence.gemini_enhancement;
-            let contentHTML = `<div class="p-2 text-sm dark:text-gray-200 bg-gray-900 border border-gray-700 rounded shadow-lg max-w-sm context-menu-tooltip">`; // Added class
-            contentHTML += `<strong class="block mb-1 text-base font-semibold text-purple-300">Contextual Feedback</strong>`;
-
-            contentHTML += `<div class="mb-2">`;
-            contentHTML += `<span class="font-semibold text-gray-400">Assessment:</span> `;
-            contentHTML += `<span class="text-gray-100">${enhancement.contextual_assessment || 'N/A'}</span>`;
-            contentHTML += `</div>`;
-
-            if (enhancement.reasoning) {
-                contentHTML += `<div class="mb-2">`;
-                contentHTML += `<span class="font-semibold text-gray-400">Reasoning:</span> `;
-                contentHTML += `<span class="text-gray-300 italic">${enhancement.reasoning}</span>`;
-                contentHTML += `</div>`;
-            }
-
-            if (enhancement.suggestion && enhancement.suggestion.trim() !== '') {
-                contentHTML += `<hr class="border-gray-600 my-2">`;
-                contentHTML += `<div class="mb-2">`;
-                contentHTML += `<span class="font-semibold text-gray-400">Suggestion:</span> `;
-                contentHTML += `<span class="text-green-300">${enhancement.suggestion}</span>`;
-                contentHTML += `</div>`;
-                // Add Apply button - Use specific ID
-                contentHTML += `<button id="apply-suggestion-btn" class="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded transition-colors duration-150">Apply Suggestion</button>`;
-            } else {
-                 contentHTML += `<div class="text-gray-500 text-xs italic mt-1">(No rewrite suggestion provided)</div>`;
-            }
-
-            contentHTML += `</div>`; // Close main div
-
-            // Position tooltip based on click event coordinates
-            const virtualEl = {
-                getBoundingClientRect: () => ({
-                    width: 0,
-                    height: 0,
-                    top: event.clientY,
-                    right: event.clientX,
-                    bottom: event.clientY,
-                    left: event.clientX,
-                }),
-            };
-
-            contextMenuTooltip.setProps({
-                getReferenceClientRect: virtualEl.getBoundingClientRect,
-                content: contentHTML,
-            });
-            contextMenuTooltip.show();
-        });
-    } else {
-        console.error("Quill editor container '#editor-container' not found for context menu listener.");
-    }
-
-    // --- NEW: Listener to Hide Context Menu Tooltip ---
-    document.addEventListener('click', (event) => {
-        // Hide context menu if click is outside the tooltip itself
-        if (contextMenuTooltip.state.isVisible && !event.target.closest('.context-menu-tooltip') && !event.target.closest('#apply-suggestion-btn')) {
-             contextMenuTooltip.hide();
-             currentContextMenuSentenceData = null; // Clear data when hiding
-        }
-
-        // Handle Apply Suggestion Button Click (delegated)
-        if (event.target.id === 'apply-suggestion-btn') {
-            if (currentContextMenuSentenceData && currentContextMenuSentenceData.gemini_enhancement && currentContextMenuSentenceData.gemini_enhancement.suggestion) {
-                const sentence = currentContextMenuSentenceData;
-                const suggestion = sentence.gemini_enhancement.suggestion;
-                const startIndex = sentence.start;
-                const length = sentence.end - startIndex;
-
-                if (startIndex !== undefined && length >= 0 && suggestion) { // Check length >= 0
-                    const Delta = Quill.import('delta');
-                    if (!Delta) {
-                        console.error("Quill Delta not found for applying suggestion.");
-                        return;
-                    }
-                    quill.focus(); // Ensure editor has focus
-                    quill.updateContents(new Delta()
-                        .retain(startIndex)
-                        .delete(length)
-                        .insert(suggestion),
-                    'user'); // Use 'user' source
-
-                    // Optionally, set cursor after the inserted text
-                    setTimeout(() => {
-                        quill.setSelection(startIndex + suggestion.length, 0, 'silent');
-                    }, 0);
-
-                    contextMenuTooltip.hide(); // Hide after applying
-                    currentContextMenuSentenceData = null; // Clear data
-                } else {
-                     console.error("Invalid data for applying suggestion:", { startIndex, length, suggestion });
-                }
-            } else {
-                 console.error("Could not apply suggestion: Missing data.");
-            }
-        }
-    });
-
-    // Hide context menu on editor scroll
-    const scrollContainer = quill.scroll.domNode; // Get the scrollable element within Quill
-    if (scrollContainer) {
-        scrollContainer.addEventListener('scroll', () => {
-            if (contextMenuTooltip.state.isVisible) {
-                contextMenuTooltip.hide();
-                currentContextMenuSentenceData = null;
-            }
-        });
-    }
-
+    // --- Expose resources for rewrite_handler.js ---
+    window.typecomplexApp = {
+        quill: quill,
+        contextMenuTooltip: contextMenuTooltip,
+        getCurrentAnalysisData: () => currentAnalysisData,
+        getCurrentTargetAudience: () => currentTargetAudience,
+        getUseFullRewriteContext: () => useFullRewriteContext,
+        // Expose helper for getting bounds if needed by rewrite handler
+        getQuillBounds: (index, length) => quill.getBounds(index, length)
+    };
+    console.log("typecomplexApp object exposed on window."); // DEBUG
 
 }); // End DOMContentLoaded

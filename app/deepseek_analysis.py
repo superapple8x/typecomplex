@@ -90,61 +90,7 @@ def _call_deepseek_api(prompt: str):
         return {"error": f"API call failed: {e}"}
 
 
-# --- Function to Enhance Sentence Complexity Analysis ---
-# (Prompt remains the same as it requests JSON output)
-def enhance_sentence_complexity(sentence: str, statistical_score: float, target_audience_profile: str):
-    """
-    Uses DeepSeek to provide contextual feedback on a sentence's complexity,
-    considering its statistical score and the target audience profile.
-
-    Args:
-        sentence: The sentence text.
-        statistical_score: The pre-calculated statistical complexity score.
-        target_audience_profile: Name of the target audience profile.
-
-    Returns:
-        A dictionary with LLM feedback (e.g., adjusted assessment, reason, suggestion)
-        or an error dictionary.
-    """
-    if not sentence or not sentence.strip():
-        return {"error": "Input sentence is empty"}
-
-    # Fetch profile details for the prompt (same logic as before)
-    profile_details = AUDIENCE_PROFILES.get(target_audience_profile)
-    if not profile_details:
-        profile_description = f"a '{target_audience_profile}' audience"
-    else:
-        target_readability = profile_details.get('target_readability', {})
-        fk_target = target_readability.get('flesch_kincaid_grade')
-        gf_target = target_readability.get('gunning_fog')
-        readability_info = []
-        if fk_target: readability_info.append(f"target Flesch-Kincaid Grade: {fk_target[0]}{f'-{fk_target[1]}' if fk_target[1] else '+'}")
-        if gf_target: readability_info.append(f"target Gunning Fog: {gf_target[0]}{f'-{gf_target[1]}' if gf_target[1] else '+'}")
-        profile_description = f"a '{target_audience_profile}' audience"
-        if readability_info: profile_description += f" (aiming for {', '.join(readability_info)})"
-
-    logging.info(f"Requesting DeepSeek complexity enhancement for profile: {target_audience_profile}")
-
-    prompt = f"""
-Analyze the following sentence considering the target audience is {profile_description}.
-A statistical analysis already assigned this sentence a complexity score of {statistical_score:.3f} (higher means more complex based on length, word frequency etc.).
-
-Sentence:
----
-{sentence}
----
-
-Based *only* on the sentence text and the target audience profile ({profile_description}), provide a brief contextual assessment of its suitability. Consider tone, style, jargon, and complexity nuances beyond the statistical score.
-
-Provide the analysis in JSON format with the following keys:
-1.  "contextual_assessment": A brief phrase describing the sentence's suitability for the audience (e.g., "Appropriate", "Slightly too complex", "Tone mismatch", "Too simplistic", "Contains jargon").
-2.  "reasoning": A short explanation for your assessment, referencing specific words or phrases if applicable.
-3.  "suggestion": If the assessment is not "Appropriate", provide a concrete rewrite suggestion for the sentence to better align it with the target audience. Otherwise, provide an empty string.
-
-Output only the JSON object.
-"""
-    return _call_deepseek_api(prompt)
-
+# --- Function to Enhance Sentence Complexity Analysis (REMOVED as it was unused) ---
 
 # --- Function to Recommend Synonyms Contextually ---
 # (Prompt remains the same as it requests JSON output)
@@ -205,19 +151,77 @@ Output only the JSON object.
 """
     return _call_deepseek_api(prompt)
 
+# --- NEW: Function to Get Rewrite Suggestions ---
+def get_rewrite_suggestion(sentence_text: str, surrounding_context: str, target_audience_profile: str, complexity_score: float):
+    """
+    Uses DeepSeek to provide feedback and optionally a rewrite suggestion for a sentence,
+    considering its context, complexity score, and the target audience.
+
+    Args:
+        sentence_text: The specific sentence to analyze.
+        surrounding_context: The text surrounding the sentence (can be partial or full document).
+        target_audience_profile: Name of the target audience profile.
+        complexity_score: The calculated complexity score for the sentence (e.g., 0.0 to 1.0+).
+
+    Returns:
+        A dictionary with feedback, suggestion, reasoning, and sufficiency flag, or an error dictionary.
+    """
+    if not sentence_text or not surrounding_context or not target_audience_profile or complexity_score is None:
+        return {"error": "Missing required input for rewrite suggestion"}
+
+    # Fetch profile details for the prompt (reuse logic from recommend_synonym)
+    profile_details = AUDIENCE_PROFILES.get(target_audience_profile)
+    if not profile_details:
+        profile_description = f"a '{target_audience_profile}' audience"
+    else:
+        target_readability = profile_details.get('target_readability', {})
+        fk_target = target_readability.get('flesch_kincaid_grade')
+        gf_target = target_readability.get('gunning_fog')
+        readability_info = []
+        if fk_target: readability_info.append(f"target Flesch-Kincaid Grade: {fk_target[0]}{f'-{fk_target[1]}' if fk_target[1] else '+'}")
+        if gf_target: readability_info.append(f"target Gunning Fog: {gf_target[0]}{f'-{gf_target[1]}' if gf_target[1] else '+'}")
+        profile_description = f"a '{target_audience_profile}' audience"
+        if readability_info: profile_description += f" (aiming for {', '.join(readability_info)})"
+
+    logging.info(f"Requesting DeepSeek rewrite suggestion for profile: {target_audience_profile}")
+
+    # Determine context type for the prompt
+    context_type = "Full Document Context" if len(surrounding_context) > len(sentence_text) * 1.5 else "Sentence Context" # Simple heuristic
+
+    prompt = f"""
+The user wants feedback and potentially a rewrite suggestion for the following sentence:
+--- SENTENCE ---
+{sentence_text}
+--- END SENTENCE ---
+
+This sentence has an estimated complexity score of {complexity_score:.2f} (where higher means more complex).
+
+The target audience is {profile_description}.
+
+Here is the surrounding context ({context_type}):
+--- CONTEXT ---
+{surrounding_context}
+--- END CONTEXT ---
+
+Analyze the provided sentence based on its complexity score, the surrounding context, and the target audience ({profile_description}).
+Provide constructive feedback. If the sentence could be improved for the target audience (e.g., clarity, engagement, tone, simplicity/sophistication), suggest a rewritten version. If the original sentence is already sufficient and well-suited, acknowledge that.
+
+Provide the analysis in JSON format with the following keys:
+1.  "feedback": (string) Constructive feedback on the original sentence's suitability for the audience and context.
+2.  "suggestion": (string or null) The rewritten sentence suggestion, or null if the original is sufficient or no improvement is suggested.
+3.  "reasoning": (string) A brief explanation for the feedback and suggestion (or lack thereof), linking it to the audience, context, or complexity score.
+4.  "is_sufficient": (boolean) True if the original sentence is considered sufficient/appropriate, False otherwise.
+
+Output only the JSON object.
+"""
+    # Update the system prompt for the helper function if needed, or adjust here
+    # For now, using the existing system prompt in _call_deepseek_api
+    return _call_deepseek_api(prompt)
+
 
 # Example usage (for testing) - Updated for DeepSeek
 if __name__ == '__main__':
-    print("--- Testing Complexity Enhancement (DeepSeek) ---")
-    test_sentence = "Subsequently, the system effectuates data assimilation."
-    test_score = 0.95
-    test_profile = "General Public"
-    if client:
-        complexity_feedback = enhance_sentence_complexity(test_sentence, test_score, test_profile)
-        print(f"Feedback for '{test_sentence}' (Score: {test_score}, Profile: {test_profile}):")
-        print(json.dumps(complexity_feedback, indent=2))
-    else:
-        print("Skipping complexity test: DeepSeek client not configured (check API key).")
+    # --- Complexity Enhancement Test REMOVED ---
 
     print("\n--- Testing Synonym Recommendation (DeepSeek) ---")
     test_orig_word = "effectuates"
