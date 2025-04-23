@@ -30,10 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper function to format the API response for the tooltip
     function formatRewriteResponse(data) {
-        // Base structure for the tooltip container
+        // Base structure for the tooltip container with max height and scrolling
         let baseHtml = `<div class='rewrite-tooltip-content text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
                            border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
-                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px] overflow-hidden'>`; // Added overflow-hidden
+                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px] overflow-hidden
+                           flex flex-col max-h-[70vh]'>`; // Set max height to 70% of viewport
 
         if (!data) {
             return baseHtml + "<div class='p-3 text-sm text-red-400'>Error: Invalid response data.</div></div>";
@@ -42,62 +43,102 @@ document.addEventListener('DOMContentLoaded', () => {
             return baseHtml + `<div class='p-3 text-sm text-red-400'>Error: ${data.error}</div></div>`;
         }
 
-        // Determine status variables based on data.status
-        let statusBarClass = '';
-        let icon = '';
-        let statusColorClass = '';
-        switch (data.status) {
-            case 'Good':
-                statusBarClass = 'status-bar-good';
-                icon = '✓';
-                statusColorClass = 'text-green-400';
-                break;
-            case 'Consider changing':
-                statusBarClass = 'status-bar-consider';
-                icon = '!';
-                statusColorClass = 'text-yellow-400';
-                break;
-            case 'Needs improvement':
-                statusBarClass = 'status-bar-improve';
-                icon = '✗';
-                statusColorClass = 'text-red-400';
-                break;
-            default: // Fallback for unexpected status
-                statusBarClass = 'status-bar-unknown'; // You might want a default style
-                icon = '?';
-                statusColorClass = 'text-gray-400';
-        }
+        // Enhanced status indicators
+        let statusConfig = {
+            'Good': {
+                barClass: 'status-bar-good',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>`,
+                colorClass: 'text-green-500',
+                bgClass: 'bg-green-500/10'
+            },
+            'Consider changing': {
+                barClass: 'status-bar-consider', 
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>`,
+                colorClass: 'text-yellow-500',
+                bgClass: 'bg-yellow-500/10'
+            },
+            'Needs improvement': {
+                barClass: 'status-bar-improve',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                      </svg>`,
+                colorClass: 'text-red-500', 
+                bgClass: 'bg-red-500/10'
+            }
+        };
 
-        // Build HTML content
-        let contentHtml = `<div class="status-bar ${statusBarClass}"></div>`; // Status bar at the top
-        contentHtml += `<div class="p-3">`; // Padding container for content
+        const config = statusConfig[data.status] || {
+            barClass: 'status-bar-unknown',
+            icon: '?',
+            colorClass: 'text-gray-500',
+            bgClass: 'bg-gray-500/10'
+        };
+
+        // Build HTML content with scrollable section
+        let contentHtml = `
+            <div class="status-bar ${config.barClass}"></div>
+            <div class="p-4 ${config.bgClass} rounded-t-[var(--border-radius)] shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="${config.colorClass}">${config.icon}</span>
+                    <h3 class="font-semibold ${config.colorClass}">${data.status}</h3>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+        `;
 
         // Feedback Section
-        contentHtml += `<strong class="block mb-1 ${statusColorClass}">${icon} Feedback</strong>`;
+        contentHtml += `<div class="mb-3">
+            <h4 class="text-sm font-medium text-[var(--text-primary)] mb-1">Feedback</h4>
+            <p class="text-sm text-gray-300">${data.feedback || 'No specific feedback provided.'}</p>
+        </div>`;
         contentHtml += `<p class="mb-2 text-gray-300">${data.feedback || 'No specific feedback provided.'}</p>`;
 
         // Suggestion Section (Conditional)
         if (data.suggestion) {
-            contentHtml += `<hr class="tooltip-divider">`;
-            contentHtml += `<strong class="block my-1">Suggestion</strong>`;
-            // Use template literal for easier embedding of suggestion
-            contentHtml += `<code class="block mb-2 p-2 bg-[rgba(0,0,0,0.2)] rounded text-gray-200 code-suggestion">${data.suggestion}</code>`;
+            contentHtml += `
+                <div class="mb-3">
+                    <hr class="tooltip-divider my-3">
+                    <h4 class="text-sm font-medium text-[var(--text-primary)] mb-2">Suggestion</h4>
+                    <div class="bg-[rgba(0,0,0,0.2)] rounded p-3 border border-[rgba(108,111,147,0.1)]">
+                        <pre class="text-sm font-mono text-gray-200 whitespace-pre-wrap">${data.suggestion}</pre>
+                    </div>
+                </div>
+            `;
         }
 
         // Reasoning Section (Conditional)
         if (data.reasoning) {
-            contentHtml += `<hr class="tooltip-divider">`;
-            contentHtml += `<strong class="block my-1">Reasoning</strong>`;
-            contentHtml += `<p class="text-xs text-gray-500">${data.reasoning}</p>`;
+            contentHtml += `
+                <div class="mb-3">
+                    <hr class="tooltip-divider my-3">
+                    <h4 class="text-sm font-medium text-[var(--text-primary)] mb-2">Reasoning</h4>
+                    <p class="text-sm text-gray-400">${data.reasoning}</p>
+                </div>
+            `;
         }
 
         // Action Buttons Section
-        contentHtml += `<hr class="tooltip-divider">`;
-        contentHtml += `<div class="flex justify-end gap-2 mt-2">`;
+        contentHtml += `<hr class="tooltip-divider my-3">`;
+        contentHtml += `<div class="flex justify-end gap-3 mt-4">`;
         // Disable Apply button if there's no suggestion
         const applyDisabled = !data.suggestion ? 'disabled' : '';
-        contentHtml += `<button class="rewrite-apply-btn" ${applyDisabled}>Apply</button>`;
-        contentHtml += `<button class="rewrite-dismiss-btn">✕</button>`;
+        contentHtml += `
+            <button class="rewrite-apply-btn px-3 py-1.5 text-sm rounded-md transition-colors
+                bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue)]/90
+                focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)] focus:ring-offset-2
+                disabled:opacity-50 disabled:cursor-not-allowed" ${applyDisabled}>
+                Apply Suggestion
+            </button>
+            <button class="rewrite-dismiss-btn px-3 py-1.5 text-sm rounded-md transition-colors
+                bg-gray-600 text-gray-200 hover:bg-gray-500
+                focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                Dismiss
+            </button>
+        `;
         contentHtml += `</div>`; // Close button container
 
         contentHtml += `</div>`; // Close padding container
