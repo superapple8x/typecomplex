@@ -726,39 +726,28 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const length = endIndex - startIndex; // Calculate length
 
             if (startIndex !== undefined && length > 0) {
-                // Calculate delay for wave effect
-                const delay = result.index * 30; // 30ms stagger per sentence (adjust as needed)
+                // Apply background color directly (removed setTimeout/wave effect)
+                if (showHighlighting) {
+                    quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                }
 
-                setTimeout(() => {
-                    // Apply background color inside timeout
-                    // Ensure highlighting is still enabled when the timeout runs
-                    if (showHighlighting) {
-                        quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                // Check conditions for underline directly
+                let shouldApplyUnderline = false;
+                if (showGoalIndicators && isOverallScoreOutOfBounds) {
+                    if (deviationDirection === "high" && (color === "red" || color === "orange")) {
+                        shouldApplyUnderline = true;
+                    } else if (deviationDirection === "low" && color === "green") {
+                        shouldApplyUnderline = true;
                     }
+                }
 
-                    // Check conditions for underline inside timeout
-                    let shouldApplyUnderline = false;
-                    // Ensure goal indicators are still enabled and relevant when timeout runs
-                    if (showGoalIndicators && isOverallScoreOutOfBounds) {
-                        if (deviationDirection === "high" && (color === "red" || color === "orange")) {
-                            shouldApplyUnderline = true;
-                        } else if (deviationDirection === "low" && color === "green") {
-                            shouldApplyUnderline = true;
-                        }
-                    }
-
-                    // Apply standard underline format if needed inside timeout
-                    if (shouldApplyUnderline) {
-                        quill.formatText(startIndex, length, 'underline', true, 'api');
-                    }
-
-                    // --- DEBUGGING LOG (optional, keep inside timeout if needed) ---
-                    // if (result.index === 0) {
-                    //     console.log(`Delayed Sentence ${result.index}: showGoalIndicators=${showGoalIndicators}, isOverallScoreOutOfBounds=${isOverallScoreOutOfBounds}, color=${color}, deviationDirection=${deviationDirection}, shouldApplyUnderline=${shouldApplyUnderline}`);
-                    // }
-                    // --- END DEBUGGING LOG ---
-
-                }, delay);
+                // Apply standard underline format directly if needed
+                if (shouldApplyUnderline) {
+                    quill.formatText(startIndex, length, 'underline', true, 'api');
+                } else {
+                    // Explicitly remove underline if conditions are not met (important for clearing)
+                    quill.formatText(startIndex, length, 'underline', false, 'api');
+                }
 
             } else {
                  console.warn(`Invalid indices received for statistical sentence analysis: start=${startIndex}, end=${endIndex}`);
@@ -1262,25 +1251,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                             // Store the result
                             sentenceResults.push(sentenceResult);
 
-                            // Apply statistical highlighting for the sentence
-                            if (showHighlighting && sentenceResult.score !== undefined) {
-                                const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
-                                const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
-                                const startIndex = sentenceResult.start;
-                                const endIndex = sentenceResult.end;
-                                const length = endIndex - startIndex;
-                                if (startIndex !== undefined && length > 0) {
-                                    console.log(`[Seq] Applying background ${color} to sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
-                                    quill.formatText(startIndex, length, 'background', bgColor, 'api');
-                                    console.log(`[Seq] Applied background for sentence ${sentenceResult.index}`); // DEBUG
-
-                                    // Re-check and apply underline based on current overall state (might be inaccurate until final scores)
-                                    // For now, skip underline during sequential to avoid flickering.
-                                    // The final analyzeAndHighlight call will apply correct underlines.
-                                } else {
-                                     console.warn(`[Seq] Invalid indices for sequential highlighting: start=${startIndex}, end=${endIndex}`);
-                                }
-                            }
+                            // Apply statistical highlighting for the sentence - REMOVED INCREMENTAL APPLICATION
+                            // Highlights will be applied once after the final analysis completes.
 
                             // Apply LLM enhancement highlighting if enabled - REMOVED
 
@@ -1322,18 +1294,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     console.log("[Seq] Received final buffer result:", sentenceResult); // DEBUG
                     sentenceResults.push(sentenceResult);
                     // Apply highlighting and map update for the last sentence if needed
-                     if (showHighlighting && sentenceResult.score !== undefined) {
-                        const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
-                        const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
-                        const startIndex = sentenceResult.start;
-                        const endIndex = sentenceResult.end;
-                        const length = endIndex - startIndex;
-                        if (startIndex !== undefined && length > 0) {
-                             console.log(`[Seq] Applying background ${color} to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
-                            quill.formatText(startIndex, length, 'background', bgColor, 'api');
-                        }
-                     }
-                      // Apply LLM enhancement highlighting if enabled - REMOVED
+                    // REMOVED INCREMENTAL HIGHLIGHTING FOR FINAL BUFFER RESULT
+                    // Apply LLM enhancement highlighting if enabled - REMOVED
 
                       if (documentMapContainer && sentenceResult.score !== undefined) {
                           console.log(`[Seq] Updating map for FINAL sentence ${sentenceResult.index}`); // DEBUG
@@ -2087,7 +2049,20 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         getCurrentTargetAudience: () => currentTargetAudience,
         getUseFullRewriteContext: () => useFullRewriteContext,
         // Expose helper for getting bounds if needed by rewrite handler
-        getQuillBounds: (index, length) => quill.getBounds(index, length)
+        getQuillBounds: (index, length) => quill.getBounds(index, length),
+        // --- NEW: Expose function to trigger analysis ---
+        triggerAnalysis: () => {
+            console.log("External triggerAnalysis called."); // DEBUG
+            if (isAnalysisPaused) {
+                console.log("Analysis is paused, triggerAnalysis ignored.");
+                return; // Don't trigger if paused
+            }
+            const currentText = quill.getText();
+            const audience = currentTargetAudience;
+            const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+            // Use the debounced sequential analysis (default 'full' mode)
+            debouncedAnalyzeSequentially(currentText, audience, contextEnabled);
+        }
     };
     console.log("typecomplexApp object exposed on window."); // DEBUG
 

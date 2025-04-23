@@ -30,40 +30,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper function to format the API response for the tooltip
     function formatRewriteResponse(data) {
-           // Base structure (no close button)
-           let baseHtml = `<div class='rewrite-tooltip-content p-3 text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
-                              border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
-                              shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px]'>`;
-   
-           if (!data) {
-               // Append error message directly to base HTML structure
-               return baseHtml + "<div class='text-sm text-red-400'>Error: Invalid response data.</div></div>";
-           }
-           if (data.error) {
-               // Append error message directly to base HTML structure
-               return baseHtml + `<div class='text-sm text-red-400'>Error: ${data.error}</div></div>`;
-           }
-   
-           let contentHtml = "<div>"; // No extra padding needed now
-    	if (data.is_sufficient) {
-    		contentHtml += `<strong class='block mb-1 text-green-400'>Suggestion:</strong>`;
-    		contentHtml += `<p class='mb-2 text-gray-300'>${data.feedback || 'The original sentence is suitable.'}</p>`;
-    	} else {
-    		contentHtml += `<strong class='block mb-1 text-yellow-400'>Suggestion:</strong>`;
-    		if (data.feedback) {
-    			contentHtml += `<p class='mb-1 text-gray-400 italic'>Feedback: ${data.feedback}</p>`;
-    		}
-    		if (data.suggestion) {
-    			contentHtml += `<p class='mb-2 p-2 bg-[rgba(0,0,0,0.2)] rounded text-gray-200'>${data.suggestion}</p>`;
-    		} else {
-    			 contentHtml += `<p class='mb-2 text-gray-400 italic'>No specific rewrite suggested, but feedback provided above.</p>`;
-    		}
-    		if (data.reasoning) {
-    			contentHtml += `<p class='text-xs text-gray-500'>Reasoning: ${data.reasoning}</p>`;
-    		}
-    	}
-           contentHtml += "</div>"; // Close content area
-    	return baseHtml + contentHtml + `</div>`; // Combine base (with button) and content
+        // Base structure for the tooltip container
+        let baseHtml = `<div class='rewrite-tooltip-content text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
+                           border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
+                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px] overflow-hidden'>`; // Added overflow-hidden
+
+        if (!data) {
+            return baseHtml + "<div class='p-3 text-sm text-red-400'>Error: Invalid response data.</div></div>";
+        }
+        if (data.error) {
+            return baseHtml + `<div class='p-3 text-sm text-red-400'>Error: ${data.error}</div></div>`;
+        }
+
+        // Determine status variables based on data.status
+        let statusBarClass = '';
+        let icon = '';
+        let statusColorClass = '';
+        switch (data.status) {
+            case 'Good':
+                statusBarClass = 'status-bar-good';
+                icon = '✓';
+                statusColorClass = 'text-green-400';
+                break;
+            case 'Consider changing':
+                statusBarClass = 'status-bar-consider';
+                icon = '!';
+                statusColorClass = 'text-yellow-400';
+                break;
+            case 'Needs improvement':
+                statusBarClass = 'status-bar-improve';
+                icon = '✗';
+                statusColorClass = 'text-red-400';
+                break;
+            default: // Fallback for unexpected status
+                statusBarClass = 'status-bar-unknown'; // You might want a default style
+                icon = '?';
+                statusColorClass = 'text-gray-400';
+        }
+
+        // Build HTML content
+        let contentHtml = `<div class="status-bar ${statusBarClass}"></div>`; // Status bar at the top
+        contentHtml += `<div class="p-3">`; // Padding container for content
+
+        // Feedback Section
+        contentHtml += `<strong class="block mb-1 ${statusColorClass}">${icon} Feedback</strong>`;
+        contentHtml += `<p class="mb-2 text-gray-300">${data.feedback || 'No specific feedback provided.'}</p>`;
+
+        // Suggestion Section (Conditional)
+        if (data.suggestion) {
+            contentHtml += `<hr class="tooltip-divider">`;
+            contentHtml += `<strong class="block my-1">Suggestion</strong>`;
+            // Use template literal for easier embedding of suggestion
+            contentHtml += `<code class="block mb-2 p-2 bg-[rgba(0,0,0,0.2)] rounded text-gray-200 code-suggestion">${data.suggestion}</code>`;
+        }
+
+        // Reasoning Section (Conditional)
+        if (data.reasoning) {
+            contentHtml += `<hr class="tooltip-divider">`;
+            contentHtml += `<strong class="block my-1">Reasoning</strong>`;
+            contentHtml += `<p class="text-xs text-gray-500">${data.reasoning}</p>`;
+        }
+
+        // Action Buttons Section
+        contentHtml += `<hr class="tooltip-divider">`;
+        contentHtml += `<div class="flex justify-end gap-2 mt-2">`;
+        // Disable Apply button if there's no suggestion
+        const applyDisabled = !data.suggestion ? 'disabled' : '';
+        contentHtml += `<button class="rewrite-apply-btn" ${applyDisabled}>Apply</button>`;
+        contentHtml += `<button class="rewrite-dismiss-btn">✕</button>`;
+        contentHtml += `</div>`; // Close button container
+
+        contentHtml += `</div>`; // Close padding container
+
+        return baseHtml + contentHtml + `</div>`; // Combine base and content
     }
 
     // --- Right-Click (Context Menu) Listener ---
@@ -145,14 +184,62 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update tooltip with formatted results
                      const formattedContent = formatRewriteResponse(data);
             contextMenuTooltip.setContent(formattedContent);
-         
-                     // --- Close Button Listener REMOVED ---
-         
+
+            // --- Add Event Listeners for Apply/Dismiss Buttons ---
+            // Use setTimeout to ensure the DOM is updated before querying
+            setTimeout(() => {
+                const tooltipElement = contextMenuTooltip.popper; // Get the Tippy instance's popper element
+                if (!tooltipElement) return;
+
+                const applyBtn = tooltipElement.querySelector('.rewrite-apply-btn');
+                const dismissBtn = tooltipElement.querySelector('.rewrite-dismiss-btn');
+
+                if (applyBtn) {
+                    applyBtn.addEventListener('click', () => {
+                        if (applyBtn.disabled) return; // Don't do anything if disabled
+
+                        const suggestion = data.suggestion;
+                        if (!suggestion || !sentenceResult) return; // Safety check
+
+                        // Calculate range of the original sentence
+                        const range = { index: sentenceResult.start, length: sentenceResult.end - sentenceResult.start };
+
+                        // Get current selection *before* replacing to potentially restore later
+                        // const currentSelection = quill.getSelection(); // Might not be reliable to restore exactly
+
+                        // Perform the replacement
+                        quill.deleteText(range.index, range.length, 'user');
+                        quill.insertText(range.index, suggestion, 'user');
+
+                        // Place cursor at the end of the newly inserted text
+                        quill.setSelection(range.index + suggestion.length, 0, 'user');
+
+                        // Optional: Add a brief visual feedback (e.g., flash)
+                        tooltipElement.classList.add('applied-flash');
+                        setTimeout(() => tooltipElement.classList.remove('applied-flash'), 300); // Remove after 300ms
+
+                        contextMenuTooltip.hide();
+                        // Call the newly exposed function from script.js
+                        if (window.typecomplexApp && typeof window.typecomplexApp.triggerAnalysis === 'function') {
+                            window.typecomplexApp.triggerAnalysis(); // Re-analyze after applying change
+                        } else {
+                            console.error("Rewrite Handler: Could not find window.typecomplexApp.triggerAnalysis function.");
+                        }
+                    });
+                }
+
+                if (dismissBtn) {
+                    dismissBtn.addEventListener('click', () => {
+                        contextMenuTooltip.hide();
+                    });
+                }
+            }, 0); // setTimeout 0 ensures it runs after the current execution stack
+
                  } catch (error) {
                      console.error('Rewrite Handler: Error fetching rewrite suggestion:', error);
-                     // Format error message (no close button structure needed)
-            	contextMenuTooltip.setContent(formatRewriteResponse({ error: error.message }));
-                     // --- Close Button Listener REMOVED ---
+                     // Format error message using the same function
+                     contextMenuTooltip.setContent(formatRewriteResponse({ error: error.message }));
+                     // No button listeners needed for error messages
                  }
     });
 

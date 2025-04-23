@@ -207,10 +207,10 @@ Analyze the provided sentence based on its complexity score, the surrounding con
 Provide constructive feedback. If the sentence could be improved for the target audience (e.g., clarity, engagement, tone, simplicity/sophistication), suggest a rewritten version. If the original sentence is already sufficient and well-suited, acknowledge that.
 
 Provide the analysis in JSON format with the following keys:
-1.  "feedback": (string) Constructive feedback on the original sentence's suitability for the audience and context.
-2.  "suggestion": (string or null) The rewritten sentence suggestion, or null if the original is sufficient or no improvement is suggested.
-3.  "reasoning": (string) A brief explanation for the feedback and suggestion (or lack thereof), linking it to the audience, context, or complexity score.
-4.  "is_sufficient": (boolean) True if the original sentence is considered sufficient/appropriate, False otherwise.
+1.  "status": (string) The overall assessment status. Must be one of: "Good", "Consider changing", or "Needs improvement". Base this on whether the sentence is suitable ("Good"), could be slightly improved ("Consider changing"), or needs rewriting for clarity/audience fit ("Needs improvement").
+2.  "feedback": (string) Constructive feedback on the original sentence's suitability for the audience and context, explaining the status.
+3.  "suggestion": (string or null) The rewritten sentence suggestion, or null if the original is sufficient or no improvement is suggested (status "Good"). A suggestion should usually be provided if status is "Consider changing" or "Needs improvement".
+4.  "reasoning": (string) A brief explanation for the feedback and suggestion (or lack thereof), linking it to the audience, context, complexity score, and the assigned status.
 
 Output only the JSON object.
 """
