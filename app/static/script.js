@@ -685,18 +685,25 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // --- Apply Statistical Highlighting (Renamed from applyHighlighting) ---
     function applyStatisticalHighlighting(results) {
+        const docLength = quill.getLength();
+        console.log(`%c[Highlighting] Starting final application. Quill length: ${docLength}. Received ${results?.length ?? 0} results.`, 'color: purple'); // Log start and Quill length
         // Clear only statistical highlights (background, standard underline)
-        // Assume Gemini highlights use different formats/classes
-        quill.formatText(0, quill.getLength(), 'background', false, 'api');
-        quill.formatText(0, quill.getLength(), 'underline', false, 'api');
-        // Consider clearing specific classes if needed, but avoid clearing Gemini classes
+        console.log("[Highlighting] Clearing existing background/underline formats...");
+        quill.formatText(0, docLength, 'background', false, 'api');
+        quill.formatText(0, docLength, 'underline', false, 'api');
+        console.log("[Highlighting] Formats cleared.");
 
         // Check statistical highlighting toggle state
         if (!showHighlighting) {
+            console.log("[Highlighting] Highlighting disabled, skipping application."); // Log disabled state
             return; // Exit if statistical highlighting is turned off
         }
 
-        if (!results) return; // Check if results exist
+        if (!results || results.length === 0) { // Check if results exist
+             console.log("[Highlighting] No results to apply."); // Log no results
+             return;
+        }
+
 
         // Determine deviation direction for goal indicator logic (remains the same)
         let deviationDirection = null; // "high" (too complex), "low" (too simple), or null
@@ -725,10 +732,27 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const endIndex = result.end;     // Use end index from backend
             const length = endIndex - startIndex; // Calculate length
 
+            // --- DETAILED LOGGING ---
+            console.log(`[Highlighting] Processing result ${result.index}: start=${startIndex}, end=${endIndex}, length=${length}, score=${score?.toFixed(3)}, color=${color}`);
+            // --- END LOGGING ---
+
+            // --- Boundary Check ---
+            if (startIndex + length > docLength) {
+                 console.warn(`[Highlighting] Skipping result ${result.index}: Calculated range [${startIndex}, ${length}] exceeds Quill length ${docLength}.`);
+                 return; // Use return to skip this iteration in forEach
+            }
+            // --- End Boundary Check ---
+
+
             if (startIndex !== undefined && length > 0) {
                 // Apply background color directly (removed setTimeout/wave effect)
-                if (showHighlighting) {
-                    quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                if (showHighlighting) { // Check again inside loop
+                    try {
+                        // console.log(`[Highlighting] Applying background ${bgColor} to range [${startIndex}, ${length}]`); // Log application (optional)
+                        quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                    } catch (e) {
+                         console.error(`[Highlighting] Error applying background for index ${result.index}:`, e);
+                    }
                 }
 
                 // Check conditions for underline directly
@@ -742,17 +766,35 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
 
                 // Apply standard underline format directly if needed
-                if (shouldApplyUnderline) {
-                    quill.formatText(startIndex, length, 'underline', true, 'api');
-                } else {
-                    // Explicitly remove underline if conditions are not met (important for clearing)
-                    quill.formatText(startIndex, length, 'underline', false, 'api');
+                try {
+                    if (shouldApplyUnderline) {
+                        // console.log(`[Highlighting] Applying underline to range [${startIndex}, ${length}]`); // Log application (optional)
+                        quill.formatText(startIndex, length, 'underline', true, 'api');
+                    } else {
+                        // Explicitly remove underline if conditions are not met (important for clearing)
+                        // console.log(`[Highlighting] Ensuring NO underline for range [${startIndex}, ${length}]`); // Log removal (can be verbose)
+                        quill.formatText(startIndex, length, 'underline', false, 'api');
+                    }
+                } catch (e) {
+                     console.error(`[Highlighting] Error applying underline for index ${result.index}:`, e);
                 }
 
+                 // --- Log applied formats for problematic indices ---
+                 if (result.index >= 18) { // Check formats for last sentences
+                     try {
+                         const formats = quill.getFormat(startIndex, length);
+                         console.log(`[Highlighting] Formats retrieved for index ${result.index} [${startIndex}, ${length}]:`, formats);
+                     } catch (e) {
+                          console.error(`[Highlighting] Error retrieving formats for index ${result.index}:`, e);
+                     }
+                 }
+                 // --- End Log applied formats ---
+
             } else {
-                 console.warn(`Invalid indices received for statistical sentence analysis: start=${startIndex}, end=${endIndex}`);
+                 console.warn(`[Highlighting] Invalid indices or length for result ${result.index}: start=${startIndex}, end=${endIndex}, length=${length}. Skipping format.`); // Log skip
             }
-        }); // <<< ADDED MISSING CLOSING BRACE AND PARENTHESIS HERE
+        });
+        console.log("%c[Highlighting] Finished final application.", 'color: purple'); // Log end
     }
 
     // --- LLM Enhancement Functions REMOVED ---
@@ -1251,8 +1293,24 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                             // Store the result
                             sentenceResults.push(sentenceResult);
 
-                            // Apply statistical highlighting for the sentence - REMOVED INCREMENTAL APPLICATION
-                            // Highlights will be applied once after the final analysis completes.
+                            // Apply statistical highlighting for the sentence (Incremental Application)
+                            if (showHighlighting && sentenceResult.score !== undefined) {
+                                const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
+                                const startIndex = sentenceResult.start;
+                                const endIndex = sentenceResult.end;
+                                const length = endIndex - startIndex;
+                                if (startIndex !== undefined && length > 0) {
+                                    console.log(`[Seq] Applying background ${color} to sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                                    quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                                    console.log(`[Seq] Applied background for sentence ${sentenceResult.index}`); // DEBUG
+
+                                    // Underline is NOT applied incrementally here to avoid flickering.
+                                    // It will be applied correctly in the final pass.
+                                } else {
+                                     console.warn(`[Seq] Invalid indices for sequential highlighting: start=${startIndex}, end=${endIndex}`);
+                                }
+                            }
 
                             // Apply LLM enhancement highlighting if enabled - REMOVED
 
@@ -1294,7 +1352,17 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     console.log("[Seq] Received final buffer result:", sentenceResult); // DEBUG
                     sentenceResults.push(sentenceResult);
                     // Apply highlighting and map update for the last sentence if needed
-                    // REMOVED INCREMENTAL HIGHLIGHTING FOR FINAL BUFFER RESULT
+                    if (showHighlighting && sentenceResult.score !== undefined) {
+                       const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                       const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
+                       const startIndex = sentenceResult.start;
+                       const endIndex = sentenceResult.end;
+                       const length = endIndex - startIndex;
+                       if (startIndex !== undefined && length > 0) {
+                            console.log(`[Seq] Applying background ${color} to FINAL sentence ${sentenceResult.index} [${startIndex}-${endIndex}]`); // DEBUG
+                           quill.formatText(startIndex, length, 'background', bgColor, 'api');
+                       }
+                    }
                     // Apply LLM enhancement highlighting if enabled - REMOVED
 
                       if (documentMapContainer && sentenceResult.score !== undefined) {
@@ -2067,3 +2135,4 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     console.log("typecomplexApp object exposed on window."); // DEBUG
 
 }); // End DOMContentLoaded
+
