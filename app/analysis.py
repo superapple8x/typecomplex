@@ -51,22 +51,37 @@ except Exception as e:
 # Weights MUST sum to 1.0. Normalization constants are estimates and may need tuning.
 AUDIENCE_PROFILES = {
     "Standard": {
-        "weights": {
-            "sentence_length": 0.25, # Reduced
-            "avg_word_length": 0.20, # Reduced
-            "avg_word_frequency": 0.20, # Reduced
-            "embedding_complexity": 0.15, # Reduced
-            "syntactic_complexity": 0.15, # New factor (avg of 4 sub-features)
-            "coreference_complexity": 0.05, # New factor
+        "weights": { # Re-balanced for new metrics (Target: 30% new)
+            "sentence_length": 0.18, # Reduced further
+            "avg_word_length": 0.14, # Reduced further
+            "avg_word_frequency": 0.14, # Reduced further
+            "embedding_complexity": 0.12, # Reduced further (BERT variance)
+            "syntactic_complexity": 0.12, # Reduced further (Original syntactic features)
+            "dependency_complexity": 0.10, # New (Deeper dependency metrics)
+            "lexical_complexity": 0.10, # New (Nominalization, Content Ratio)
+            "semantic_coherence": 0.10, # New (BERT coherence)
+            # "coreference_complexity": 0.0, # Disabled
         },
         "normalization": {
             "sentence_length": 30.0,
             "avg_word_length": 7.0,
             "max_log_frequency": 7.0,
-            "max_parse_tree_depth": 15.0, # Estimated max depth
-            "max_num_clauses": 5.0, # Estimated max clauses
-            "max_avg_dependency_length": 10.0, # Estimated max avg dep length
-            "max_coreferent_mentions": 5.0, # Estimated max mentions referring back
+            # Original Syntactic
+            "max_parse_tree_depth": 15.0,
+            "max_num_clauses": 5.0,
+            "max_avg_dependency_length": 10.0,
+            # Dependency Complexity
+            "max_complex_dep_density": 0.2, # count/tokens
+            "max_subordination_density": 0.2, # count/tokens
+            "max_pp_density": 0.4, # count/tokens
+            "max_pp_nesting_depth": 5.0, # depth
+            # Lexical Complexity
+            "max_nominalization_density": 0.15, # count/tokens
+            "target_content_word_ratio": 0.6, # ratio (deviation from this increases complexity)
+            # Semantic Coherence
+            "min_semantic_coherence": 0.5, # avg cosine sim (lower is more complex)
+            # Disabled
+            # "max_coreferent_mentions": 5.0,
         },
         "thresholds": { # Overall complexity level thresholds (may need adjustment)
             "very_simple": 0.3,
@@ -80,22 +95,37 @@ AUDIENCE_PROFILES = {
         }
     },
     "General Public": {
-        "weights": { # Emphasize length more, syntax/coref less
-            "sentence_length": 0.30, # Reduced
-            "avg_word_length": 0.20, # Reduced
-            "avg_word_frequency": 0.15, # Reduced
-            "embedding_complexity": 0.15,
-            "syntactic_complexity": 0.12, # Lower weight
-            "coreference_complexity": 0.08, # Slightly higher weight than standard? Or lower? Let's try lower.
+        "weights": { # Re-balanced for new metrics (Target: 30% new, emphasize length)
+            "sentence_length": 0.25, # Reduced further
+            "avg_word_length": 0.15, # Reduced further
+            "avg_word_frequency": 0.10, # Reduced further
+            "embedding_complexity": 0.10, # Reduced further
+            "syntactic_complexity": 0.10, # Reduced further
+            "dependency_complexity": 0.10, # New
+            "lexical_complexity": 0.10, # New
+            "semantic_coherence": 0.10, # New
+            # "coreference_complexity": 0.0, # Disabled
         },
         "normalization": { # Lower tolerance for length, syntax
             "sentence_length": 25.0,
             "avg_word_length": 7.0,
             "max_log_frequency": 7.0,
-            "max_parse_tree_depth": 12.0, # Lower tolerance
-            "max_num_clauses": 4.0, # Lower tolerance
-            "max_avg_dependency_length": 8.0, # Lower tolerance
-            "max_coreferent_mentions": 4.0, # Lower tolerance
+            # Original Syntactic
+            "max_parse_tree_depth": 12.0,
+            "max_num_clauses": 4.0,
+            "max_avg_dependency_length": 8.0,
+             # Dependency Complexity (Slightly lower tolerance than Standard)
+            "max_complex_dep_density": 0.18,
+            "max_subordination_density": 0.18,
+            "max_pp_density": 0.35,
+            "max_pp_nesting_depth": 4.0,
+            # Lexical Complexity (Slightly lower tolerance)
+            "max_nominalization_density": 0.12,
+            "target_content_word_ratio": 0.65, # Expect slightly simpler vocab mix
+            # Semantic Coherence (Slightly higher tolerance for incoherence)
+            "min_semantic_coherence": 0.55,
+            # Disabled
+            # "max_coreferent_mentions": 4.0,
         },
         "thresholds": { # Lower thresholds -> easier to be complex
             "very_simple": 0.25,
@@ -109,22 +139,37 @@ AUDIENCE_PROFILES = {
         }
     },
     "Academic / Technical": {
-        "weights": { # Emphasize word choice, syntax, coref more
-            "sentence_length": 0.15, # Reduced
-            "avg_word_length": 0.25, # Reduced
-            "avg_word_frequency": 0.20, # Reduced
-            "embedding_complexity": 0.15,
-            "syntactic_complexity": 0.20, # Higher weight
-            "coreference_complexity": 0.05, # Standard weight
+        "weights": { # Re-balanced for new metrics (Target: 30% new, emphasize new metrics)
+            "sentence_length": 0.10, # Reduced further
+            "avg_word_length": 0.15, # Reduced further
+            "avg_word_frequency": 0.15, # Reduced further
+            "embedding_complexity": 0.15, # Kept higher
+            "syntactic_complexity": 0.15, # Kept higher
+            "dependency_complexity": 0.10, # New
+            "lexical_complexity": 0.10, # New
+            "semantic_coherence": 0.10, # New
+            # "coreference_complexity": 0.0, # Disabled
         },
         "normalization": { # Higher tolerance
             "sentence_length": 35.0,
             "avg_word_length": 8.0,
             "max_log_frequency": 7.0,
-            "max_parse_tree_depth": 20.0, # Higher tolerance
-            "max_num_clauses": 7.0, # Higher tolerance
-            "max_avg_dependency_length": 12.0, # Higher tolerance
-            "max_coreferent_mentions": 6.0, # Higher tolerance
+             # Original Syntactic
+            "max_parse_tree_depth": 20.0,
+            "max_num_clauses": 7.0,
+            "max_avg_dependency_length": 12.0,
+            # Dependency Complexity (Higher tolerance)
+            "max_complex_dep_density": 0.25,
+            "max_subordination_density": 0.25,
+            "max_pp_density": 0.45,
+            "max_pp_nesting_depth": 7.0,
+            # Lexical Complexity (Higher tolerance)
+            "max_nominalization_density": 0.20,
+            "target_content_word_ratio": 0.55, # Allow denser mix
+            # Semantic Coherence (Lower tolerance for incoherence - expect more related terms)
+            "min_semantic_coherence": 0.45,
+            # Disabled
+            # "max_coreferent_mentions": 6.0,
         },
         "thresholds": { # Higher thresholds -> harder to be complex
             "very_simple": 0.35,
@@ -142,13 +187,14 @@ AUDIENCE_PROFILES = {
 
 # Ensure weights sum to 1.0 for all profiles (adjust if needed)
 for profile_name, profile_data in AUDIENCE_PROFILES.items():
+    # Ensure weights sum to 1.0 after manual adjustment
     total_weight = sum(profile_data['weights'].values())
-    if not math.isclose(total_weight, 1.0):
-        print(f"WARNING: Weights for profile '{profile_name}' do not sum to 1.0 (sum={total_weight}). Normalizing...")
-        # Basic normalization (might need refinement depending on intent)
-        factor = 1.0 / total_weight
-        for key in profile_data['weights']:
-            profile_data['weights'][key] *= factor
+    if not math.isclose(total_weight, 1.0, abs_tol=1e-5): # Use tolerance for float comparison
+        print(f"ERROR: Weights for profile '{profile_name}' do not sum to 1.0 after re-balancing (sum={total_weight:.4f}). Check configuration.")
+        # Optionally raise an error or attempt normalization again, but manual check is better.
+        # factor = 1.0 / total_weight
+        # for key in profile_data['weights']:
+        #     profile_data['weights'][key] *= factor
 
 
 # --- NLTK Data Check and Tokenizer Initialization ---
@@ -182,15 +228,19 @@ if sentence_tokenizer is None:
     # Depending on requirements, might raise an error or exit
 
 
-def _get_contextual_embedding_complexity(sentence, words):
+def _get_contextual_embedding_complexity(sentence, words_for_stats):
     """
-    Calculates complexity based on contextual word embeddings using transformers.
-    Higher score means words are used in more varied/distant contexts within the sentence.
-    Returns a score between 0 and 1 (or None if model failed).
+    Calculates complexity based on contextual word embeddings using transformers
+    (variance from sentence mean).
+    Higher score means words are used in more varied/distant contexts.
+    Returns a dictionary containing:
+        - 'factor': Score between 0 and 1 (or None if model failed).
+        - 'embeddings': Numpy array of averaged word embeddings.
+        - 'token_map': List mapping transformer token indices to original word indices.
     """
     if not model or not tokenizer:
         print("WARN: Transformer model not available for embedding complexity.")
-        return None # Indicate failure
+        return {'factor': None, 'embeddings': None, 'token_map': None} # Indicate failure
 
     # Prepare input for the transformer model
     inputs = tokenizer(sentence, return_tensors="pt", truncation=True, padding=True)
@@ -224,16 +274,21 @@ def _get_contextual_embedding_complexity(sentence, words):
             else: # Should not happen if tokenization is correct
                  token_to_word_mapping.append(-1)
         else:
-            # Start of a new word - find the corresponding word in our 'words' list
+            # Start of a new word - find the corresponding word in our 'words_for_stats' list
             # This simple alignment might break with complex punctuation/tokenization mismatches
             current_word_index += 1
-            token_to_word_mapping.append(current_word_index)
+            # Ensure we don't go out of bounds if tokenization yields more words than stats list
+            if current_word_index < len(words_for_stats):
+                 token_to_word_mapping.append(current_word_index)
+            else:
+                 token_to_word_mapping.append(-1) # Mark as invalid alignment
 
     # Aggregate embeddings for each word
     word_embeddings = {}
     token_counts = {}
     for i, word_idx in enumerate(token_to_word_mapping):
-        if word_idx != -1 and word_idx < len(words): # Ensure index is valid
+        # Ensure index is valid and within the bounds of words_for_stats
+        if word_idx != -1 and word_idx < len(words_for_stats):
             embedding = last_hidden_states[i].cpu().numpy() # Move to CPU, convert to numpy
             if word_idx not in word_embeddings:
                 word_embeddings[word_idx] = np.zeros_like(embedding)
@@ -250,7 +305,8 @@ def _get_contextual_embedding_complexity(sentence, words):
 
     if not averaged_word_embeddings:
         print("WARN: Could not extract valid word embeddings.")
-        return 0.0 # No embeddings, no complexity from this factor
+        # Return None for embeddings if failed
+        return {'factor': 0.0, 'embeddings': None, 'token_map': token_to_word_mapping}
 
     # --- Calculate Contextual Deviation ---
     embeddings_matrix = np.array(averaged_word_embeddings)
@@ -285,7 +341,12 @@ def _get_contextual_embedding_complexity(sentence, words):
     # Add confirmation log message
     print(f"DEBUG: Calculated embedding complexity factor: {embedding_complexity_factor:.4f} for sentence: '{sentence[:50]}...'")
 
-    return embedding_complexity_factor
+    # Return factor, embeddings matrix, and token map
+    return {
+        'factor': embedding_complexity_factor,
+        'embeddings': embeddings_matrix,
+        'token_map': token_to_word_mapping
+    }
 
 
 def _get_syntactic_features(spacy_sentence):
@@ -351,35 +412,234 @@ def _get_syntactic_features(spacy_sentence):
         "has_passive_voice": has_passive_voice,
     }
 
-def _get_coreference_features(spacy_sentence, doc):
-    """
-    Extracts coreference features for a spaCy sentence.
-    Counts the number of mentions in the sentence that are part of a coreference chain
-    and are not the representative mention of the cluster.
-    Returns the count of coreferent mentions.
-    """
-    # Check if coreference resolution component is available and successful
-    # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
-    # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
-    # For now, we'll assume it might be available via extensions or larger models.
-    # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
-    # Placeholder check:
-    if not hasattr(doc._, 'coref_clusters'):
-        # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
-        return {"coreferent_mentions_count": 0}
+# --- New Metric Helper Functions ---
 
-    coreferent_mentions_count = 0
-    # Iterate through all coreference clusters in the document
-    for cluster in doc._.coref_clusters:
-        # Iterate through mentions in the current cluster
-        for mention in cluster.mentions:
-            # Check if the mention falls within the current sentence's span
-            if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
-                # Check if this mention is NOT the representative mention of the cluster
-                if mention != cluster.main:
-                    coreferent_mentions_count += 1
+def _get_dependency_metrics(spacy_sentence):
+    """
+    Calculates deeper syntactic metrics based on dependency parse.
+    Returns a dictionary of raw scores (counts or depths).
+    Normalization should happen in the main calculate_complexity function.
+    """
+    num_tokens = len(spacy_sentence)
+    if num_tokens == 0:
+        return {
+            "complex_dep_count": 0,
+            "subordination_count": 0,
+            "pp_count": 0,
+            "max_pp_nesting_depth": 0,
+        }
 
-    return {"coreferent_mentions_count": coreferent_mentions_count}
+    complex_dep_count = 0
+    subordination_count = 0
+    pp_count = 0
+    max_pp_nesting_depth = 0
+    complex_deps = {'csubj', 'advcl', 'acl'}
+    subord_deps = {'mark', 'advcl', 'acl'} # Using deps for clauses, plus 'mark'
+
+    for token in spacy_sentence:
+        # 1. Density of Specific Complex Dependency Relations
+        if token.dep_ in complex_deps:
+            complex_dep_count += 1
+
+        # 2. Subordination Index (Simplified)
+        if token.dep_ in subord_deps:
+             # Count verbs heading subordinate clauses or subordinating conjunctions
+             if token.dep_ == 'mark' or (token.dep_ in {'advcl', 'acl'} and token.pos_ == 'VERB'):
+                 subordination_count += 1
+
+        # 3. Prepositional Phrase (PP) Density / Nesting Depth
+        is_pp_related = token.dep_ == 'pobj' or token.head.pos_ == 'ADP'
+        if is_pp_related:
+            pp_count += 1
+            # Calculate Nesting Depth
+            current_depth = 0
+            ancestor = token
+            while ancestor.head != ancestor:
+                # Check if the head is also part of a PP structure
+                # (Simplification: check if head is ADP or its dep is pobj/prep)
+                if ancestor.head.pos_ == 'ADP' or ancestor.head.dep_ in {'pobj', 'prep'}:
+                     current_depth += 1
+                else:
+                    # Stop climbing if the chain breaks (e.g., head is verb)
+                    # This prevents counting depth across unrelated PPs attached to the same verb.
+                    # More sophisticated logic could check if the head is the *object* of another prep.
+                    break
+                ancestor = ancestor.head
+            max_pp_nesting_depth = max(max_pp_nesting_depth, current_depth)
+
+    # Return raw counts/depths. Normalization (e.g., by num_tokens) happens later.
+    return {
+        "complex_dep_count": complex_dep_count,
+        "subordination_count": subordination_count,
+        "pp_count": pp_count,
+        "max_pp_nesting_depth": max_pp_nesting_depth,
+    }
+
+
+def _get_lexical_metrics(spacy_sentence):
+    """
+    Calculates lexical/morphological metrics.
+    Returns a dictionary of raw scores/ratios.
+    """
+    num_tokens = len(spacy_sentence)
+    if num_tokens == 0:
+        return {
+            "nominalization_count": 0,
+            "content_word_ratio": 0.0,
+        }
+
+    nominalization_count = 0
+    content_word_count = 0
+    function_word_count = 0
+    # Common nominalizing suffixes (simplified list, can be expanded)
+    nom_suffixes = ('tion', 'ment', 'ness', 'ity', 'ance', 'ence', 'ism', 'ist')
+    content_pos = {'NOUN', 'VERB', 'ADJ', 'ADV'}
+    function_pos = {'ADP', 'AUX', 'CONJ', 'DET', 'PART', 'PRON', 'SCONJ', 'PUNCT', 'SPACE', 'SYM', 'X'} # Include PUNCT/SPACE etc. as non-content
+
+    for token in spacy_sentence:
+        # 1. Nominalization Density (Suffix check method)
+        if token.pos_ == 'NOUN' and token.text.lower().endswith(nom_suffixes):
+            nominalization_count += 1
+
+        # 2. Ratio of Content Words to Function Words
+        if token.pos_ in content_pos:
+            content_word_count += 1
+        # Consider everything else (including punctuation, spaces if not filtered) as function/non-content
+        elif token.pos_ in function_pos or token.is_punct or token.is_space:
+             function_word_count += 1
+        # Note: Some tokens might not fall into either category if POS tags are unusual.
+
+    total_words = content_word_count + function_word_count
+    content_word_ratio = content_word_count / total_words if total_words > 0 else 0.0
+
+    # Return raw count and ratio. Normalization happens later.
+    return {
+        "nominalization_count": nominalization_count,
+        "content_word_ratio": content_word_ratio,
+    }
+
+
+def _get_semantic_coherence(spacy_sentence, averaged_word_embeddings, token_to_word_mapping, words_for_stats):
+    """
+    Calculates intra-sentence semantic coherence using BERT embeddings.
+    Lower average similarity between adjacent content words suggests lower coherence.
+    Requires pre-calculated embeddings and the mapping from transformer tokens to words.
+    Returns the average cosine similarity (float).
+    """
+    if averaged_word_embeddings is None or averaged_word_embeddings.size == 0:
+        return 0.0 # Cannot calculate without embeddings
+
+    content_pos = {'NOUN', 'VERB', 'ADJ', 'ADV'}
+    content_word_indices = []
+    content_word_embeddings = []
+
+    # Find indices and embeddings of content words in the original sentence order
+    word_idx_to_embedding = {i: emb for i, emb in enumerate(averaged_word_embeddings)}
+
+    current_word_idx = -1
+    processed_indices = set() # Track word indices already added
+
+    # Iterate through spaCy tokens to maintain sentence order and identify content words
+    for token in spacy_sentence:
+        # Find the corresponding original word index using a simplified alignment
+        # This assumes spaCy tokenization roughly aligns with the words used for BERT
+        # A more robust approach might use character offsets if available
+        found_match = False
+        temp_idx = current_word_idx + 1 # Look ahead
+        # This alignment is heuristic and might fail with complex tokenization differences
+        if temp_idx < len(words_for_stats) and token.text.lower() == words_for_stats[temp_idx].lower():
+             current_word_idx = temp_idx
+             found_match = True
+
+        if found_match and token.pos_ in content_pos and current_word_idx in word_idx_to_embedding and current_word_idx not in processed_indices:
+             content_word_indices.append(current_word_idx)
+             content_word_embeddings.append(word_idx_to_embedding[current_word_idx])
+             processed_indices.add(current_word_idx)
+
+
+    if len(content_word_embeddings) < 2:
+        return 1.0 # If less than 2 content words, coherence is trivially high (or undefined)
+
+    # Calculate cosine similarity between adjacent content word embeddings
+    similarities = []
+    for i in range(len(content_word_embeddings) - 1):
+        emb1 = content_word_embeddings[i]
+        emb2 = content_word_embeddings[i+1]
+
+        norm1 = np.linalg.norm(emb1)
+        norm2 = np.linalg.norm(emb2)
+
+        if norm1 > 0 and norm2 > 0:
+            similarity = np.dot(emb1, emb2) / (norm1 * norm2)
+            # Clamp similarity to [-1, 1] due to potential floating point errors
+            similarity = np.clip(similarity, -1.0, 1.0)
+            similarities.append(similarity)
+
+    # Average similarity represents coherence
+    avg_similarity = np.mean(similarities) if similarities else 1.0 # Default to high coherence if no pairs
+
+    # Higher score = more coherent. We might invert this later if needed for complexity score.
+    return avg_similarity
+
+
+# def _get_coreference_features(spacy_sentence, doc): # Keep commented out
+#     """
+#     Extracts coreference features for a spaCy sentence.
+#     Counts the number of mentions in the sentence that are part of a coreference chain
+#     and are not the representative mention of the cluster.
+#     Returns the count of coreferent mentions.
+#     """
+#     # Check if coreference resolution component is available and successful
+#     # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
+#     # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
+#     # For now, we'll assume it might be available via extensions or larger models.
+#     # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
+#     # Placeholder check:
+#     # if not hasattr(doc._, 'coref_clusters'):
+#         # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
+#         # return {"coreferent_mentions_count": 0}
+#
+#     # coreferent_mentions_count = 0
+#     # Iterate through all coreference clusters in the document
+#     # for cluster in doc._.coref_clusters:
+#         # Iterate through mentions in the current cluster
+#         # for mention in cluster.mentions:
+#             # Check if the mention falls within the current sentence's span
+#             # if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
+#                 # Check if this mention is NOT the representative mention of the cluster
+#                 # if mention != cluster.main:
+#                     # coreferent_mentions_count += 1
+#
+#     # return {"coreferent_mentions_count": coreferent_mentions_count}
+# def _get_coreference_features(spacy_sentence, doc):
+#     """
+#     Extracts coreference features for a spaCy sentence.
+#     Counts the number of mentions in the sentence that are part of a coreference chain
+#     and are not the representative mention of the cluster.
+#     Returns the count of coreferent mentions.
+#     """
+#     # Check if coreference resolution component is available and successful
+#     # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
+#     # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
+#     # For now, we'll assume it might be available via extensions or larger models.
+#     # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
+#     # Placeholder check:
+#     # if not hasattr(doc._, 'coref_clusters'):
+#         # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
+#         # return {"coreferent_mentions_count": 0}
+#
+#     # coreferent_mentions_count = 0
+#     # Iterate through all coreference clusters in the document
+#     # for cluster in doc._.coref_clusters:
+#         # Iterate through mentions in the current cluster
+#         # for mention in cluster.mentions:
+#             # Check if the mention falls within the current sentence's span
+#             # if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
+#                 # Check if this mention is NOT the representative mention of the cluster
+#                 # if mention != cluster.main:
+#                     # coreferent_mentions_count += 1
+#
+#     # return {"coreferent_mentions_count": coreferent_mentions_count}
 
 
 def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=None): # Added analysis_id
@@ -423,56 +683,121 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     frequency_factor = average_frequency_score # Already 0-1
 
     # --- Conditional Expensive Factors ---
-    embedding_factor = 0.0
-    syntactic_factor = 0.0
-    coreferent_mentions_factor = 0.0
-    syntactic_features = {} # Initialize
-    coreference_features = {} # Initialize
+    embedding_factor = 0.0 # BERT variance
+    syntactic_factor = 0.0 # Original syntactic features
+    dependency_factor = 0.0 # New dependency metrics
+    lexical_factor = 0.0 # New lexical metrics
+    semantic_coherence_factor = 0.0 # New semantic coherence metric
+    # coreferent_mentions_factor = 0.0 # Disabled
+
+    # Initialize variables to store intermediate results needed across calculations
+    embeddings_matrix = None
+    token_map = None
+    num_tokens = len(spacy_sentence) # Get total tokens once
 
 
     if mode == 'full':
-        # --- Check for cancellation before expensive embedding calculation ---
+        # --- Check for cancellation before expensive calculations ---
         if analysis_id and task_manager.is_cancelled(analysis_id):
-            logging.info(f"Task {analysis_id}: Cancelled before embedding calculation for sentence: '{spacy_sentence.text[:50]}...'")
+            logging.info(f"Task {analysis_id}: Cancelled before expensive calculations for sentence: '{spacy_sentence.text[:50]}...'")
             return 0.0 # Return neutral score if cancelled here
 
-        # --- Contextual Embedding Factor ---
-        embedding_factor_raw = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
-        embedding_factor = embedding_factor_raw if embedding_factor_raw is not None else 0.0
+        # --- 1. Contextual Embedding Factor (Variance) & Get Embeddings ---
+        embedding_result = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
+        embedding_factor = embedding_result.get('factor', 0.0) if embedding_result else 0.0
+        embeddings_matrix = embedding_result.get('embeddings')
+        token_map = embedding_result.get('token_map')
 
-        # --- Syntactic Features ---
+        # --- 2. Original Syntactic Features ---
         syntactic_features = _get_syntactic_features(spacy_sentence)
-        parse_tree_depth_factor = min(syntactic_features.get('parse_tree_depth', 0) / norm['max_parse_tree_depth'], 1.5) # Use .get for safety
-        num_clauses_factor = min(syntactic_features.get('num_clauses', 0) / norm['max_num_clauses'], 1.5) # Use .get for safety
-        avg_dep_length_factor = min(syntactic_features.get('avg_dependency_length', 0.0) / norm['max_avg_dependency_length'], 1.5) # Use .get for safety
-        passive_voice_factor = syntactic_features.get('has_passive_voice', 0) # Binary (0 or 1), Use .get for safety
-
-        # Combine syntactic factors (simple average for now, could be weighted)
-        syntactic_weight_sum = weights.get('syntactic_complexity', 0)
-        if syntactic_weight_sum > 0:
+        # Normalize original syntactic features
+        parse_tree_depth_factor = min(syntactic_features.get('parse_tree_depth', 0) / norm.get('max_parse_tree_depth', 15.0), 1.5)
+        num_clauses_factor = min(syntactic_features.get('num_clauses', 0) / norm.get('max_num_clauses', 5.0), 1.5)
+        avg_dep_length_factor = min(syntactic_features.get('avg_dependency_length', 0.0) / norm.get('max_avg_dependency_length', 10.0), 1.5)
+        passive_voice_factor = syntactic_features.get('has_passive_voice', 0) # Binary (0 or 1)
+        # Combine original syntactic factors
+        syntactic_weight = weights.get('syntactic_complexity', 0)
+        if syntactic_weight > 0:
              syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
-             syntactic_factor = max(0.0, min(1.0, syntactic_factor))
+             syntactic_factor = max(0.0, min(1.0, syntactic_factor)) # Clamp to 0-1
         else:
              syntactic_factor = 0.0
+        logging.debug(f"Task {analysis_id}: Original Syntactic Features: {syntactic_features}, Combined Factor: {syntactic_factor:.3f}")
 
-        print(f"DEBUG: Full Analysis - Syntactic Features: {syntactic_features}")
-        print(f"DEBUG: Full Analysis - Coreference Features: {coreference_features}")
+        # --- 3. Dependency Complexity Features ---
+        dependency_metrics = _get_dependency_metrics(spacy_sentence)
+        # Normalize dependency metrics (calculate densities first)
+        complex_dep_density = dependency_metrics.get('complex_dep_count', 0) / num_tokens if num_tokens > 0 else 0
+        subordination_density = dependency_metrics.get('subordination_count', 0) / num_tokens if num_tokens > 0 else 0
+        pp_density = dependency_metrics.get('pp_count', 0) / num_tokens if num_tokens > 0 else 0
+        pp_nesting_depth = dependency_metrics.get('max_pp_nesting_depth', 0)
+
+        complex_dep_factor = min(complex_dep_density / norm.get('max_complex_dep_density', 0.2), 1.5)
+        subordination_factor = min(subordination_density / norm.get('max_subordination_density', 0.2), 1.5)
+        pp_density_factor = min(pp_density / norm.get('max_pp_density', 0.4), 1.5)
+        pp_nesting_factor = min(pp_nesting_depth / norm.get('max_pp_nesting_depth', 5.0), 1.5)
+        # Combine dependency factors (average)
+        dependency_weight = weights.get('dependency_complexity', 0)
+        if dependency_weight > 0:
+            dependency_factor = (complex_dep_factor + subordination_factor + pp_density_factor + pp_nesting_factor) / 4.0
+            dependency_factor = max(0.0, min(1.0, dependency_factor)) # Clamp to 0-1
+        else:
+            dependency_factor = 0.0
+        logging.debug(f"Task {analysis_id}: Dependency Metrics: {dependency_metrics}, Combined Factor: {dependency_factor:.3f}")
 
 
-    # --- Combine Factors using Weights ---
+        # --- 4. Lexical Complexity Features ---
+        lexical_metrics = _get_lexical_metrics(spacy_sentence)
+        # Normalize lexical metrics
+        nominalization_density = lexical_metrics.get('nominalization_count', 0) / num_tokens if num_tokens > 0 else 0
+        content_ratio = lexical_metrics.get('content_word_ratio', 0.0)
+
+        nominalization_factor = min(nominalization_density / norm.get('max_nominalization_density', 0.15), 1.5)
+        # Content ratio: Higher deviation from target = higher complexity factor
+        target_ratio = norm.get('target_content_word_ratio', 0.6)
+        # Normalize deviation: max deviation is max(target_ratio, 1-target_ratio)
+        max_deviation = max(target_ratio, 1.0 - target_ratio)
+        content_ratio_deviation = abs(content_ratio - target_ratio)
+        content_ratio_factor = min(content_ratio_deviation / max_deviation, 1.0) if max_deviation > 0 else 0.0
+
+        # Combine lexical factors (average)
+        lexical_weight = weights.get('lexical_complexity', 0)
+        if lexical_weight > 0:
+            lexical_factor = (nominalization_factor + content_ratio_factor) / 2.0
+            lexical_factor = max(0.0, min(1.0, lexical_factor)) # Clamp to 0-1
+        else:
+            lexical_factor = 0.0
+        logging.debug(f"Task {analysis_id}: Lexical Metrics: {lexical_metrics}, Combined Factor: {lexical_factor:.3f}")
+
+        # --- 5. Semantic Coherence Factor ---
+        # Requires embeddings_matrix and token_map from step 1
+        raw_coherence_score = _get_semantic_coherence(spacy_sentence, embeddings_matrix, token_map, words_for_stats)
+        # Normalize coherence: Lower score = higher complexity factor
+        min_coherence = norm.get('min_semantic_coherence', 0.5)
+        # Factor = how much the score is *below* the minimum threshold
+        # Scale it to 0-1 range. If score > min_coherence, factor is 0.
+        semantic_coherence_factor = max(0.0, (min_coherence - raw_coherence_score)) / min_coherence if min_coherence > 0 else 0.0
+        semantic_coherence_factor = max(0.0, min(1.0, semantic_coherence_factor)) # Clamp 0-1
+        logging.debug(f"Task {analysis_id}: Semantic Coherence Score: {raw_coherence_score:.3f}, Factor: {semantic_coherence_factor:.3f}")
+
+
+    # --- Combine ALL Factors using Weights ---
     # Use .get() for weights to avoid KeyError if a profile is missing a new weight
-    # Ensure factors are used based on the mode - factors are 0.0 if not calculated in 'fast' mode
+    # Factors are 0.0 if not calculated in 'fast' mode
     score = (length_factor * weights.get('sentence_length', 0)) + \
             (word_len_factor * weights.get('avg_word_length', 0)) + \
             (frequency_factor * weights.get('avg_word_frequency', 0)) + \
             (embedding_factor * weights.get('embedding_complexity', 0)) + \
             (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
-            (coreferent_mentions_factor * weights.get('coreference_complexity', 0))
+            (dependency_factor * weights.get('dependency_complexity', 0)) + \
+            (lexical_factor * weights.get('lexical_complexity', 0)) + \
+            (semantic_coherence_factor * weights.get('semantic_coherence', 0))
+            # (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Disabled
 
     # The max possible score will need re-evaluation with new factors.
     # The thresholds might need adjustment later based on observed score ranges.
 
-    print(f"DEBUG: Calculated Score ({mode} mode): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'") # Updated print to use spacy_sentence.text
+    logging.debug(f"Task {analysis_id}: Calculated Score ({mode} mode): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
 
 
     return round(score, 3)
@@ -505,7 +830,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         - 'end': The end character index in the original text.
         - 'index': The index of the sentence in the document.
         - 'syntactic_features': Dictionary of syntactic features (may be empty in 'fast' mode).
-        - 'coreference_features': Dictionary of coreference features (may be empty in 'fast' mode).
+        # - 'coreference_features': Dictionary of coreference features (disabled).
         - 'mode': The analysis mode used ('fast' or 'full').
     Returns a dictionary like: {'result': { ... sentence data ... }, 'from_cache': bool}
     """
@@ -543,7 +868,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
             "end": end,
             "index": sentence_index,
             "syntactic_features": {},
-            "coreference_features": {},
+            # "coreference_features": {}, # Disabled
             "mode": mode
         }
          # --- Cache Set (even for empty/basic) ---
@@ -581,7 +906,7 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         "end": end,
         "index": sentence_index,
         "syntactic_features": {}, # Features are not returned separately in this structure
-        "coreference_features": {}, # Features are not returned separately in this structure
+        # "coreference_features": {}, # Disabled
         "mode": mode
     }
 
@@ -604,7 +929,7 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
     It can also be used to get all sentence results at once.
 
     Returns a dictionary containing:
-        - 'results': A list of dictionaries (sentence, score, start, end, syntactic_features, coreference_features).
+        - 'results': A list of dictionaries (sentence, score, start, end, syntactic_features).
         - 'overall_level': A dictionary (level, description, color_class).
         - 'readability_scores': Calculated scores.
         - 'target_readability_scores': Target scores for the audience.
@@ -745,15 +1070,15 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
 
 # Example usage (for testing purposes)
 if __name__ == '__main__':
-    # Add neuralcoref if available
-    # try:
-    #     import neuralcoref
-    #     if nlp and 'neuralcoref' not in nlp.pipe_names:
-    #          coref = neuralcoref.NeuralCoref(nlp.vocab)
-    #          nlp.add_pipe(coref, name='neuralcoref')
-    # except ImportError:
-    #     print("INFO: neuralcoref not installed, coreference features will be zero.")
-    #     pass
+    # # Add neuralcoref if available (Disabled - not used)
+    # # try:
+    # #     import neuralcoref
+    # #     if nlp and 'neuralcoref' not in nlp.pipe_names:
+    # #          coref = neuralcoref.NeuralCoref(nlp.vocab)
+    # #          nlp.add_pipe(coref, name='neuralcoref')
+    # # except ImportError:
+    # #     print("INFO: neuralcoref not installed, coreference features will be zero.")
+    # #     pass
 
     test_text_simple = """
     This is a simple sentence. It should be green. The cat sat on the mat.
@@ -778,7 +1103,7 @@ if __name__ == '__main__':
     for result in analysis_results_gp_simple['results']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
-        print(f"  Coreference Features: {result.get('coreference_features', {})}")
+        # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
 
 
     print("\n--- Analysis (Complex) for Academic / Technical ---")
@@ -794,7 +1119,7 @@ if __name__ == '__main__':
     for result in analysis_results_acad_complex['results']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
-        print(f"  Coreference Features: {result.get('coreference_features', {})}")
+        # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
 
     print("\n--- Analysis (Coref) for Standard ---")
     analysis_results_std_coref = analyze_text_complexity(test_text_coref, target_audience="Standard")
@@ -809,4 +1134,4 @@ if __name__ == '__main__':
     for result in analysis_results_std_coref['results']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
-        print(f"  Coreference Features: {result.get('coreference_features', {})}")
+        # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
