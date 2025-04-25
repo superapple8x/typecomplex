@@ -196,6 +196,13 @@ for profile_name, profile_data in AUDIENCE_PROFILES.items():
         # for key in profile_data['weights']:
         #     profile_data['weights'][key] *= factor
 
+# --- Fast Mode Weights ---
+# Independent weights used only when mode='fast'
+FAST_MODE_WEIGHTS = {
+    "sentence_length": 0.40,
+    "avg_word_length": 0.30,
+    "avg_word_frequency": 0.30, # Corresponds to 'word rarity'
+}
 
 # --- NLTK Data Check and Tokenizer Initialization ---
 # NLTK data path is usually handled automatically.
@@ -781,23 +788,33 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         logging.debug(f"Task {analysis_id}: Semantic Coherence Score: {raw_coherence_score:.3f}, Factor: {semantic_coherence_factor:.3f}")
 
 
-    # --- Combine ALL Factors using Weights ---
-    # Use .get() for weights to avoid KeyError if a profile is missing a new weight
-    # Factors are 0.0 if not calculated in 'fast' mode
-    score = (length_factor * weights.get('sentence_length', 0)) + \
-            (word_len_factor * weights.get('avg_word_length', 0)) + \
-            (frequency_factor * weights.get('avg_word_frequency', 0)) + \
-            (embedding_factor * weights.get('embedding_complexity', 0)) + \
-            (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
-            (dependency_factor * weights.get('dependency_complexity', 0)) + \
-            (lexical_factor * weights.get('lexical_complexity', 0)) + \
-            (semantic_coherence_factor * weights.get('semantic_coherence', 0))
-            # (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Disabled
+    # --- Combine Factors using Weights based on Mode ---
+    if mode == 'fast':
+        # Use independent FAST_MODE_WEIGHTS
+        score = (length_factor * FAST_MODE_WEIGHTS.get('sentence_length', 0)) + \
+                (word_len_factor * FAST_MODE_WEIGHTS.get('avg_word_length', 0)) + \
+                (frequency_factor * FAST_MODE_WEIGHTS.get('avg_word_frequency', 0))
+        logging.debug(f"Task {analysis_id}: Calculated Score (fast mode using FAST_MODE_WEIGHTS): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+    elif mode == 'full':
+        # Use profile weights from AUDIENCE_PROFILES for full analysis
+        # Use .get() for weights to avoid KeyError if a profile is missing a new weight
+        score = (length_factor * weights.get('sentence_length', 0)) + \
+                (word_len_factor * weights.get('avg_word_length', 0)) + \
+                (frequency_factor * weights.get('avg_word_frequency', 0)) + \
+                (embedding_factor * weights.get('embedding_complexity', 0)) + \
+                (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
+                (dependency_factor * weights.get('dependency_complexity', 0)) + \
+                (lexical_factor * weights.get('lexical_complexity', 0)) + \
+                (semantic_coherence_factor * weights.get('semantic_coherence', 0))
+                # (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Disabled
+        logging.debug(f"Task {analysis_id}: Calculated Score (full mode using profile weights): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+    else:
+        # Fallback or error handling if mode is invalid
+        logging.warning(f"Task {analysis_id}: Invalid mode '{mode}' provided to calculate_complexity. Defaulting score to 0.0.")
+        score = 0.0
 
-    # The max possible score will need re-evaluation with new factors.
-    # The thresholds might need adjustment later based on observed score ranges.
-
-    logging.debug(f"Task {analysis_id}: Calculated Score ({mode} mode): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+    # The max possible score will need re-evaluation with new factors, especially for 'full' mode.
+    # The thresholds in AUDIENCE_PROFILES might need adjustment based on observed score ranges from 'full' mode.
 
 
     return round(score, 3)
