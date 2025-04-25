@@ -51,43 +51,43 @@ except Exception as e:
 # Weights MUST sum to 1.0. Normalization constants are estimates and may need tuning.
 AUDIENCE_PROFILES = {
     "Standard": {
-        "weights": { # Re-balanced for new metrics (Target: 30% new)
-            "sentence_length": 0.18, # Reduced further
-            "avg_word_length": 0.14, # Reduced further
-            "avg_word_frequency": 0.14, # Reduced further
-            "embedding_complexity": 0.12, # Reduced further (BERT variance)
-            "syntactic_complexity": 0.12, # Reduced further (Original syntactic features)
-            "dependency_complexity": 0.10, # New (Deeper dependency metrics)
-            "lexical_complexity": 0.10, # New (Nominalization, Content Ratio)
-            "semantic_coherence": 0.10, # New (BERT coherence)
+        "weights": { # Reverted to initial weights (v0)
+            "sentence_length": 0.18,
+            "avg_word_length": 0.14,
+            "avg_word_frequency": 0.14,
+            "embedding_complexity": 0.12,
+            "syntactic_complexity": 0.12,
+            "dependency_complexity": 0.10,
+            "lexical_complexity": 0.10,
+            "semantic_coherence": 0.10,
             # "coreference_complexity": 0.0, # Disabled
         },
-        "normalization": {
+        "normalization": { # Increased ceilings to allow higher complexity scores (v2)
             "sentence_length": 30.0,
             "avg_word_length": 7.0,
             "max_log_frequency": 7.0,
             # Original Syntactic
-            "max_parse_tree_depth": 15.0,
-            "max_num_clauses": 5.0,
-            "max_avg_dependency_length": 10.0,
+            "max_parse_tree_depth": 20.0, # Increased
+            "max_num_clauses": 7.0, # Increased
+            "max_avg_dependency_length": 12.0, # Increased
             # Dependency Complexity
-            "max_complex_dep_density": 0.2, # count/tokens
-            "max_subordination_density": 0.2, # count/tokens
-            "max_pp_density": 0.4, # count/tokens
-            "max_pp_nesting_depth": 5.0, # depth
+            "max_complex_dep_density": 0.25, # Increased
+            "max_subordination_density": 0.25, # Increased
+            "max_pp_density": 0.45, # Increased
+            "max_pp_nesting_depth": 6.0, # Increased
             # Lexical Complexity
-            "max_nominalization_density": 0.15, # count/tokens
+            "max_nominalization_density": 0.20, # Increased
             "target_content_word_ratio": 0.6, # ratio (deviation from this increases complexity)
             # Semantic Coherence
-            "min_semantic_coherence": 0.5, # avg cosine sim (lower is more complex)
+            "min_semantic_coherence": 0.5, # Reverted: Decreased (allows lower coherence before penalty)
             # Disabled
             # "max_coreferent_mentions": 5.0,
         },
-        "thresholds": { # Overall complexity level thresholds (may need adjustment)
+        "thresholds": { # Lowered upper thresholds to classify complex sentences more easily (v2)
             "very_simple": 0.3,
             "simple": 0.5,
-            "moderate": 0.8,
-            "complex": 1.1,
+            "moderate": 0.75, # Lowered
+            "complex": 0.95, # Lowered (Implicitly makes Very Complex start at 0.95)
         },
         "target_readability": {
             "flesch_kincaid_grade": None, # No specific target for standard
@@ -673,21 +673,41 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     total_word_length = sum(len(word) for word in words_for_stats)
     average_word_length = total_word_length / sentence_length if sentence_length > 0 else 0
 
-    total_log_freq_score = 0
-    words_with_freq = 0
+    # --- Frequency Factor Calculation (Revised to handle unknown words) ---
+    # Revision Goal: Ensure words not found in the frequency list (likely rare or technical)
+    # contribute maximum complexity (score=1.0) to the frequency factor, instead of being ignored.
+    # The final average is calculated over ALL words in the sentence.
+    total_freq_score_adjusted = 0
+    num_words_total = len(words_for_stats)
     max_log_freq = norm['max_log_frequency']
-    for word in words_for_stats:
-        freq = get_word_frequency(word)
-        if freq > 0:
-            log_freq = math.log10(freq + 1)
-            freq_score = max(0, (max_log_freq - log_freq)) / max_log_freq
-            total_log_freq_score += freq_score
-            words_with_freq += 1
-    average_frequency_score = total_log_freq_score / words_with_freq if words_with_freq > 0 else 0
 
-    length_factor = min(sentence_length / norm['sentence_length'], 1.5)
-    word_len_factor = min(average_word_length / norm['avg_word_length'], 1.5)
-    frequency_factor = average_frequency_score # Already 0-1
+    if num_words_total > 0:
+        words_with_freq = 0
+        total_log_freq_score_known = 0
+        for word in words_for_stats:
+            freq = get_word_frequency(word)
+            if freq > 0:
+                log_freq = math.log10(freq + 1)
+                # Higher score for rarer words (lower log_freq)
+                freq_score = max(0.0, min(1.0, (max_log_freq - log_freq) / max_log_freq)) # Ensure 0-1 range
+                total_log_freq_score_known += freq_score
+                words_with_freq += 1
+            # else: word is unknown (freq=0)
+
+        # Assign max complexity score (1.0) to unknown words
+        num_unknown_words = num_words_total - words_with_freq
+        total_freq_score_adjusted = total_log_freq_score_known + (num_unknown_words * 1.0)
+
+        # Average over ALL words
+        average_frequency_score = total_freq_score_adjusted / num_words_total
+    else:
+        average_frequency_score = 0.0
+    # --- End Revised Frequency Calculation ---
+
+    # Remove capping at 1.5 to allow extreme lengths to contribute more
+    length_factor = sentence_length / norm['sentence_length']
+    word_len_factor = average_word_length / norm['avg_word_length']
+    frequency_factor = average_frequency_score # Now correctly handles unknown words
 
     # --- Conditional Expensive Factors ---
     embedding_factor = 0.0 # BERT variance
@@ -808,6 +828,23 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
                 (semantic_coherence_factor * weights.get('semantic_coherence', 0))
                 # (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Disabled
         logging.debug(f"Task {analysis_id}: Calculated Score (full mode using profile weights): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+
+        # --- Log individual normalized factors for debugging ---
+        factors_log = {
+            "sentence_start": spacy_sentence.text[:30], # Identify sentence
+            "length_factor": length_factor,
+            "word_len_factor": word_len_factor,
+            "frequency_factor": frequency_factor,
+            "embedding_factor": embedding_factor,
+            "syntactic_factor": syntactic_factor,
+            "dependency_factor": dependency_factor,
+            "lexical_factor": lexical_factor,
+            "semantic_coherence_factor": semantic_coherence_factor
+        }
+        # Use info level for easier visibility during debugging
+        logging.info(f"Task {analysis_id}: DEBUG FACTORS (Full Mode): {factors_log}")
+        # --- End Logging ---
+
     else:
         # Fallback or error handling if mode is invalid
         logging.warning(f"Task {analysis_id}: Invalid mode '{mode}' provided to calculate_complexity. Defaulting score to 0.0.")
