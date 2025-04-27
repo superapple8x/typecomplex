@@ -807,22 +807,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         const barWidth = 8; // px - Should match CSS
         const barGap = 1;  // px - Corresponds to gap-px
 
-        // --- Conditional Overflow and Width (Applied to Inner Container) ---
-        if (documentMapContainer) { // Check if inner container exists
-            if (barCount >= 15) {
-                const totalWidth = barCount * (barWidth + barGap) - barGap; // Calculate total width needed
-                documentMapContainer.style.minWidth = `${totalWidth}px`;
-                documentMapContainer.style.overflowX = 'auto'; // Apply overflow directly
-                // console.log(`Map update: ${barCount} bars >= 15. Set inner overflow-x: auto, min-width: ${totalWidth}px`); // DEBUG
-            } else {
-                documentMapContainer.style.minWidth = ''; // Reset min-width
-                documentMapContainer.style.overflowX = ''; // Reset overflow
-                // console.log(`Map update: ${barCount} bars < 15. Reset inner overflow-x, reset min-width.`); // DEBUG
-            }
-        } else {
-             console.warn("Map update skipped: Inner map container (#document-map) not found."); // DEBUG
-        }
-        // --- End Conditional Logic ---
+        // --- REMOVED: Conditional Overflow and Width logic applied to inner container ---
+        // The outer container (#document-map-container) now handles overflow via CSS class.
 
         // Clear existing map (keep this)
         if (!documentMapContainer) return; // Keep check for inner container
