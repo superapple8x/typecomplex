@@ -1,0 +1,43 @@
+/home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/spacy/util.py:910: UserWarning: [W095] Model 'en_core_web_sm' (3.8.0) was trained with spaCy v3.8.0 and may not be 100% compatible with the current version (3.7.4). If you see errors or degraded performance, download a newer compatible model or retrain your custom model with the current spaCy version. For more details and available updates, run: python -m spacy validate
+  warnings.warn(warn_msg)
+2025-05-07 05:30:23,379 - INFO - DeepSeek client initialized successfully.
+Loading frequency data from: /home/pepper/typecomplex/app/data/ngram_freq.csv
+CSV Columns loaded: ['word', 'count']
+Using existing 'word' and 'count' columns.
+Successfully loaded 9244879 words.
+Successfully loaded transformer model 'bert-base-uncased'.
+Successfully loaded spaCy model 'en_core_web_sm'.
+Successfully loaded 'punkt' tokenizer.
+ 
+ -------------- celery@fedora v5.5.2 (immunity)
+--- ***** ----- 
+-- ******* ---- Linux-6.14.2-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-07 05:30:23
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         app:0x7fd577dc1d90
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 8 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . app.tasks.add
+  . app.tasks.process_pdf_task
+
+[2025-05-07 05:30:23,459: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
+    The 'CELERY_RESULT_BACKEND' setting is deprecated and scheduled for removal in
+    version 6.0.0. Use the result_backend instead
+
+  deprecated.warn(description=f'The {setting!r} setting',
+
+[2025-05-07 05:30:23,459: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
+[2025-05-07 05:30:27,710: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-05-07 05:30:27,715: INFO/MainProcess] mingle: searching for neighbors
+[2025-05-07 05:30:28,725: INFO/MainProcess] mingle: all alone
+[2025-05-07 05:30:28,741: INFO/MainProcess] celery@fedora ready.
+[2025-05-07 05:30:32,824: INFO/MainProcess] Task app.tasks.add[7c613e1c-50b4-452c-8b98-e63ac7bb65fc] received
+[2025-05-07 05:30:32,829: INFO/ForkPoolWorker-5] Task app.tasks.add[7c613e1c-50b4-452c-8b98-e63ac7bb65fc] succeeded in 0.0033093370002461597s: 101

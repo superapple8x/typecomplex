@@ -120,3 +120,8 @@ nltk
 Flask-Caching
 
 blis==0.7.11
+
+
+PyMuPDF
+celery
+redis

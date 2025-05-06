@@ -1,6 +1,6 @@
 import logging # Add logging
-from flask import render_template, request, jsonify, Response # Import Response
-from app import app
+from flask import render_template, request, jsonify, Response, send_from_directory, current_app # Import Response, send_from_directory, current_app
+from app import app, celery # Import celery
 # Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, nlp, AUDIENCE_PROFILES # Import nlp, the new function, and AUDIENCE_PROFILES
 from app.synonyms import get_ranked_synonyms
@@ -9,7 +9,27 @@ from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion # Im
 # frequency module is loaded automatically when synonyms/analysis imports it if needed
 import json # Import json for streaming
 # Import the task manager
-from app import task_manager
+from app import task_manager # This might be replaced or augmented by Celery's task management
+
+# Import for PDF handling
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from app.tasks import process_pdf_task, add as add_task # Import Celery tasks
+
+# Configuration for PDF uploads
+UPLOAD_FOLDER = 'uploads' # Define an upload folder
+PROCESSED_FOLDER = 'processed_pdfs' # Define a folder for processed PDFs
+ALLOWED_EXTENSIONS = {'pdf'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def index():
@@ -279,3 +299,156 @@ def rewrite_suggestion():
     except Exception as e:
         logging.error(f"Error during rewrite suggestion call: {e}", exc_info=True)
         return jsonify({"error": f"Server error during rewrite suggestion: {e}"}), 500
+
+# --- PDF Processing Routes ---
+
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file and allowed_file(file.filename):
+        original_filename = secure_filename(file.filename)
+        # Save the original file to a place accessible by Celery workers
+        # Using a unique ID in the filename to avoid collisions
+        temp_filename = str(uuid.uuid4()) + "_" + original_filename
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
+        
+        try:
+            file.save(file_path)
+            app.logger.info(f"File {original_filename} saved to {file_path}")
+
+            # Dispatch Celery task
+            task = process_pdf_task.delay(file_path, original_filename)
+            app.logger.info(f"Dispatched Celery task {task.id} for {original_filename}")
+            
+            return jsonify({"message": "File uploaded successfully, processing started.", "task_id": task.id}), 202
+        except Exception as e:
+            app.logger.error(f"Error saving file or dispatching task for {original_filename}: {e}", exc_info=True)
+            return jsonify({"error": f"Server error during file upload or task dispatch: {str(e)}"}), 500
+    else:
+        return jsonify({"error": "File type not allowed"}), 400
+
+@app.route('/task_status/<task_id>', methods=['GET'])
+def get_task_status(task_id):
+    task = process_pdf_task.AsyncResult(task_id)
+    response_data = {
+        'task_id': task_id,
+        'status': task.state,
+    }
+    if task.state == 'PENDING':
+        response_data['message'] = 'Task is waiting to be processed.'
+    elif task.state == 'PROGRESS': # You can set custom states in Celery task
+        response_data['message'] = 'Task is currently in progress.'
+        if isinstance(task.info, dict): # Check if task.info is a dict
+            response_data.update(task.info) # Add progress details if any
+    elif task.state == 'SUCCESS':
+        result = task.result
+        response_data['message'] = 'Task completed successfully.'
+        response_data['result'] = result
+
+        # Handle results differently based on expected type (dict for PDF task, int for add task)
+        if isinstance(result, dict):
+            # This block is for tasks like process_pdf_task that return a dictionary
+            if not result.get('error') and result.get('highlighted_pdf_path'):
+                response_data['download_url'] = f"/download_highlighted_pdf/{task_id}"
+                response_data['summary_data_url'] = f"/pdf_summary/{task_id}"
+        # If it's not a dict (e.g., an int from add_task), 'result' is already set and we don't need a download_url.
+    elif task.state == 'FAILURE':
+        response_data['message'] = 'Task failed.'
+        if isinstance(task.info, Exception): # Celery stores exception info in task.info
+            response_data['error_details'] = str(task.info)
+        elif isinstance(task.info, dict): # If custom error info is stored
+            response_data['error_details'] = task.info.get('exc_message', 'Unknown error')
+            
+    return jsonify(response_data)
+
+@app.route('/download_highlighted_pdf/<task_id>', methods=['GET'])
+def download_highlighted_pdf(task_id):
+    task = process_pdf_task.AsyncResult(task_id)
+    if task.state == 'SUCCESS':
+        result = task.result
+        if result and not result.get('error') and result.get('highlighted_pdf_path'):
+            # Assuming highlighted_pdf_path is just the filename and it's in PROCESSED_FOLDER
+            # In a real app, you might get a full path from `result` or look it up in a DB
+            filename = result.get('highlighted_pdf_path')
+            # For security, ensure filename is safe and does not allow directory traversal
+            safe_filename = secure_filename(filename)
+            
+            processed_dir = current_app.config['PROCESSED_FOLDER']
+            
+            # To serve files, Celery worker needs to save them to a shared/accessible location,
+            # and Flask needs to know where to find them.
+            # For now, we'll assume the filename itself is sufficient and it's in PROCESSED_FOLDER.
+            # A more robust solution would involve storing the full path or using a dedicated file server.
+            
+            # Let's assume process_pdf_task saves the file directly into PROCESSED_FOLDER with its unique name
+            # For simulation, the process_pdf_task returns a name like f"{task_id}_highlighted.pdf"
+            # We will need to adjust the task to save the file to the processed_dir.
+            # For now, this route will try to send it from there.
+            
+            # Path construction for sending file:
+            # This part will need refinement once the Celery task actually saves files.
+            # For now, let's try to make it work with the simulated filename.
+            # This assumes that the filename returned by the task *is* the final filename
+            # and it's expected to be in the PROCESSED_FOLDER.
+            
+            # If the task returns a full path, use that. If just a name, prepend dir.
+            # Our placeholder task returns just a filename: `f"{self.request.id}_highlighted.pdf"`
+            # So, `filename` will be e.g., "task_id_highlighted.pdf".
+            
+            try:
+                app.logger.info(f"Attempting to send file: {safe_filename} from directory: {processed_dir}")
+                return send_from_directory(processed_dir, safe_filename, as_attachment=True)
+            except FileNotFoundError:
+                app.logger.error(f"File not found for download: {safe_filename} in {processed_dir}")
+                return jsonify({"error": "Processed file not found. It might still be generating or an error occurred."}), 404
+            except Exception as e:
+                app.logger.error(f"Error sending file {safe_filename}: {e}", exc_info=True)
+                return jsonify({"error": f"Server error while sending file: {str(e)}"}), 500
+        else:
+            return jsonify({"error": "Task completed but no valid processed file found or an error occurred in task."}), 404
+    elif task.state == 'FAILURE':
+        return jsonify({"error": "Task failed, cannot download file."}), 400
+    else:
+        return jsonify({"error": "Task not completed or does not exist."}), 404
+
+
+@app.route('/pdf_summary/<task_id>', methods=['GET'])
+def get_pdf_summary(task_id):
+    task = process_pdf_task.AsyncResult(task_id)
+    if task.state == 'SUCCESS':
+        result = task.result
+        if result and not result.get('error'):
+            summary_data = {
+                "overall_level": result.get("overall_level"),
+                "readability_scores": result.get("readability_scores"),
+                "original_filename": result.get("original_filename")
+            }
+            return jsonify(summary_data)
+        else:
+            return jsonify({"error": "Task completed but no summary data found or an error occurred in task."}), 404
+    elif task.state == 'FAILURE':
+        return jsonify({"error": "Task failed, cannot retrieve summary."}), 400
+    else:
+        return jsonify({"error": "Task not completed or does not exist."}), 404
+
+# --- Celery Test Route ---
+@app.route('/test_celery_add/<int:a>/<int:b>', methods=['GET'])
+def test_celery_add(a, b):
+    """
+    Test route to dispatch the 'add' Celery task.
+    """
+    try:
+        task = add_task.delay(a, b)
+        app.logger.info(f"Dispatched 'add' task {task.id} with arguments ({a}, {b})")
+        return jsonify({
+            "message": f"Celery 'add' task dispatched with args ({a}, {b}).",
+            "task_id": task.id,
+            "status_check_url": f"/task_status/{task.id}"
+        }), 202
+    except Exception as e:
+        app.logger.error(f"Error dispatching 'add' task: {e}", exc_info=True)
+        return jsonify({"error": f"Server error during 'add' task dispatch: {str(e)}"}), 500
