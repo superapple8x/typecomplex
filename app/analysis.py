@@ -8,6 +8,7 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModel
 import spacy # Import spacy
 import logging # Import logging
+logger = logging.getLogger(__name__) # Define logger for this module
 import hashlib # Import hashlib
 from app import cache # Import the initialized cache object
 from app import task_manager # Import task manager
@@ -853,8 +854,7 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     # The max possible score will need re-evaluation with new factors, especially for 'full' mode.
     # The thresholds in AUDIENCE_PROFILES might need adjustment based on observed score ranges from 'full' mode.
 
-
-    return round(score, 3)
+    return round(score, 3) # Ensure calculate_complexity returns only the float score
 
 def get_overall_complexity_level(score, profile):
     """Maps an overall score to a level, description, and color class based on the profile."""
@@ -918,11 +918,12 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
          result = { # Define result dict
             "sentence": original_sentence,
             "score": 0.0,
+            "level": "No sentences found",
+            "color_class": "bg-gray-600",
             "start": start,
             "end": end,
             "index": sentence_index,
             "syntactic_features": {},
-            # "coreference_features": {}, # Disabled
             "mode": mode
         }
          # --- Cache Set (even for empty/basic) ---
@@ -933,38 +934,25 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
 
 
     # Calculate complexity using the spaCy sentence object, the full doc, and the mode
-    score = calculate_complexity(spacy_sentence, doc, profile, mode=mode, analysis_id=analysis_id) # Pass analysis_id
+    # calculate_complexity returns a float score.
+    final_complexity_score = calculate_complexity(spacy_sentence, doc, profile, mode=mode, analysis_id=analysis_id)
 
-    # Extract and include the new features (will be empty in 'fast' mode as handled in calculate_complexity)
-    # We still include the keys for consistency, even if values are empty dicts
-    syntactic_features = {} # Initialize
-    coreference_features = {} # Initialize
+    # Get the descriptive level for this specific sentence using its score
+    level_info = get_overall_complexity_level(final_complexity_score, profile)
 
-    if mode == 'full':
-         # Re-extract features here if needed for the return dictionary,
-         # although calculate_complexity already did this.
-         # Let's rely on calculate_complexity to return the features if needed,
-         # or modify calculate_complexity to return score AND features.
-         # For now, let's just return empty features in fast mode.
-         # A better approach might be to have calculate_complexity return a dict of factors/features.
-
-         # Let's modify calculate_complexity to return a dict of {score, features}
-         # This requires a larger refactor. Sticking to current plan: features are empty in fast mode.
-         pass # Features are handled conditionally in calculate_complexity now
-
-
-    result = { # Define result dict
+    result = { 
         "sentence": original_sentence,
-        "score": score, # Score is calculated based on mode in calculate_complexity
+        "score": final_complexity_score,
+        "level": level_info['description'],  # Add descriptive level string
+        "color_class": level_info['color_class'], # Add color class for consistency
         "start": start,
         "end": end,
         "index": sentence_index,
-        "syntactic_features": {}, # Features are not returned separately in this structure
-        # "coreference_features": {}, # Disabled
+        "syntactic_features": {}, # Placeholder, actual features might be added if mode=='full' logic existed here
         "mode": mode
     }
 
-    # --- Cache Set ---
+    # --- Cache Set --- 
     cache.set(cache_key, result)
     logging.debug(f"Stored result in cache for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Set ---
@@ -1111,16 +1099,46 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
         gunning_fog = None
         smog_index = None
 
-    return {
-        "results": results,
-        "overall_level": overall_level_details,
+    # === Logging before return ===
+    logger.info(f"analyze_text_complexity: Final count of sentence results (in 'results' list var): {len(results)} for analysis_id: {analysis_id}")
+    if results and len(results) > 0:
+        try:
+            sample_sentence_log = str(results[0])[:250] # Increased sample length
+        except Exception as e_log_sample:
+            sample_sentence_log = f"Error logging sample: {e_log_sample}"
+        logger.info(f"analyze_text_complexity: First sentence data (sample from 'results' list var): {sample_sentence_log}...")
+    elif not results:
+        logger.warning(f"analyze_text_complexity: 'results' list is None or empty before returning for analysis_id: {analysis_id}")
+    # === End Logging ===
+
+    # Consolidate return structure: ensure 'sentences' key holds the list of sentence details.
+    # The variable holding sentence details is 'results'.
+    # Other overall metrics are calculated above.
+    final_return_dict = {
+        "overall_score_avg": overall_score, # overall_score is calculated above
+        "overall_score_median": overall_score, # Using avg for median for now, can be refined if needed
+        "overall_level": overall_level_details, # overall_level_details is calculated above
         "readability_scores": {
             "flesch_kincaid_grade": flesch_kincaid_grade,
             "gunning_fog": gunning_fog,
             "smog_index": smog_index
         },
-        "target_readability_scores": profile['target_readability']
+        "sentences": results,  # <--- Key used by tasks.py, value is the 'results' list
+        "total_sentences_in_report": len(results) if results else 0,
+        "target_audience_profile": target_audience,
+        "target_readability_scores": profile['target_readability'], # Added from original structure
+        "mode": mode,
+        "analysis_id": analysis_id,
+        "text_length_chars": len(text),
+        "text_length_words": len(text.split()), # A simple word count, spaCy's might be more accurate
+        "text_preview": text[:100] + "..." if len(text) > 100 else text
     }
+    # Remove the redundant 'results': results, if it exists from a previous merge/edit attempt
+    if 'results' in final_return_dict and 'sentences' in final_return_dict and final_return_dict['results'] is final_return_dict['sentences']:
+        # This check is a bit redundant if we construct it as above, but as a safeguard
+        pass # 'sentences' is the definitive key
+
+    return final_return_dict
 
 # Example usage (for testing purposes)
 if __name__ == '__main__':

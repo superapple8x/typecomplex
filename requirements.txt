@@ -122,6 +122,6 @@ Flask-Caching
 blis==0.7.11
 
 
-PyMuPDF
+PyMuPDF>=1.23.0
 celery
 redis

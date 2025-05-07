@@ -10,3 +10,5 @@ package-lock.json
 .env
 ngram_freq.csv
 packag
+processed_pdfs/
+uploads/
