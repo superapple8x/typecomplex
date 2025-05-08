@@ -86,7 +86,7 @@ TEXT_EXTRACTION_FLAGS = fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_INHIBIT_SPACES
 
 # Define a threshold for what constitutes a significant vertical gap (e.g., as a factor of line height)
 # This will require testing and tuning. Let's start with a basic idea.
-MIN_VERTICAL_GAP_FACTOR = 0.5 # e.g., if gap is > 0.5 * typical_line_height
+MIN_VERTICAL_GAP_FACTOR = 0.3 # e.g., if gap is > 0.3 * typical_line_height
 
 def get_base_font_name(font_name_str: str) -> str:
     """Extracts a base font name by stripping common style suffixes."""
@@ -236,7 +236,6 @@ def extract_text_and_sentence_coordinates(pdf_path):
                 page_dict = page.get_text("dict", flags=TEXT_EXTRACTION_FLAGS)
                 
                 current_block_spans_with_context = []
-                # Find the current block in page_dict
                 for block_from_dict in page_dict.get("blocks", []):
                     if block_from_dict.get("number") == block_no and block_from_dict.get("type") == 0:
                         for line_dict in block_from_dict.get("lines", []):
@@ -247,141 +246,148 @@ def extract_text_and_sentence_coordinates(pdf_path):
                                     'bbox': tuple(span_dict.get("bbox", (0,0,0,0))),
                                     'font': span_dict.get("font", "Unknown"),
                                     'size': span_dict.get("size", 0.0),
-                                    'flags': span_dict.get("flags", 0), # For font properties
-                                    'line_bbox': line_bbox_tuple, # Store parent line's bbox
+                                    'flags': span_dict.get("flags", 0),
+                                    'line_bbox': line_bbox_tuple,
                                     'block_no': block_no,
                                     'page_num': page_num
                                 })
-                        break # Found and processed the correct block from dict
+                        break
 
                 if not current_block_spans_with_context:
                     continue
 
-                # --- Span-First Sentence Segmentation Logic ---
+                # --- Refined NLTK Integration & Heuristic Application ---
+                spans_for_heuristic_processing = []
+                for original_span_info in current_block_spans_with_context:
+                    original_text = original_span_info.get('text', "")
+                    if not isinstance(original_text, str):
+                        original_text = str(original_text)
+
+                    nltk_segments = []
+                    if original_text.strip():
+                        try:
+                            nltk_segments = nltk.sent_tokenize(original_text)
+                        except Exception as e_nltk:
+                            logger.warning(f"NLTK sent_tokenize failed for span text '{original_text[:100]}...': {e_nltk}")
+                            nltk_segments = [original_text] # Fallback
+                    elif original_text: # Keep whitespace-only spans if they exist, for subsequent heuristics
+                        nltk_segments = [original_text]
+                    # else: # Truly empty original_text, nltk_segments remains empty, original_span_info is skipped below
+
+                    if len(nltk_segments) > 1:
+                        # NLTK found multiple sentences within this single original span.
+                        # Treat each as a direct sentence.
+                        temp_accumulated_spans_for_nltk_segment = []
+                        for i_nltk, segment_text in enumerate(nltk_segments):
+                            segment_text_stripped = segment_text.strip()
+                            if not segment_text_stripped:
+                                continue
+
+                            # Create an effective span for this NLTK segment
+                            effective_span_for_nltk_segment = original_span_info.copy()
+                            effective_span_for_nltk_segment['text'] = segment_text # Use NLTK's segmentation
+                            temp_accumulated_spans_for_nltk_segment.append(effective_span_for_nltk_segment)
+
+                            # If this segment ends with sentence-ending punctuation OR it's the last segment NLTK produced from this span
+                            if segment_text_stripped.endswith(('.', '!', '?')) or (i_nltk == len(nltk_segments) - 1):
+                                sentence_for_storage = normalize_sentence_text("".join(s['text'] for s in temp_accumulated_spans_for_nltk_segment)) # Should mostly be this segment_text
+                                
+                                non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
+                                if len(non_punc_chars) > 1: # Junk filter
+                                    coords = derive_coords_from_spans(temp_accumulated_spans_for_nltk_segment, page_height, page_width)
+                                    if coords:
+                                        sentence_map.append({
+                                            'text': sentence_for_storage,
+                                            'line_segment_coords': coords,
+                                            'page_num': page_num,
+                                            'block_no': block_no,
+                                        })
+                                        if full_text_for_analysis and sentence_for_storage:
+                                            full_text_for_analysis += "\n\n"
+                                        full_text_for_analysis += sentence_for_storage
+                                        logger.info(f"  SUCCESS (NLTK-direct): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
+                                temp_accumulated_spans_for_nltk_segment = [] # Reset for next NLTK segment from same original span
+                    elif nltk_segments: # NLTK returned one segment (or fallback to original)
+                        # This span (or its single NLTK segment) goes to further heuristic processing
+                        # Update original_span_info text if NLTK modified it (e.g. stripped)
+                        effective_single_span = original_span_info.copy()
+                        effective_single_span['text'] = nltk_segments[0]
+                        spans_for_heuristic_processing.append(effective_single_span)
+                    # If nltk_segments is empty (e.g. original_text was empty string), original_span_info is skipped
+                
+                # --- Existing Span-First Sentence Segmentation Logic (now operates on spans_for_heuristic_processing) ---
                 current_sentence_accumulated_spans = []
                 last_span_info = None
 
-                for i, span_info in enumerate(current_block_spans_with_context):
+                for i, span_info in enumerate(spans_for_heuristic_processing): # Iterate over spans not handled directly by NLTK multi-segment
                     current_sentence_accumulated_spans.append(span_info)
                     
-                    # Heuristic checks for sentence boundary
                     sentence_boundary_detected = False
                     current_span_text_stripped = span_info['text'].strip()
-                    is_last_span_in_block = (i == len(current_block_spans_with_context) - 1)
+                    is_last_span_in_block = (i == len(spans_for_heuristic_processing) - 1)
 
                     # 1. Punctuation at the end of the current span's text
                     if current_span_text_stripped.endswith(('.', '!', '?')):
-                        # Simple abbreviation check (can be expanded)
-                        # Common academic/reference patterns like "[1]." or "(Fig. 2)." should also be handled.
                         is_potential_abbreviation = False
                         if current_span_text_stripped.endswith('.'):
-                            # Titles like Mr., Mrs., Dr., Prof., Capt., Gen., Sen., Rev., Hon., St.
-                            # Initials: A., B. C. (but not a single letter like "C.")
-                            # Common abbrevs: e.g., i.e., etc., vs., Fig., No.
-                            # Avoid splitting "et al."
                             abbrev_pattern = r"""(^([A-Z][a-z]{0,3}|[A-Z])\.$|
-                                                  ^(e\.g\.|i\.e\.|etc\.|vs\.|Fig\.|Figs\.|No\.|Nos\.|et al\.)|
-                                                  \b[A-Z]\.(?:[A-Z]\.)*$)|\[\d+\]\.$""" # Matches [1]. etc.
+                                                   ^(e\.g\.|i\.e\.|etc\.|vs\.|Fig\.|Figs\.|No\.|Nos\.|et al\.)|
+                                                   \b[A-Z]\.(?:[A-Z]\.)*$)|\[\d+\]\.$""" 
                             if re.match(abbrev_pattern, current_span_text_stripped, re.IGNORECASE):
                                 is_potential_abbreviation = True
-                            # If the span itself is very short and ends with a dot, it might be an initial.
-                            elif len(current_span_text_stripped) <= 2 and current_span_text_stripped != '.': # e.g. "A." but not just "."
+                            elif len(current_span_text_stripped) <= 2 and current_span_text_stripped != '.': 
                                 is_potential_abbreviation = True
                         
                         if not is_potential_abbreviation:
                             if is_last_span_in_block:
                                 sentence_boundary_detected = True
-                            elif i + 1 < len(current_block_spans_with_context):
-                                next_span_info = current_block_spans_with_context[i+1]
-                                next_span_text = next_span_info['text'].strip()
+                            elif i + 1 < len(spans_for_heuristic_processing):
+                                next_span_info = spans_for_heuristic_processing[i+1]
+                                next_span_text_stripped = next_span_info['text'].strip()
                                 
-                                # Primary condition for splitting after punctuation: next word starts uppercase.
-                                if next_span_text and next_span_text[0].isupper():
+                                if next_span_text_stripped and next_span_text_stripped[0].isupper():
                                     sentence_boundary_detected = True
-                                # Also split if next span is empty (effectively end of content for this line/segment)
-                                elif not next_span_text: 
+                                elif not next_span_text_stripped: 
                                     sentence_boundary_detected = True
-                            # else: # No next span, handled by is_last_span_in_block
 
                     # 2. End of block (this is a strong boundary)
-                    if is_last_span_in_block: # Ensuring this overrides other conditions if it's the absolute last span
+                    if is_last_span_in_block: 
                         if current_sentence_accumulated_spans: 
-                            sentence_boundary_detected = True 
+                            sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
+                            # Aggressive normalization was removed, use the standard one for storage.
+                            sentence_for_storage = normalize_sentence_text(sentence_text_raw)
 
-                    # 3. Gap and Font Change Heuristics (apply if not already decided by strong punctuation or end of block)
-                    #    Only trigger if there's meaningful text accumulated.
-                    current_acc_text_for_check = "".join(s['text'] for s in current_sentence_accumulated_spans).strip()
-                    if not sentence_boundary_detected and current_acc_text_for_check and last_span_info and not is_last_span_in_block :
-                        next_span_info = current_block_spans_with_context[i+1]
+                            # Filter out sentences that are only punctuation or very short junk
+                            is_junk_sentence = True
+                            if sentence_for_storage:
+                                # Check if the sentence consists only of punctuation/whitespace chars
+                                # or is extremely short and likely not a real sentence.
+                                non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
+                                if len(non_punc_chars) > 1: # Must have at least 2 alphanumeric chars
+                                    is_junk_sentence = False
                         
-                        # Vertical Gap:
-                        current_line_y1 = span_info['line_bbox'][3]
-                        next_line_y0 = next_span_info['line_bbox'][1]
-                        # Use an average of current and next span's font size for more stable line height estimate
-                        typical_line_height = (span_info['size'] + next_span_info['size']) / 2.0 if next_span_info['size'] > 0 else span_info['size']
-                        typical_line_height = max(typical_line_height, 1.0) # Avoid division by zero or tiny heights
-
-                        # Check if next span is on a new line AND there's a significant vertical gap
-                        # A new line is indicated if next_line_y0 is greater than current_line_y1 (approximately)
-                        # or more reliably if their line_bbox are different and next_line_y0 is higher.
-                        # For simplicity, we rely on the line_bbox changing and next_line_y0 > current_line_y0
-                        # The key is a *significant* vertical jump.
-                        if span_info['line_bbox'] != next_span_info['line_bbox'] and \
-                           (next_line_y0 - current_line_y1) > (typical_line_height * MIN_VERTICAL_GAP_FACTOR):
-                            # Only break if the current accumulated text is not already ending with some punctuation.
-                            if not current_acc_text_for_check.endswith(('.', '!', '?', ':', ';', ',')):
-                                logger.debug(f"Boundary by vertical gap: Page {page_num}, Block {block_no}. Gap: {next_line_y0 - current_line_y1:.2f}, Est.LineHeight: {typical_line_height:.2f}. Text: '{current_acc_text_for_check[-50:]}'")
-                                sentence_boundary_detected = True
-
-                        # Font Change (significant size or style change)
-                        if not sentence_boundary_detected and \
-                           (abs(span_info['size'] - next_span_info['size']) > 2.0 or \
-                            (get_base_font_name(span_info['font']) != get_base_font_name(next_span_info['font']) and \
-                             not (span_info['font'].endswith(('Bold', 'Italic')) and next_span_info['font'].startswith(get_base_font_name(span_info['font'])) ) and # Allow same base font with style change
-                             not (next_span_info['font'].endswith(('Bold', 'Italic')) and span_info['font'].startswith(get_base_font_name(next_span_info['font'])) ) # Allow style change back to regular
-                            ) \
-                           ):
-                            # Only break if not already punctuated, to avoid splitting mid-sentence due to minor style changes for emphasis.
-                            if not current_acc_text_for_check.endswith(('.', '!', '?', ':', ';', ',')):
-                                logger.debug(f"Boundary by font change: Page {page_num}, Block {block_no}. From: {span_info['font']}/{span_info['size']:.1f} To: {next_span_info['font']}/{next_span_info['size']:.1f}. Text: '{current_acc_text_for_check[-50:]}'")
-                                sentence_boundary_detected = True
-                    
-                    if sentence_boundary_detected and current_sentence_accumulated_spans:
-                        sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
-                        # Aggressive normalization was removed, use the standard one for storage.
-                        sentence_for_storage = normalize_sentence_text(sentence_text_raw)
-
-                        # Filter out sentences that are only punctuation or very short junk
-                        is_junk_sentence = True
-                        if sentence_for_storage:
-                            # Check if the sentence consists only of punctuation/whitespace chars
-                            # or is extremely short and likely not a real sentence.
-                            non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
-                            if len(non_punc_chars) > 1: # Must have at least 2 alphanumeric chars
-                                is_junk_sentence = False
+                            if sentence_for_storage and not is_junk_sentence: # Ensure there is actual text and not junk
+                                # Derive coordinates for the collected spans
+                                coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width) # Pass page_height & page_width
+                                
+                                if coords:
+                                    sentence_map.append({
+                                        'text': sentence_for_storage,
+                                        'line_segment_coords': coords,
+                                        'page_num': page_num,
+                                        'block_no': block_no, # For debugging
+                                        # Add other info if needed, e.g., avg font size of sentence
+                                    })
+                                    if full_text_for_analysis and sentence_for_storage:
+                                         full_text_for_analysis += "\n\n" # Or " " depending on how analysis expects it
+                                    full_text_for_analysis += sentence_for_storage
+                                    logger.info(f"  SUCCESS (Span-First): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
+                                else:
+                                    logger.warning(f"  EMPTY COORDS (Span-First): Sentence: '{sentence_for_storage[:70]}...' but no coords derived.")
                         
-                        if sentence_for_storage and not is_junk_sentence: # Ensure there is actual text and not junk
-                            # Derive coordinates for the collected spans
-                            coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width) # Pass page_height & page_width
-                            
-                            if coords:
-                                sentence_map.append({
-                                    'text': sentence_for_storage,
-                                    'line_segment_coords': coords,
-                                    'page_num': page_num,
-                                    'block_no': block_no, # For debugging
-                                    # Add other info if needed, e.g., avg font size of sentence
-                                })
-                                if full_text_for_analysis and sentence_for_storage:
-                                     full_text_for_analysis += "\\n\\n" # Or " " depending on how analysis expects it
-                                full_text_for_analysis += sentence_for_storage
-                                logger.info(f"  SUCCESS (Span-First): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
-                            else:
-                                logger.warning(f"  EMPTY COORDS (Span-First): Sentence: '{sentence_for_storage[:70]}...' but no coords derived.")
+                            current_sentence_accumulated_spans = [] # Reset for next sentence
                         
-                        current_sentence_accumulated_spans = [] # Reset for next sentence
-                    
-                    last_span_info = span_info
+                        last_span_info = span_info
                 
                 # After iterating all spans in a block, if there are leftovers in current_sentence_accumulated_spans
                 if current_sentence_accumulated_spans:
@@ -404,7 +410,7 @@ def extract_text_and_sentence_coordinates(pdf_path):
                                 'block_no': block_no,
                             })
                             if full_text_for_analysis and sentence_for_storage:
-                                full_text_for_analysis += "\\n\\n" 
+                                full_text_for_analysis += "\n\n" 
                             full_text_for_analysis += sentence_for_storage
                             logger.info(f"  SUCCESS (Span-First EOF Block): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
                         else:
