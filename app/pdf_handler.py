@@ -257,7 +257,7 @@ def extract_text_and_sentence_coordinates(pdf_path):
                     continue
 
                 # --- Refined NLTK Integration & Heuristic Application ---
-                spans_for_heuristic_processing = []
+                spans_for_subsequent_heuristic_processing = []
                 for original_span_info in current_block_spans_with_context:
                     original_text = original_span_info.get('text', "")
                     if not isinstance(original_text, str):
@@ -270,61 +270,65 @@ def extract_text_and_sentence_coordinates(pdf_path):
                         except Exception as e_nltk:
                             logger.warning(f"NLTK sent_tokenize failed for span text '{original_text[:100]}...': {e_nltk}")
                             nltk_segments = [original_text] # Fallback
-                    elif original_text: # Keep whitespace-only spans if they exist, for subsequent heuristics
+                    elif original_text: 
                         nltk_segments = [original_text]
-                    # else: # Truly empty original_text, nltk_segments remains empty, original_span_info is skipped below
-
+                    
                     if len(nltk_segments) > 1:
                         # NLTK found multiple sentences within this single original span.
-                        # Treat each as a direct sentence.
-                        temp_accumulated_spans_for_nltk_segment = []
-                        for i_nltk, segment_text in enumerate(nltk_segments):
+                        for segment_text in nltk_segments:
                             segment_text_stripped = segment_text.strip()
                             if not segment_text_stripped:
                                 continue
 
-                            # Create an effective span for this NLTK segment
-                            effective_span_for_nltk_segment = original_span_info.copy()
-                            effective_span_for_nltk_segment['text'] = segment_text # Use NLTK's segmentation
-                            temp_accumulated_spans_for_nltk_segment.append(effective_span_for_nltk_segment)
-
-                            # If this segment ends with sentence-ending punctuation OR it's the last segment NLTK produced from this span
-                            if segment_text_stripped.endswith(('.', '!', '?')) or (i_nltk == len(nltk_segments) - 1):
-                                sentence_for_storage = normalize_sentence_text("".join(s['text'] for s in temp_accumulated_spans_for_nltk_segment)) # Should mostly be this segment_text
+                            highlight_coords = []
+                            try:
+                                # Search for this specific NLTK segment text on the page, clipped to the original span's bbox
+                                clip_rect = fitz.Rect(original_span_info['bbox'])
+                                # Using default flags for search_for, which include TEXT_NORMALIZE_WHITESPACE
+                                segment_actual_rects = page.search_for(segment_text_stripped, clip=clip_rect)
                                 
-                                non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
-                                if len(non_punc_chars) > 1: # Junk filter
-                                    coords = derive_coords_from_spans(temp_accumulated_spans_for_nltk_segment, page_height, page_width)
-                                    if coords:
-                                        sentence_map.append({
-                                            'text': sentence_for_storage,
-                                            'line_segment_coords': coords,
-                                            'page_num': page_num,
-                                            'block_no': block_no,
-                                        })
-                                        if full_text_for_analysis and sentence_for_storage:
-                                            full_text_for_analysis += "\n\n"
-                                        full_text_for_analysis += sentence_for_storage
-                                        logger.info(f"  SUCCESS (NLTK-direct): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
-                                temp_accumulated_spans_for_nltk_segment = [] # Reset for next NLTK segment from same original span
-                    elif nltk_segments: # NLTK returned one segment (or fallback to original)
-                        # This span (or its single NLTK segment) goes to further heuristic processing
-                        # Update original_span_info text if NLTK modified it (e.g. stripped)
-                        effective_single_span = original_span_info.copy()
-                        effective_single_span['text'] = nltk_segments[0]
-                        spans_for_heuristic_processing.append(effective_single_span)
-                    # If nltk_segments is empty (e.g. original_text was empty string), original_span_info is skipped
+                                if not segment_actual_rects:
+                                    logger.warning(f"NLTK segment '{segment_text_stripped[:50]}...' not found by search_for. Using original span bbox as fallback.")
+                                    highlight_coords = [original_span_info['bbox']] # Fallback to original full span bbox
+                                else:
+                                    highlight_coords = [tuple(r) for r in segment_actual_rects]
+
+                            except Exception as e_search:
+                                logger.error(f"Error during page.search_for for NLTK segment '{segment_text_stripped[:50]}...': {e_search}. Using original span bbox.")
+                                highlight_coords = [original_span_info['bbox']] # Fallback
+                            
+                            normalized_nltk_sentence = normalize_sentence_text(segment_text_stripped)
+                            non_punc_chars = [char for char in normalized_nltk_sentence if char.isalnum()]
+
+                            if len(non_punc_chars) > 1 and highlight_coords: # Junk filter and ensure coords exist
+                                sentence_map.append({
+                                    'text': normalized_nltk_sentence,
+                                    'line_segment_coords': highlight_coords, # Directly use precise coordinates
+                                    'page_num': page_num,
+                                    'block_no': block_no,
+                                })
+                                if full_text_for_analysis and normalized_nltk_sentence:
+                                    full_text_for_analysis += "\n\n"
+                                full_text_for_analysis += normalized_nltk_sentence
+                                logger.info(f"  SUCCESS (NLTK-searched): Sentence: '{normalized_nltk_sentence[:70]}...' Coords: {len(highlight_coords)} segments.")
+                    
+                    elif nltk_segments: # NLTK returned one segment (or fallback to original text)
+                        # This original span (or its single NLTK equivalent) goes to the main heuristic loop
+                        updated_span_info = original_span_info.copy()
+                        updated_span_info['text'] = nltk_segments[0] # Use NLTK's version (e.g. stripped)
+                        spans_for_subsequent_heuristic_processing.append(updated_span_info)
                 
-                # --- Existing Span-First Sentence Segmentation Logic (now operates on spans_for_heuristic_processing) ---
+                # --- Existing Span-First Sentence Segmentation Logic (now operates on spans_for_subsequent_heuristic_processing) ---
                 current_sentence_accumulated_spans = []
                 last_span_info = None
+                prev_span_info = None  # Track previous span for layout heuristics
 
-                for i, span_info in enumerate(spans_for_heuristic_processing): # Iterate over spans not handled directly by NLTK multi-segment
+                for i, span_info in enumerate(spans_for_subsequent_heuristic_processing):
                     current_sentence_accumulated_spans.append(span_info)
                     
                     sentence_boundary_detected = False
                     current_span_text_stripped = span_info['text'].strip()
-                    is_last_span_in_block = (i == len(spans_for_heuristic_processing) - 1)
+                    is_last_span_in_block = (i == len(spans_for_subsequent_heuristic_processing) - 1)
 
                     # 1. Punctuation at the end of the current span's text
                     if current_span_text_stripped.endswith(('.', '!', '?')):
@@ -341,8 +345,8 @@ def extract_text_and_sentence_coordinates(pdf_path):
                         if not is_potential_abbreviation:
                             if is_last_span_in_block:
                                 sentence_boundary_detected = True
-                            elif i + 1 < len(spans_for_heuristic_processing):
-                                next_span_info = spans_for_heuristic_processing[i+1]
+                            elif i + 1 < len(spans_for_subsequent_heuristic_processing):
+                                next_span_info = spans_for_subsequent_heuristic_processing[i+1]
                                 next_span_text_stripped = next_span_info['text'].strip()
                                 
                                 if next_span_text_stripped and next_span_text_stripped[0].isupper():
@@ -350,44 +354,64 @@ def extract_text_and_sentence_coordinates(pdf_path):
                                 elif not next_span_text_stripped: 
                                     sentence_boundary_detected = True
 
-                    # 2. End of block (this is a strong boundary)
-                    if is_last_span_in_block: 
-                        if current_sentence_accumulated_spans: 
-                            sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
-                            # Aggressive normalization was removed, use the standard one for storage.
-                            sentence_for_storage = normalize_sentence_text(sentence_text_raw)
-
-                            # Filter out sentences that are only punctuation or very short junk
-                            is_junk_sentence = True
-                            if sentence_for_storage:
-                                # Check if the sentence consists only of punctuation/whitespace chars
-                                # or is extremely short and likely not a real sentence.
-                                non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
-                                if len(non_punc_chars) > 1: # Must have at least 2 alphanumeric chars
-                                    is_junk_sentence = False
-                        
-                            if sentence_for_storage and not is_junk_sentence: # Ensure there is actual text and not junk
-                                # Derive coordinates for the collected spans
-                                coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width) # Pass page_height & page_width
-                                
-                                if coords:
-                                    sentence_map.append({
-                                        'text': sentence_for_storage,
-                                        'line_segment_coords': coords,
-                                        'page_num': page_num,
-                                        'block_no': block_no, # For debugging
-                                        # Add other info if needed, e.g., avg font size of sentence
-                                    })
-                                    if full_text_for_analysis and sentence_for_storage:
-                                         full_text_for_analysis += "\n\n" # Or " " depending on how analysis expects it
-                                    full_text_for_analysis += sentence_for_storage
-                                    logger.info(f"  SUCCESS (Span-First): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
-                                else:
-                                    logger.warning(f"  EMPTY COORDS (Span-First): Sentence: '{sentence_for_storage[:70]}...' but no coords derived.")
-                        
-                            current_sentence_accumulated_spans = [] # Reset for next sentence
-                        
-                        last_span_info = span_info
+                    # 2. Layout heuristics: vertical gap, font-size/style, indent, hyphenation
+                    if prev_span_info is not None and not sentence_boundary_detected:
+                        prev_bbox = prev_span_info['bbox']
+                        curr_bbox = span_info['bbox']
+                        # Vertical gap detection
+                        line_height = prev_bbox[3] - prev_bbox[1]
+                        gap = curr_bbox[1] - prev_bbox[3]
+                        if gap > MIN_VERTICAL_GAP_FACTOR * line_height:
+                            sentence_boundary_detected = True
+                            logger.debug(f"  BOUNDARY (Gap): gap={gap:.2f} > threshold")
+                        # Font size change
+                        prev_size = prev_span_info.get('size', 0)
+                        curr_size = span_info.get('size', 0)
+                        if not sentence_boundary_detected and abs(curr_size - prev_size) >= 1.0:
+                            sentence_boundary_detected = True
+                            logger.debug(f"  BOUNDARY (FontSize): {prev_size}->{curr_size}")
+                        # Font style change
+                        if not sentence_boundary_detected and prev_span_info.get('font') != span_info.get('font'):
+                            sentence_boundary_detected = True
+                            logger.debug(f"  BOUNDARY (FontStyle): '{prev_span_info.get('font')}'->'{span_info.get('font')}'")
+                        # Indentation change detection
+                        if not sentence_boundary_detected:
+                            prev_x0 = prev_bbox[0]
+                            curr_x0 = curr_bbox[0]
+                            if abs(curr_x0 - prev_x0) > (0.5 * prev_size):
+                                sentence_boundary_detected = True
+                                logger.debug(f"  BOUNDARY (Indent): x0 {prev_x0:.1f}->{curr_x0:.1f}")
+                        # Hyphenation merge
+                        if not sentence_boundary_detected and prev_span_info['text'].strip().endswith('-') and current_span_text_stripped and current_span_text_stripped[0].islower():
+                            # Merge hyphenated words (remove trailing hyphen)
+                            current_sentence_accumulated_spans[-2]['text'] = current_sentence_accumulated_spans[-2]['text'].rstrip('-')
+                            logger.debug("  CONTINUE (Hyphenation): merging hyphenated word")
+                            sentence_boundary_detected = False
+                    # After layout heuristics, skip split if next span starts lowercase (line wrap)
+                    if sentence_boundary_detected and current_span_text_stripped and current_span_text_stripped[0].islower():
+                        sentence_boundary_detected = False
+                        logger.debug("  SKIP (Lowercase start): continuing sentence across wrap")
+                    # 3. Mid-block sentence split
+                    if sentence_boundary_detected and not is_last_span_in_block:
+                        sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
+                        sentence_for_storage = normalize_sentence_text(sentence_text_raw)
+                        non_punc_chars = [c for c in sentence_for_storage if c.isalnum()]
+                        if sentence_for_storage and len(non_punc_chars) > 1:
+                            coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width)
+                            if coords:
+                                sentence_map.append({
+                                    'text': sentence_for_storage,
+                                    'line_segment_coords': coords,
+                                    'page_num': page_num,
+                                    'block_no': block_no,
+                                })
+                                if full_text_for_analysis:
+                                    full_text_for_analysis += "\n\n"
+                                full_text_for_analysis += sentence_for_storage
+                                logger.info(f"  SUCCESS (Span-First-Heuristic): '{sentence_for_storage[:70]}...' Coords: {len(coords)}")
+                        current_sentence_accumulated_spans = []
+                    # Update prev_span_info
+                    prev_span_info = span_info
                 
                 # After iterating all spans in a block, if there are leftovers in current_sentence_accumulated_spans
                 if current_sentence_accumulated_spans:
