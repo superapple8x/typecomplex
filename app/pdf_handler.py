@@ -453,12 +453,13 @@ def extract_text_and_sentence_coordinates(pdf_path):
 
 # Define complexity colors (RGB tuples, 0-1 range)
 COMPLEXITY_COLORS = {
-    "Very Simple": (0.68, 1, 0.18),  # Light Green (e.g., lime green)
-    "Simple": (0.56, 0.93, 0.56),    # Standard Green (e.g., lightgreen)
-    "Moderate": (1, 1, 0.0),         # Yellow
-    "Complex": (1, 0.647, 0),        # Orange
-    "Very Complex": (1, 0, 0),       # Red
-    "unknown": (0.8, 0.8, 0.8)       # Grey for fallback
+    # Matches Tailwind bg-green-500, bg-lime-500, bg-yellow-500, bg-orange-500, bg-red-500, bg-gray-500
+    "Very Simple": (0.133, 0.773, 0.369),  # rgb(34,197,94)
+    "Simple": (0.518, 0.800, 0.086),       # rgb(132,204,22)
+    "Moderate": (0.918, 0.702, 0.031),     # rgb(234,179,8)
+    "Complex": (0.976, 0.451, 0.086),      # rgb(249,115,22)
+    "Very Complex": (0.937, 0.267, 0.267), # rgb(239,68,68)
+    "unknown": (0.424, 0.459, 0.490)       # rgb(108,117,125)
 }
 
 def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coordinates_map, output_pdf_path):
@@ -555,11 +556,12 @@ def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coord
                 # Ensure the rectangle has positive width and height
                 if segment_bbox[0] < segment_bbox[2] and segment_bbox[1] < segment_bbox[3]:
                     highlight = page.add_highlight_annot(segment_bbox)
-                    highlight.set_colors(stroke=highlight_color_rgb) # stroke sets the highlight color
-                    highlight.update(opacity=0.4) # Adjust opacity as needed
+                    highlight.set_colors(stroke=highlight_color_rgb)
+                    # Match UI opacity (30%) for highlight fill
+                    highlight.update(opacity=0.3)
                     matched_highlight_count +=1
                 else:
-                    logger.warning(f"Skipping zero-area or invalid bbox for highlight: {segment_bbox} on sentence '{sentence_text_from_map[:30]}...'")
+                    logger.warning(f"Skipping zero-area or invalid bbox for highlight: {segment_bbox} on sentence '{sentence_text_from_map[:30]}...'" )
             except Exception as e_annot:
                 logger.error(f"Error adding highlight annotation for bbox {segment_bbox} on page {page_num}: {e_annot}", exc_info=True)
     
