@@ -39,14 +39,21 @@ def process_pdf_task(self, file_path, original_filename):
             # However, analyze_text_complexity typically takes full text.
 
         app.logger.info(f"Task {self.request.id}: Text extraction complete. Extracted {len(plain_text)} characters. Found {len(sentence_coordinates_map)} potential sentence coordinate entries.")
-        num_sentences_with_coords = sum(1 for s in sentence_coordinates_map if s.get('coords'))
+        num_sentences_with_coords = sum(1 for s in sentence_coordinates_map if s.get('line_segment_coords'))
         app.logger.info(f"Task {self.request.id}: {num_sentences_with_coords} sentences have coordinate data.")
 
         # Step 2: Analyze text complexity
         self.update_state(state='PROGRESS', meta={'current_step': 2, 'total_steps': 3, 'status_message': 'Analyzing text complexity...'})
         app.logger.info(f"Task {self.request.id}: Analyzing text complexity...")
-        # Assuming analyze_text_complexity can handle empty or very short plain_text gracefully if it occurs.
-        analysis_results = analyze_text_complexity(plain_text, target_audience="Standard") # Using default audience
+        # Extract sentence texts from sentence_coordinates_map for analysis
+        sentences_for_analysis = [entry['text'] for entry in sentence_coordinates_map]
+        app.logger.info(f"Task {self.request.id}: Extracted {len(sentences_for_analysis)} sentences for analysis.")
+        # Pass both plain_text and sentences_for_analysis to analyze_text_complexity
+        analysis_results = analyze_text_complexity(
+            plain_text_for_doc_stats=plain_text,
+            sentences_list=sentences_for_analysis,
+            target_audience="Standard"  # Using default audience
+        )
         app.logger.info(f"Task {self.request.id}: Text analysis complete. Overall level: {analysis_results.get('overall_level',{}).get('description')}")
         num_sentences_analyzed = len(analysis_results.get('sentences', []))
         app.logger.info(f"Task {self.request.id}: Analyzed {num_sentences_analyzed} sentences.")

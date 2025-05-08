@@ -12,3 +12,4 @@ ngram_freq.csv
 packag
 processed_pdfs/
 uploads/
+celery_worker.log

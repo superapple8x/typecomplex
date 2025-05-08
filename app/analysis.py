@@ -657,14 +657,42 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     contextual embedding complexity, syntactic features, and coreference features.
     Calculation of expensive features is conditional based on the 'mode' parameter.
     Returns a score (float).
+    
+    Args:
+        spacy_sentence: Either a spaCy Span/Doc object or a string
+        doc: A spaCy Doc object for context (can be None)
+        profile: The audience profile dictionary with weights and normalization values
+        mode: 'full' or 'fast' mode for complexity calculation
+        analysis_id: Optional ID for progress tracking
     """
+    # Handle string input: convert to a format we can work with
+    if isinstance(spacy_sentence, str):
+        sentence_text = spacy_sentence
+        
+        # For basic analysis, tokenize the string using nltk if available
+        try:
+            import nltk
+            words_for_stats = [word.lower() for word in nltk.word_tokenize(sentence_text) 
+                              if word.isalpha()]
+        except:
+            # Fallback if nltk not available: simple split and filter
+            words_for_stats = [word.lower() for word in sentence_text.split() 
+                              if word.isalpha()]
+        
+        # We'll need this for logging output
+        if not hasattr(spacy_sentence, 'text'):
+            spacy_sentence_text = sentence_text
+    else:
+        # Original behavior for spaCy objects
+        sentence_text = spacy_sentence.text
+        spacy_sentence_text = sentence_text
+        
+        # Use spaCy tokens for consistency
+        words_for_stats = [token.text.lower() for token in spacy_sentence if token.is_alpha]
+
     # Use profile-specific constants
     weights = profile['weights']
     norm = profile['normalization']
-
-    # --- Basic Tokenization (for statistical measures) ---
-    # Use spaCy tokens for consistency
-    words_for_stats = [token.text.lower() for token in spacy_sentence if token.is_alpha]
 
     if not words_for_stats:
         return 0.0 # Handle empty sentences
@@ -721,92 +749,106 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     # Initialize variables to store intermediate results needed across calculations
     embeddings_matrix = None
     token_map = None
-    num_tokens = len(spacy_sentence) # Get total tokens once
+    
+    # Get total tokens - need special handling for string input
+    if isinstance(spacy_sentence, str):
+        num_tokens = len(words_for_stats)  # Approximate for string input
+    else:
+        num_tokens = len(spacy_sentence)   # Exact for spaCy object
 
 
     if mode == 'full':
         # --- Check for cancellation before expensive calculations ---
         if analysis_id and task_manager.is_cancelled(analysis_id):
-            logging.info(f"Task {analysis_id}: Cancelled before expensive calculations for sentence: '{spacy_sentence.text[:50]}...'")
+            logging.info(f"Task {analysis_id}: Cancelled before expensive calculations for sentence: '{spacy_sentence_text[:50]}...'")
             return 0.0 # Return neutral score if cancelled here
 
-        # --- 1. Contextual Embedding Factor (Variance) & Get Embeddings ---
-        embedding_result = _get_contextual_embedding_complexity(spacy_sentence.text, words_for_stats)
-        embedding_factor = embedding_result.get('factor', 0.0) if embedding_result else 0.0
-        embeddings_matrix = embedding_result.get('embeddings')
-        token_map = embedding_result.get('token_map')
+        # For string input in full mode, we need spaCy processing for advanced metrics
+        # If spacy_sentence is a string and nlp is available, process it
+        if isinstance(spacy_sentence, str) and nlp:
+            spacy_sentence = nlp(sentence_text)  # Convert to spaCy Doc
+            # Update num_tokens now that we have a spaCy object
+            num_tokens = len(spacy_sentence)
 
-        # --- 2. Original Syntactic Features ---
-        syntactic_features = _get_syntactic_features(spacy_sentence)
-        # Normalize original syntactic features
-        parse_tree_depth_factor = min(syntactic_features.get('parse_tree_depth', 0) / norm.get('max_parse_tree_depth', 15.0), 1.5)
-        num_clauses_factor = min(syntactic_features.get('num_clauses', 0) / norm.get('max_num_clauses', 5.0), 1.5)
-        avg_dep_length_factor = min(syntactic_features.get('avg_dependency_length', 0.0) / norm.get('max_avg_dependency_length', 10.0), 1.5)
-        passive_voice_factor = syntactic_features.get('has_passive_voice', 0) # Binary (0 or 1)
-        # Combine original syntactic factors
-        syntactic_weight = weights.get('syntactic_complexity', 0)
-        if syntactic_weight > 0:
-             syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
-             syntactic_factor = max(0.0, min(1.0, syntactic_factor)) # Clamp to 0-1
-        else:
-             syntactic_factor = 0.0
-        logging.debug(f"Task {analysis_id}: Original Syntactic Features: {syntactic_features}, Combined Factor: {syntactic_factor:.3f}")
+        # Skip advanced metrics if we don't have a spaCy object at this point
+        if not isinstance(spacy_sentence, str):
+            # --- 1. Contextual Embedding Factor (Variance) & Get Embeddings ---
+            embedding_result = _get_contextual_embedding_complexity(sentence_text, words_for_stats)
+            embedding_factor = embedding_result.get('factor', 0.0) if embedding_result else 0.0
+            embeddings_matrix = embedding_result.get('embeddings')
+            token_map = embedding_result.get('token_map')
 
-        # --- 3. Dependency Complexity Features ---
-        dependency_metrics = _get_dependency_metrics(spacy_sentence)
-        # Normalize dependency metrics (calculate densities first)
-        complex_dep_density = dependency_metrics.get('complex_dep_count', 0) / num_tokens if num_tokens > 0 else 0
-        subordination_density = dependency_metrics.get('subordination_count', 0) / num_tokens if num_tokens > 0 else 0
-        pp_density = dependency_metrics.get('pp_count', 0) / num_tokens if num_tokens > 0 else 0
-        pp_nesting_depth = dependency_metrics.get('max_pp_nesting_depth', 0)
+            # --- 2. Original Syntactic Features ---
+            syntactic_features = _get_syntactic_features(spacy_sentence)
+            # Normalize original syntactic features
+            parse_tree_depth_factor = min(syntactic_features.get('parse_tree_depth', 0) / norm.get('max_parse_tree_depth', 15.0), 1.5)
+            num_clauses_factor = min(syntactic_features.get('num_clauses', 0) / norm.get('max_num_clauses', 5.0), 1.5)
+            avg_dep_length_factor = min(syntactic_features.get('avg_dependency_length', 0.0) / norm.get('max_avg_dependency_length', 10.0), 1.5)
+            passive_voice_factor = syntactic_features.get('has_passive_voice', 0) # Binary (0 or 1)
+            # Combine original syntactic factors
+            syntactic_weight = weights.get('syntactic_complexity', 0)
+            if syntactic_weight > 0:
+                 syntactic_factor = (parse_tree_depth_factor + num_clauses_factor + avg_dep_length_factor + passive_voice_factor) / 4.0
+                 syntactic_factor = max(0.0, min(1.0, syntactic_factor)) # Clamp to 0-1
+            else:
+                 syntactic_factor = 0.0
+            logging.debug(f"Task {analysis_id}: Original Syntactic Features: {syntactic_features}, Combined Factor: {syntactic_factor:.3f}")
 
-        complex_dep_factor = min(complex_dep_density / norm.get('max_complex_dep_density', 0.2), 1.5)
-        subordination_factor = min(subordination_density / norm.get('max_subordination_density', 0.2), 1.5)
-        pp_density_factor = min(pp_density / norm.get('max_pp_density', 0.4), 1.5)
-        pp_nesting_factor = min(pp_nesting_depth / norm.get('max_pp_nesting_depth', 5.0), 1.5)
-        # Combine dependency factors (average)
-        dependency_weight = weights.get('dependency_complexity', 0)
-        if dependency_weight > 0:
-            dependency_factor = (complex_dep_factor + subordination_factor + pp_density_factor + pp_nesting_factor) / 4.0
-            dependency_factor = max(0.0, min(1.0, dependency_factor)) # Clamp to 0-1
-        else:
-            dependency_factor = 0.0
-        logging.debug(f"Task {analysis_id}: Dependency Metrics: {dependency_metrics}, Combined Factor: {dependency_factor:.3f}")
+            # --- 3. Dependency Complexity Features ---
+            dependency_metrics = _get_dependency_metrics(spacy_sentence)
+            # Normalize dependency metrics (calculate densities first)
+            complex_dep_density = dependency_metrics.get('complex_dep_count', 0) / num_tokens if num_tokens > 0 else 0
+            subordination_density = dependency_metrics.get('subordination_count', 0) / num_tokens if num_tokens > 0 else 0
+            pp_density = dependency_metrics.get('pp_count', 0) / num_tokens if num_tokens > 0 else 0
+            pp_nesting_depth = dependency_metrics.get('max_pp_nesting_depth', 0)
+
+            complex_dep_factor = min(complex_dep_density / norm.get('max_complex_dep_density', 0.2), 1.5)
+            subordination_factor = min(subordination_density / norm.get('max_subordination_density', 0.2), 1.5)
+            pp_density_factor = min(pp_density / norm.get('max_pp_density', 0.4), 1.5)
+            pp_nesting_factor = min(pp_nesting_depth / norm.get('max_pp_nesting_depth', 5.0), 1.5)
+            # Combine dependency factors (average)
+            dependency_weight = weights.get('dependency_complexity', 0)
+            if dependency_weight > 0:
+                dependency_factor = (complex_dep_factor + subordination_factor + pp_density_factor + pp_nesting_factor) / 4.0
+                dependency_factor = max(0.0, min(1.0, dependency_factor)) # Clamp to 0-1
+            else:
+                dependency_factor = 0.0
+            logging.debug(f"Task {analysis_id}: Dependency Metrics: {dependency_metrics}, Combined Factor: {dependency_factor:.3f}")
 
 
-        # --- 4. Lexical Complexity Features ---
-        lexical_metrics = _get_lexical_metrics(spacy_sentence)
-        # Normalize lexical metrics
-        nominalization_density = lexical_metrics.get('nominalization_count', 0) / num_tokens if num_tokens > 0 else 0
-        content_ratio = lexical_metrics.get('content_word_ratio', 0.0)
+            # --- 4. Lexical Complexity Features ---
+            lexical_metrics = _get_lexical_metrics(spacy_sentence)
+            # Normalize lexical metrics
+            nominalization_density = lexical_metrics.get('nominalization_count', 0) / num_tokens if num_tokens > 0 else 0
+            content_ratio = lexical_metrics.get('content_word_ratio', 0.0)
 
-        nominalization_factor = min(nominalization_density / norm.get('max_nominalization_density', 0.15), 1.5)
-        # Content ratio: Higher deviation from target = higher complexity factor
-        target_ratio = norm.get('target_content_word_ratio', 0.6)
-        # Normalize deviation: max deviation is max(target_ratio, 1-target_ratio)
-        max_deviation = max(target_ratio, 1.0 - target_ratio)
-        content_ratio_deviation = abs(content_ratio - target_ratio)
-        content_ratio_factor = min(content_ratio_deviation / max_deviation, 1.0) if max_deviation > 0 else 0.0
+            nominalization_factor = min(nominalization_density / norm.get('max_nominalization_density', 0.15), 1.5)
+            # Content ratio: Higher deviation from target = higher complexity factor
+            target_ratio = norm.get('target_content_word_ratio', 0.6)
+            # Normalize deviation: max deviation is max(target_ratio, 1-target_ratio)
+            max_deviation = max(target_ratio, 1.0 - target_ratio)
+            content_ratio_deviation = abs(content_ratio - target_ratio)
+            content_ratio_factor = min(content_ratio_deviation / max_deviation, 1.0) if max_deviation > 0 else 0.0
 
-        # Combine lexical factors (average)
-        lexical_weight = weights.get('lexical_complexity', 0)
-        if lexical_weight > 0:
-            lexical_factor = (nominalization_factor + content_ratio_factor) / 2.0
-            lexical_factor = max(0.0, min(1.0, lexical_factor)) # Clamp to 0-1
-        else:
-            lexical_factor = 0.0
-        logging.debug(f"Task {analysis_id}: Lexical Metrics: {lexical_metrics}, Combined Factor: {lexical_factor:.3f}")
+            # Combine lexical factors (average)
+            lexical_weight = weights.get('lexical_complexity', 0)
+            if lexical_weight > 0:
+                lexical_factor = (nominalization_factor + content_ratio_factor) / 2.0
+                lexical_factor = max(0.0, min(1.0, lexical_factor)) # Clamp to 0-1
+            else:
+                lexical_factor = 0.0
+            logging.debug(f"Task {analysis_id}: Lexical Metrics: {lexical_metrics}, Combined Factor: {lexical_factor:.3f}")
 
-        # --- 5. Semantic Coherence Factor ---
-        # Requires embeddings_matrix and token_map from step 1
-        raw_coherence_score = _get_semantic_coherence(spacy_sentence, embeddings_matrix, token_map, words_for_stats)
-        # Normalize coherence: Lower score = higher complexity factor
-        min_coherence = norm.get('min_semantic_coherence', 0.5)
-        # Factor = how much the score is *below* the minimum threshold
-        # Scale it to 0-1 range. If score > min_coherence, factor is 0.
-        semantic_coherence_factor = max(0.0, (min_coherence - raw_coherence_score)) / min_coherence if min_coherence > 0 else 0.0
-        semantic_coherence_factor = max(0.0, min(1.0, semantic_coherence_factor)) # Clamp 0-1
-        logging.debug(f"Task {analysis_id}: Semantic Coherence Score: {raw_coherence_score:.3f}, Factor: {semantic_coherence_factor:.3f}")
+            # --- 5. Semantic Coherence Factor ---
+            # Requires embeddings_matrix and token_map from step 1
+            raw_coherence_score = _get_semantic_coherence(spacy_sentence, embeddings_matrix, token_map, words_for_stats)
+            # Normalize coherence: Lower score = higher complexity factor
+            min_coherence = norm.get('min_semantic_coherence', 0.5)
+            # Factor = how much the score is *below* the minimum threshold
+            # Scale it to 0-1 range. If score > min_coherence, factor is 0.
+            semantic_coherence_factor = max(0.0, (min_coherence - raw_coherence_score)) / min_coherence if min_coherence > 0 else 0.0
+            semantic_coherence_factor = max(0.0, min(1.0, semantic_coherence_factor)) # Clamp 0-1
+            logging.debug(f"Task {analysis_id}: Semantic Coherence Score: {raw_coherence_score:.3f}, Factor: {semantic_coherence_factor:.3f}")
 
 
     # --- Combine Factors using Weights based on Mode ---
@@ -815,7 +857,7 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         score = (length_factor * FAST_MODE_WEIGHTS.get('sentence_length', 0)) + \
                 (word_len_factor * FAST_MODE_WEIGHTS.get('avg_word_length', 0)) + \
                 (frequency_factor * FAST_MODE_WEIGHTS.get('avg_word_frequency', 0))
-        logging.debug(f"Task {analysis_id}: Calculated Score (fast mode using FAST_MODE_WEIGHTS): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+        logging.debug(f"Task {analysis_id}: Calculated Score (fast mode using FAST_MODE_WEIGHTS): {score:.3f} for sentence: '{spacy_sentence_text[:50]}...'")
     elif mode == 'full':
         # Use profile weights from AUDIENCE_PROFILES for full analysis
         # Use .get() for weights to avoid KeyError if a profile is missing a new weight
@@ -828,11 +870,11 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
                 (lexical_factor * weights.get('lexical_complexity', 0)) + \
                 (semantic_coherence_factor * weights.get('semantic_coherence', 0))
                 # (coreferent_mentions_factor * weights.get('coreference_complexity', 0)) # Disabled
-        logging.debug(f"Task {analysis_id}: Calculated Score (full mode using profile weights): {score:.3f} for sentence: '{spacy_sentence.text[:50]}...'")
+        logging.debug(f"Task {analysis_id}: Calculated Score (full mode using profile weights): {score:.3f} for sentence: '{spacy_sentence_text[:50]}...'")
 
         # --- Log individual normalized factors for debugging ---
         factors_log = {
-            "sentence_start": spacy_sentence.text[:30], # Identify sentence
+            "sentence_start": spacy_sentence_text[:30], # Identify sentence
             "length_factor": length_factor,
             "word_len_factor": word_len_factor,
             "frequency_factor": frequency_factor,
@@ -871,30 +913,68 @@ def get_overall_complexity_level(score, profile):
         return {"level": 5, "description": "Very Complex", "color_class": "bg-red-500"}
 
 
-def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, target_audience_name, mode='full', analysis_id=None): # Added target_audience_name
+def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence_index, target_audience_name, mode='full', analysis_id=None):
     """
     Analyzes the complexity of a single spaCy sentence based on the provided profile.
     Checks cache before calculation. Stores result in cache.
-    Requires the full spaCy document for coreference resolution.
+    # Requires the full spaCy document for coreference resolution. # Commented out as doc might be sentence-specific
     Accepts an 'analysis_id' for cancellation checks.
     Returns a dictionary containing:
         - 'sentence': The original sentence text.
         - 'score': The complexity score (float).
-        - 'start': The start character index in the original text.
-        - 'end': The end character index in the original text.
+        - 'start': The start character index (relative to the sentence itself if not a span from a larger doc).
+        - 'end': The end character index (relative to the sentence itself if not a span from a larger doc).
         - 'index': The index of the sentence in the document.
         - 'syntactic_features': Dictionary of syntactic features (may be empty in 'fast' mode).
         # - 'coreference_features': Dictionary of coreference features (disabled).
         - 'mode': The analysis mode used ('fast' or 'full').
     Returns a dictionary like: {'result': { ... sentence data ... }, 'from_cache': bool}
     """
-    original_sentence = spacy_sentence.text
-    start = spacy_sentence.start_char
-    end = spacy_sentence.end_char
+    # task_manager.update_progress(analysis_id, f"Analyzing sentence {sentence_index + 1}...") # Update progress REMOVED
+
+    text_to_analyze_and_return = ""
+    char_start = 0  # Default for isolated sentences or Docs
+    char_end = 0    # Default for isolated sentences or Docs
+    
+    # This will be the object used for actual complexity calculation (Span, Doc, or str)
+    spacy_object_for_calculation = spacy_sentence_arg
+
+    if isinstance(spacy_sentence_arg, str):
+        text_to_analyze_and_return = spacy_sentence_arg
+        char_end = len(text_to_analyze_and_return) # char_start remains 0
+        if nlp and mode != 'fast':
+            # Process the string. The result is a Doc object.
+            doc_from_string = nlp(text_to_analyze_and_return)
+            spacy_object_for_calculation = doc_from_string
+            # If doc_arg (context) was None, use this new Doc as the context.
+            if doc_arg is None:
+                doc_arg = doc_from_string
+        # Else (not nlp or fast mode), spacy_object_for_calculation remains the string.
+        
+    elif hasattr(spacy_sentence_arg, 'text'): # Covers both spacy.tokens.Doc and spacy.tokens.Span
+        text_to_analyze_and_return = spacy_sentence_arg.text
+        spacy_object_for_calculation = spacy_sentence_arg
+
+        if hasattr(spacy_sentence_arg, 'start_char') and hasattr(spacy_sentence_arg, 'end_char'): # It's a Span
+            char_start = spacy_sentence_arg.start_char
+            char_end = spacy_sentence_arg.end_char
+            if doc_arg is None and hasattr(spacy_sentence_arg, 'doc'): # If it's a span, its .doc is the natural context
+                doc_arg = spacy_sentence_arg.doc
+        else: # It's likely a Doc (but not a string), or an object with .text but no .start_char/.end_char
+            char_end = len(text_to_analyze_and_return) # char_start remains 0
+            if doc_arg is None: # If it's a Doc, it's its own context
+                doc_arg = spacy_sentence_arg
+    else:
+        # Fallback for unexpected type
+        logger.warning(f"Unexpected type for spacy_sentence_arg in analyze_single_spacy_sentence: {type(spacy_sentence_arg)}. Converting to string.")
+        text_to_analyze_and_return = str(spacy_sentence_arg)
+        char_end = len(text_to_analyze_and_return) # char_start remains 0
+        # spacy_object_for_calculation remains spacy_sentence_arg (which is now a string or original unknown type)
+        # doc_arg remains as passed
 
     # --- Cache Check ---
     # Use sentence text + profile name + mode for a unique key
-    cache_key_string = f"{original_sentence.strip()}|{target_audience_name}|{mode}"
+    cache_key_string = f"{text_to_analyze_and_return.strip()}|{target_audience_name}|{mode}"
     cache_key = hashlib.sha1(cache_key_string.encode('utf-8')).hexdigest()
 
     cached_result = cache.get(cache_key)
@@ -903,25 +983,25 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
         # Ensure the cached result has the correct index and mode, just in case
         cached_result['index'] = sentence_index
         cached_result['mode'] = mode
-        # --- FIX: Update start/end indices from current spacy_sentence ---
-        cached_result['start'] = spacy_sentence.start_char
-        cached_result['end'] = spacy_sentence.end_char
-        # --- End FIX ---
-        # Return wrapped result indicating it came from cache
+        # Update start/end and sentence text from current context (important if only text was cached previously)
+        cached_result['start'] = char_start
+        cached_result['end'] = char_end
+        cached_result['sentence'] = text_to_analyze_and_return
+        
         return {'result': cached_result, 'from_cache': True}
     else:
         logging.debug(f"Cache MISS for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Check ---
 
-    if not original_sentence.strip():
+    if not text_to_analyze_and_return.strip():
         # Return a basic result even for empty sentences if needed for sequential flow structure
          result = { # Define result dict
-            "sentence": original_sentence,
+            "sentence": text_to_analyze_and_return,
             "score": 0.0,
-            "level": "No sentences found",
+            "level": "No sentences found", # Consistent with other parts of the code
             "color_class": "bg-gray-600",
-            "start": start,
-            "end": end,
+            "start": char_start,
+            "end": char_end,
             "index": sentence_index,
             "syntactic_features": {},
             "mode": mode
@@ -933,20 +1013,19 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
          return {'result': result, 'from_cache': False}
 
 
-    # Calculate complexity using the spaCy sentence object, the full doc, and the mode
-    # calculate_complexity returns a float score.
-    final_complexity_score = calculate_complexity(spacy_sentence, doc, profile, mode=mode, analysis_id=analysis_id)
+    # Calculate complexity using the potentially processed spaCy object or string
+    final_complexity_score = calculate_complexity(spacy_object_for_calculation, doc_arg, profile, mode=mode, analysis_id=analysis_id)
 
     # Get the descriptive level for this specific sentence using its score
     level_info = get_overall_complexity_level(final_complexity_score, profile)
 
     result = { 
-        "sentence": original_sentence,
+        "sentence": text_to_analyze_and_return,  # Always use the determined original input sentence text
         "score": final_complexity_score,
         "level": level_info['description'],  # Add descriptive level string
         "color_class": level_info['color_class'], # Add color class for consistency
-        "start": start,
-        "end": end,
+        "start": char_start,
+        "end": char_end,
         "index": sentence_index,
         "syntactic_features": {}, # Placeholder, actual features might be added if mode=='full' logic existed here
         "mode": mode
@@ -961,21 +1040,22 @@ def analyze_single_spacy_sentence(spacy_sentence, doc, profile, sentence_index, 
     return {'result': result, 'from_cache': False}
 
 
-def analyze_text_complexity(text, target_audience="Standard", mode='full', analysis_id=None): # Added analysis_id
+def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[str], target_audience="Standard", mode='full', analysis_id=None):
     """
-    Analyzes the complexity of each sentence in the input text based on target audience.
-    Uses spaCy for sentence segmentation, parsing, and coreference resolution.
-    Accepts an 'analysis_id' for cancellation checks.
-    This function is now primarily for calculating overall scores and readability
-    after all sentences have been analyzed (e.g., in the non-sequential flow).
-    It can also be used to get all sentence results at once.
+    Analyzes text for complexity, providing an overall score, per-sentence scores,
+    and readability metrics.
+    Args:
+        plain_text_for_doc_stats (str): The full plain text for document-level statistics.
+        sentences_list (list[str]): A list of sentence strings (e.g., from PDF extraction)
+                                     for per-sentence analysis. These sentences are expected
+                                     to be pre-processed/normalized as needed for consistency
+                                     with coordinate mapping.
+        target_audience (str): The name of the audience profile to use.
+        mode (str): 'full' or 'fast'.
+        analysis_id (str, optional): ID for tracking progress with task_manager.
+    """
+    # task_manager.update_progress(analysis_id, "Starting complexity analysis...") # Update progress REMOVED
 
-    Returns a dictionary containing:
-        - 'results': A list of dictionaries (sentence, score, start, end, syntactic_features).
-        - 'overall_level': A dictionary (level, description, color_class).
-        - 'readability_scores': Calculated scores.
-        - 'target_readability_scores': Target scores for the audience.
-    """
     # Select the profile based on target_audience, default to Standard
     profile = AUDIENCE_PROFILES.get(target_audience, AUDIENCE_PROFILES["Standard"])
 
@@ -989,7 +1069,7 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
             "target_readability_scores": profile['target_readability']
         }
 
-    if not text or not text.strip() or not nlp: # Check if spaCy model loaded
+    if not plain_text_for_doc_stats or not sentences_list or not target_audience or not mode or not nlp: # Check if spaCy model loaded
         print("WARN: spaCy model not loaded or text is empty. Returning basic analysis.")
         return {
             "results": [],
@@ -1012,7 +1092,7 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
     # Process the entire text with spaCy once to get the document and sentences
     try:
         logging.debug(f"Task {analysis_id}: Starting spaCy processing in analyze_text_complexity.")
-        doc = nlp(text)
+        doc = nlp(plain_text_for_doc_stats)
         logging.debug(f"Task {analysis_id}: Finished spaCy processing in analyze_text_complexity.")
         if not doc.has_annotation("SENT_START"):
               print("WARN: spaCy sentence segmentation failed. Cannot perform analysis.")
@@ -1034,37 +1114,56 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
 
     results = []
     cancelled_mid_loop = False # Flag to track cancellation during loop
-    # Iterate through sentences and analyze each one using the new function
-    if doc.has_annotation("SENT_START"):
-        for i, spacy_sentence in enumerate(doc.sents):
-            # --- Check for cancellation before processing each sentence ---
-            if analysis_id and task_manager.is_cancelled(analysis_id):
-                logging.info(f"Analysis (ID: {analysis_id}) cancelled during sentence loop at index {i}.")
-                cancelled_mid_loop = True
-                break # Exit the loop
+    
+    # Iterate through sentences_list instead of doc.sents
+    for i, sentence_text in enumerate(sentences_list):
+        # Skip empty sentences
+        if not sentence_text.strip():
+            logging.debug(f"Skipping empty sentence at index {i}")
+            continue
+            
+        # Check for cancellation before processing each sentence
+        if analysis_id and task_manager.is_cancelled(analysis_id):
+            logging.info(f"Analysis (ID: {analysis_id}) cancelled during sentence loop at index {i}.")
+            cancelled_mid_loop = True
+            break # Exit the loop
 
-            sentence_result = analyze_single_spacy_sentence(
-                spacy_sentence,
-                doc,
-                profile,
-                i,
-                target_audience_name=target_audience, # Pass target_audience name
-                mode=mode,
-                analysis_id=analysis_id # Pass ID
+        # Create a spaCy doc for the current sentence if spaCy is available
+        current_spacy_object = sentence_text # Default to string
+        current_doc_context = None # Default context is None
+
+        if nlp and mode != 'fast':
+            # Process the current sentence string with spaCy to get a Doc object
+            # This Doc object itself will be passed as the primary sentence object to analyze
+            current_spacy_object = nlp(sentence_text) 
+            current_doc_context = current_spacy_object # The sentence's own Doc is its context
+
+        sentence_result = analyze_single_spacy_sentence(
+            spacy_sentence_arg=current_spacy_object, # Pass string or spaCy Doc
+            doc_arg=current_doc_context, # Pass the sentence's own Doc as context, or None
+            profile=profile,
+            sentence_index=i,
+            target_audience_name=target_audience,
+            mode=mode,
+            analysis_id=analysis_id
+        )
+        
+        # IMPORTANT: analyze_text_complexity needs the raw result, not the wrapped one
+        if sentence_result and 'result' in sentence_result:
+            # --- Add Detailed Logging ---
+            res_data = sentence_result['result']
+            log_msg = (
+                f"Task {analysis_id} (Mode: {mode}): Appending result for index {i}: "
+                f"start={res_data.get('start')}, end={res_data.get('end')}, "
+                f"score={res_data.get('score'):.3f}, "
+                f"sentence='{res_data.get('sentence', '')[:30]}...'"
             )
-            # IMPORTANT: analyze_text_complexity needs the raw result, not the wrapped one
-            if sentence_result and 'result' in sentence_result:
-                # --- Add Detailed Logging ---
-                res_data = sentence_result['result']
-                log_msg = (
-                    f"Task {analysis_id} (Mode: {mode}): Appending result for index {i}: "
-                    f"start={res_data.get('start')}, end={res_data.get('end')}, "
-                    f"score={res_data.get('score'):.3f}, "
-                    f"sentence='{res_data.get('sentence', '')[:30]}...'"
-                )
-                logging.debug(log_msg)
-                # --- End Logging ---
-                results.append(res_data)
+            logging.debug(log_msg)
+            # --- End Logging ---
+            
+            # Ensure the original sentence text is used in the result
+            res_data['sentence'] = sentence_text
+            results.append(res_data)
 
     # --- Handle Cancellation Mid-Loop ---
     if cancelled_mid_loop:
@@ -1074,7 +1173,9 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
             "results": results, # Return results processed so far
             "overall_level": {"level": 0, "description": "Analysis cancelled", "color_class": "bg-gray-600"},
             "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None}, # Or calculate based on partial text? For now, None.
-            "target_readability_scores": profile['target_readability']
+            "target_readability_scores": profile['target_readability'],
+            "total_sentences_provided": len(sentences_list),
+            "total_sentences_analyzed": len(results)
         }
 
     # Calculate overall score (average of sentence scores) only if results exist and not cancelled
@@ -1090,9 +1191,9 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
 
     # --- Calculate Standard Readability Scores ---
     try:
-        flesch_kincaid_grade = round(textstat.flesch_kincaid_grade(text), 1)
-        gunning_fog = round(textstat.gunning_fog(text), 1)
-        smog_index = round(textstat.smog_index(text), 1)
+        flesch_kincaid_grade = round(textstat.flesch_kincaid_grade(plain_text_for_doc_stats), 1)
+        gunning_fog = round(textstat.gunning_fog(plain_text_for_doc_stats), 1)
+        smog_index = round(textstat.smog_index(plain_text_for_doc_stats), 1)
     except Exception as e:
         print(f"Error calculating textstat scores: {e}")
         flesch_kincaid_grade = None
@@ -1114,7 +1215,7 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
     # Consolidate return structure: ensure 'sentences' key holds the list of sentence details.
     # The variable holding sentence details is 'results'.
     # Other overall metrics are calculated above.
-    final_return_dict = {
+    final_result = {
         "overall_score_avg": overall_score, # overall_score is calculated above
         "overall_score_median": overall_score, # Using avg for median for now, can be refined if needed
         "overall_level": overall_level_details, # overall_level_details is calculated above
@@ -1129,16 +1230,15 @@ def analyze_text_complexity(text, target_audience="Standard", mode='full', analy
         "target_readability_scores": profile['target_readability'], # Added from original structure
         "mode": mode,
         "analysis_id": analysis_id,
-        "text_length_chars": len(text),
-        "text_length_words": len(text.split()), # A simple word count, spaCy's might be more accurate
-        "text_preview": text[:100] + "..." if len(text) > 100 else text
+        "text_length_chars": len(plain_text_for_doc_stats),
+        "text_length_words": len(plain_text_for_doc_stats.split()), # A simple word count, spaCy's might be more accurate
+        "text_preview": plain_text_for_doc_stats[:100] + "..." if len(plain_text_for_doc_stats) > 100 else plain_text_for_doc_stats,
+        "total_sentences_provided": len(sentences_list),
+        "total_sentences_analyzed": len(results)
     }
-    # Remove the redundant 'results': results, if it exists from a previous merge/edit attempt
-    if 'results' in final_return_dict and 'sentences' in final_return_dict and final_return_dict['results'] is final_return_dict['sentences']:
-        # This check is a bit redundant if we construct it as above, but as a safeguard
-        pass # 'sentences' is the definitive key
-
-    return final_return_dict
+    # task_manager.update_progress(analysis_id, "Complexity analysis complete.") # Final update REMOVED
+    # logger.debug(f"Analysis results for audience \'{target_audience}\': {final_result}")
+    return final_result
 
 # Example usage (for testing purposes)
 if __name__ == '__main__':

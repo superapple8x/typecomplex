@@ -125,3 +125,4 @@ blis==0.7.11
 PyMuPDF>=1.23.0
 celery
 redis
+thefuzz
