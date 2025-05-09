@@ -569,10 +569,10 @@ def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coord
 
     try:
         doc.save(output_pdf_path, garbage=4, deflate=True, clean=True)
-        logger.info(f"Highlighted PDF saved to: {output_pdf_path}")
+        logger.info(f"Highlighted PDF successfully saved to: {output_pdf_path}")
         return True
     except Exception as e:
-        logger.error(f"Error saving highlighted PDF {output_pdf_path}: {e}")
+        logger.error(f"Error saving highlighted PDF to {output_pdf_path}: {e}", exc_info=True)
         return False
     finally:
         if doc:

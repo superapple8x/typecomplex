@@ -17,15 +17,24 @@ import uuid
 from werkzeug.utils import secure_filename
 from app.tasks import process_pdf_task, add as add_task # Import Celery tasks
 
+# Get the absolute path to the project directory (assuming this file is in app/)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 # Configuration for PDF uploads
-UPLOAD_FOLDER = 'uploads' # Define an upload folder
-PROCESSED_FOLDER = 'processed_pdfs' # Define a folder for processed PDFs
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads') 
+PROCESSED_FOLDER = os.path.join(BASE_DIR, 'processed_pdfs')
 ALLOWED_EXTENSIONS = {'pdf'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+# Ensure these directories exist when the app starts
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+    app.logger.info(f"Upload folder set to: {app.config['UPLOAD_FOLDER']}")
+    app.logger.info(f"Processed folder set to: {app.config['PROCESSED_FOLDER']}")
+except OSError as e:
+    app.logger.error(f"Error creating UPLOAD_FOLDER or PROCESSED_FOLDER: {e}")
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -315,108 +324,120 @@ def upload_pdf_file():
         return jsonify({"error": "No selected file"}), 400
     if file and allowed_file(file.filename):
         original_filename = secure_filename(file.filename)
-        # Save the original file to a place accessible by Celery workers
-        # Using a unique ID in the filename to avoid collisions
+        # Save the file temporarily with a unique name to avoid conflicts
         temp_filename = str(uuid.uuid4()) + "_" + original_filename
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
-        
-        try:
-            file.save(file_path)
-            app.logger.info(f"File {original_filename} saved to {file_path}")
+        file.save(file_path)
 
-            # Dispatch Celery task
-            task = process_pdf_task.delay(file_path, original_filename)
-            app.logger.info(f"Dispatched Celery task {task.id} for {original_filename}")
-            
-            return jsonify({"message": "File uploaded successfully, processing started.", "task_id": task.id}), 202
-        except Exception as e:
-            app.logger.error(f"Error saving file or dispatching task for {original_filename}: {e}", exc_info=True)
-            return jsonify({"error": f"Server error during file upload or task dispatch: {str(e)}"}), 500
-    else:
-        return jsonify({"error": "File type not allowed"}), 400
+        # Get the action from the form data (e.g., 'extract_text' or 'full_analysis')
+        action = request.form.get('action', 'full_analysis') 
+        app.logger.info(f"Uploading PDF: {original_filename}, Action: {action}")
+
+        # Launch Celery task with the file path, original name, and action
+        task = process_pdf_task.delay(file_path, original_filename, action)
+        app.logger.info(f"Celery task {task.id} started for {original_filename} with action '{action}'.")
+        return jsonify({"task_id": task.id}), 202
+    
+    return jsonify({"error": "File type not allowed or error saving file"}), 400
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def get_task_status(task_id):
+    """Checks the status of a Celery task."""
     task = process_pdf_task.AsyncResult(task_id)
     response_data = {
         'task_id': task_id,
-        'status': task.state,
+        'state': task.state
     }
     if task.state == 'PENDING':
-        response_data['message'] = 'Task is waiting to be processed.'
-    elif task.state == 'PROGRESS': # You can set custom states in Celery task
-        response_data['message'] = 'Task is currently in progress.'
-        if isinstance(task.info, dict): # Check if task.info is a dict
-            response_data.update(task.info) # Add progress details if any
+        response_data['status_message'] = 'Task is pending.'
+    elif task.state == 'PROGRESS':
+        response_data['meta'] = task.info # task.info contains the meta data
+        response_data['status_message'] = task.info.get('status_message', 'Processing...')
     elif task.state == 'SUCCESS':
         result = task.result
-        response_data['message'] = 'Task completed successfully.'
-        response_data['result'] = result
-
-        # Handle results differently based on expected type (dict for PDF task, int for add task)
         if isinstance(result, dict):
-            # This block is for tasks like process_pdf_task that return a dictionary
-            if not result.get('error') and result.get('highlighted_pdf_path'):
-                response_data['download_url'] = f"/download_highlighted_pdf/{task_id}"
-                response_data['summary_data_url'] = f"/pdf_summary/{task_id}"
-        # If it's not a dict (e.g., an int from add_task), 'result' is already set and we don't need a download_url.
+            response_data['result'] = result # Include the actual result
+            response_data['status_message'] = result.get('status_message', 'Task completed successfully.')
+        else:
+            # Handle cases where result might not be a dict (e.g. older task versions)
+            response_data['result'] = {'raw_result': str(result)} # Basic representation
+            response_data['status_message'] = 'Task completed successfully (raw result).'
+
     elif task.state == 'FAILURE':
-        response_data['message'] = 'Task failed.'
-        if isinstance(task.info, Exception): # Celery stores exception info in task.info
-            response_data['error_details'] = str(task.info)
-        elif isinstance(task.info, dict): # If custom error info is stored
-            response_data['error_details'] = task.info.get('exc_message', 'Unknown error')
-            
+        result = task.result # This should be the dict returned by the task on failure
+        if isinstance(result, dict) and result.get('error'):
+            response_data['error_details'] = result.get('error_details', 'Unknown error')
+            response_data['status_message'] = result.get('status_message', 'Task failed.')
+        elif isinstance(task.info, Exception): # Sometimes Celery stores the exception instance in task.info
+            response_data['error_details'] = f"{type(task.info).__name__}: {str(task.info)}"
+            response_data['status_message'] = f'Task failed: {str(task.info)}'
+        else: # Fallback for other failure scenarios
+            response_data['error_details'] = 'Task failed with an unknown error.'
+            response_data['status_message'] = 'Task failed.'
+        response_data['result'] = task.info # This is where Celery stores exception info on failure
+    else:
+        response_data['status_message'] = task.state # e.g., RETRY, REVOKED
+    
+    app.logger.debug(f"Task status for {task_id}: {response_data}")
     return jsonify(response_data)
+
+@app.route('/get_extracted_text/<task_id>', methods=['GET'])
+def get_extracted_text_result(task_id):
+    """Retrieves the result of a text extraction task."""
+    task = process_pdf_task.AsyncResult(task_id)
+    if task.state == 'SUCCESS':
+        result = task.result
+        if isinstance(result, dict) and result.get('action_performed') == 'extract_text':
+            app.logger.info(f"Returning extracted text for task {task_id}.")
+            return jsonify({
+                "task_id": task_id,
+                "status": "SUCCESS",
+                "extracted_text": result.get('extracted_text', ''),
+                # "sentence_coordinates_map": result.get('sentence_coordinates_map', []) # Optionally return coordinates
+            })
+        elif isinstance(result, dict):
+            app.logger.warning(f"Task {task_id} succeeded but was not an 'extract_text' action or missing data. Result: {result}")
+            return jsonify({"error": "Task was not a text extraction task or result format is incorrect.", "task_id": task_id, "actual_action": result.get('action_performed', 'unknown')}), 404
+        else:
+            app.logger.error(f"Task {task_id} succeeded but result is not a dictionary: {result}")
+            return jsonify({"error": "Task result format error.", "task_id": task_id}), 500
+    elif task.state == 'FAILURE':
+        app.logger.error(f"Attempt to get extracted text from failed task {task_id}. Info: {task.info}")
+        return jsonify({"error": "Text extraction task failed.", "task_id": task_id, "details": str(task.info)}), 500
+    else:
+        app.logger.warning(f"Attempt to get extracted text from task {task_id} not yet in SUCCESS state. State: {task.state}")
+        return jsonify({"error": "Text extraction task not yet complete or failed.", "task_id": task_id, "state": task.state}), 202 # Accepted, but not ready
 
 @app.route('/download_highlighted_pdf/<task_id>', methods=['GET'])
 def download_highlighted_pdf(task_id):
     task = process_pdf_task.AsyncResult(task_id)
     if task.state == 'SUCCESS':
         result = task.result
-        if result and not result.get('error') and result.get('highlighted_pdf_path'):
-            # Assuming highlighted_pdf_path is just the filename and it's in PROCESSED_FOLDER
-            # In a real app, you might get a full path from `result` or look it up in a DB
-            filename = result.get('highlighted_pdf_path')
-            # For security, ensure filename is safe and does not allow directory traversal
+        app.logger.debug(f"Download request for task {task_id}. Task result: {result}") # Log the entire result
+
+        if result and not result.get('error') and result.get('highlighted_pdf_filename'):
+            filename = result.get('highlighted_pdf_filename')
             safe_filename = secure_filename(filename)
             
             processed_dir = current_app.config['PROCESSED_FOLDER']
             
-            # To serve files, Celery worker needs to save them to a shared/accessible location,
-            # and Flask needs to know where to find them.
-            # For now, we'll assume the filename itself is sufficient and it's in PROCESSED_FOLDER.
-            # A more robust solution would involve storing the full path or using a dedicated file server.
-            
-            # Let's assume process_pdf_task saves the file directly into PROCESSED_FOLDER with its unique name
-            # For simulation, the process_pdf_task returns a name like f"{task_id}_highlighted.pdf"
-            # We will need to adjust the task to save the file to the processed_dir.
-            # For now, this route will try to send it from there.
-            
-            # Path construction for sending file:
-            # This part will need refinement once the Celery task actually saves files.
-            # For now, let's try to make it work with the simulated filename.
-            # This assumes that the filename returned by the task *is* the final filename
-            # and it's expected to be in the PROCESSED_FOLDER.
-            
-            # If the task returns a full path, use that. If just a name, prepend dir.
-            # Our placeholder task returns just a filename: `f"{self.request.id}_highlighted.pdf"`
-            # So, `filename` will be e.g., "task_id_highlighted.pdf".
-            
+            app.logger.info(f"Attempting to send file: '{safe_filename}' from directory: '{processed_dir}' for task_id {task_id}")
             try:
-                app.logger.info(f"Attempting to send file: {safe_filename} from directory: {processed_dir}")
                 return send_from_directory(processed_dir, safe_filename, as_attachment=True)
             except FileNotFoundError:
-                app.logger.error(f"File not found for download: {safe_filename} in {processed_dir}")
+                app.logger.error(f"File not found for download: '{safe_filename}' in '{processed_dir}'. Full path attempted: {os.path.join(processed_dir, safe_filename)}")
                 return jsonify({"error": "Processed file not found. It might still be generating or an error occurred."}), 404
             except Exception as e:
-                app.logger.error(f"Error sending file {safe_filename}: {e}", exc_info=True)
+                app.logger.error(f"Error sending file '{safe_filename}': {e}", exc_info=True)
                 return jsonify({"error": f"Server error while sending file: {str(e)}"}), 500
         else:
-            return jsonify({"error": "Task completed but no valid processed file found or an error occurred in task."}), 404
+            app.logger.warning(f"Task {task_id} SUCCEEDED but result structure is not as expected for download or error flag present. Result: {result}")
+            return jsonify({"error": "Task completed but no valid processed file found or an error occurred in task details."}), 404
     elif task.state == 'FAILURE':
+        app.logger.error(f"Task {task_id} FAILED. Cannot download file. Info: {task.info}, Result: {task.result}")
         return jsonify({"error": "Task failed, cannot download file."}), 400
     else:
+        app.logger.warning(f"Task {task_id} not completed. State: {task.state}. Cannot download file.")
         return jsonify({"error": "Task not completed or does not exist."}), 404
 
 

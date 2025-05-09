@@ -1126,27 +1126,47 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         logger.warning(f"spaCy doc for (ID: {analysis_id}) has no sentences or no SENT_START annotation.")
     # If doc is None, spacy_sentences_from_doc remains empty.
 
-    # (Decision logic for sentences_to_iterate)
-    sentences_to_iterate = []
-    using_spacy_spans_directly = False # Flag to know how to handle offsets
+    # --- Determine which list of sentences to iterate over ---
+    # ALWAYS prioritize sentences_list to maintain mapping with coordinates.
+    sentences_to_iterate = sentences_list
+    using_spacy_spans_directly = False # Since sentences_list contains strings
 
-    if spacy_sentences_from_doc: # Prefer sentences from the full doc if available
-        sentences_to_iterate = spacy_sentences_from_doc
-        using_spacy_spans_directly = True
-        if sentences_list and len(sentences_list) != len(spacy_sentences_from_doc):
-            logger.warning(f"Mismatch (ID: {analysis_id}): spaCy found {len(spacy_sentences_from_doc)} sents from full text, pre-segmented list had {len(sentences_list)}. Prioritizing spaCy's full text segmentation.")
-    elif sentences_list: # Fallback to using the provided list of sentence strings
-        logger.warning(f"Using pre-segmented sentences_list for analysis (ID: {analysis_id}) as spaCy processing of full text failed or yielded no usable sentences.")
-        sentences_to_iterate = sentences_list # This is a list of strings
-        using_spacy_spans_directly = False
-    else:
-        # Fallback for unexpected case
-        logger.warning(f"Unexpected case in analyze_text_complexity: sentences_to_iterate is empty. Returning basic analysis.")
+    if not sentences_list:
+        logger.warning(f"analyze_text_complexity (ID: {analysis_id}): The provided sentences_list is empty.")
+        if spacy_sentences_from_doc and len(spacy_sentences_from_doc) > 0:
+            logger.info(f"analyze_text_complexity (ID: {analysis_id}): Falling back to spaCy's {len(spacy_sentences_from_doc)} sentences as sentences_list was empty.")
+            sentences_to_iterate = spacy_sentences_from_doc
+            using_spacy_spans_directly = True # Now using spaCy's spans
+        else:
+            logger.warning(f"analyze_text_complexity (ID: {analysis_id}): Both pre-segmented sentences_list and spaCy's segmentation are empty. No sentences to analyze.")
+            # Return early if no sentences at all
+            return {
+                "results": [],
+                "overall_level": {"level": 0, "description": "No sentences found to analyze", "color_class": "bg-gray-600"},
+                "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+                "target_readability_scores": profile['target_readability'],
+                "total_sentences_provided": 0,
+                "total_sentences_analyzed": 0
+            }
+    elif len(spacy_sentences_from_doc) != len(sentences_list):
+        logger.warning(f"Mismatch (ID: {analysis_id}): spaCy found {len(spacy_sentences_from_doc)} sents from full text, while pre-segmented list had {len(sentences_list)}. "
+                       f"Prioritizing pre-segmented list ({len(sentences_list)} sentences) to maintain coordinate mapping integrity.")
+    else: # lengths are the same
+        logger.info(f"analyze_text_complexity (ID: {analysis_id}): Using pre-segmented sentences_list ({len(sentences_list)} sentences). "
+                    f"spaCy also found {len(spacy_sentences_from_doc)} sentences from the full text, counts match.")
+
+    # Ensure sentences_to_iterate is not empty before proceeding to the loop
+    if not sentences_to_iterate:
+        logger.error(f"analyze_text_complexity (ID: {analysis_id}): sentences_to_iterate is unexpectedly empty after decision logic. Aborting analysis for this request.")
+        # This case should ideally be caught by the "No sentences found to analyze" return above,
+        # but as a safeguard:
         return {
             "results": [],
-            "overall_level": {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"},
+            "overall_level": {"level": 0, "description": "Internal error: No sentences available for loop", "color_class": "bg-red-600"},
             "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
-            "target_readability_scores": profile['target_readability']
+            "target_readability_scores": profile['target_readability'],
+            "total_sentences_provided": len(sentences_list), # Original count
+            "total_sentences_analyzed": 0
         }
 
     # --- Per-Sentence Analysis Loop ---

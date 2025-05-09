@@ -7,13 +7,11 @@ import time # For simulating work
 import fitz # Import fitz directly here for version checking
 
 @celery.task(bind=True)
-def process_pdf_task(self, file_path, original_filename):
+def process_pdf_task(self, file_path, original_filename, action='full_analysis'):
     """
     Celery task to process a PDF:
-    1. Extract text and coordinates.
-    2. Analyze text complexity.
-    3. Generate a new PDF with highlights.
-    4. Store results (path to highlighted PDF, summary data).
+    - If action is 'extract_text': Only extracts text and coordinates.
+    - If action is 'full_analysis': Performs full extraction, analysis, and highlighting.
     """
     # Log Fitz version and path AT THE START of the task
     try:
@@ -30,17 +28,29 @@ def process_pdf_task(self, file_path, original_filename):
         app.logger.info(f"Task {self.request.id}: Extracting text and coordinates from {file_path}...")
         plain_text, sentence_coordinates_map = extract_text_and_sentence_coordinates(file_path)
 
-        if not plain_text and not sentence_coordinates_map:
-            app.logger.error(f"Task {self.request.id}: Failed to extract any text or sentence map from {file_path}. Aborting.")
-            raise ValueError("Failed to extract text from PDF. The document might be empty or corrupted.")
-        elif not plain_text:
-            app.logger.warning(f"Task {self.request.id}: No plain text extracted from {file_path}, but a sentence map was generated. Analysis might be limited.")
-            # Allow proceeding if sentence_map has content, as analysis might still work if it relies on sentence list passed directly.
-            # However, analyze_text_complexity typically takes full text.
+        if not plain_text and not sentence_coordinates_map and action == 'full_analysis':
+            app.logger.error(f"Task {self.request.id}: Failed to extract any text or sentence map from {file_path} for full_analysis. Aborting.")
+            raise ValueError("Failed to extract text from PDF for analysis. The document might be empty or corrupted.")
+        elif not plain_text and action == 'full_analysis':
+            app.logger.warning(f"Task {self.request.id}: No plain text extracted from {file_path} for full_analysis, but a sentence map was generated. Analysis might be limited.")
 
-        app.logger.info(f"Task {self.request.id}: Text extraction complete. Extracted {len(plain_text)} characters. Found {len(sentence_coordinates_map)} potential sentence coordinate entries.")
+        app.logger.info(f"Task {self.request.id}: Text extraction complete for action '{action}'. Extracted {len(plain_text)} characters. Found {len(sentence_coordinates_map)} potential sentence coordinate entries.")
+
+        if action == 'extract_text':
+            self.update_state(state='PROGRESS', meta={'current_step': 1, 'total_steps': 1, 'status_message': 'Text extracted successfully.'})
+            extracted_data = {
+                'original_filename': original_filename,
+                'extracted_text': plain_text,
+                # 'sentence_coordinates_map': sentence_coordinates_map, # Optionally include if frontend needs it
+                'status_message': 'Text extracted successfully.',
+                'action_performed': 'extract_text'
+            }
+            app.logger.info(f"Task {self.request.id}: Text extraction action complete. Result: {{original_filename: {original_filename}, text_length: {len(plain_text)}, action: {action}}}")
+            return extracted_data
+
+        # Continue with full_analysis specific steps
         num_sentences_with_coords = sum(1 for s in sentence_coordinates_map if s.get('line_segment_coords'))
-        app.logger.info(f"Task {self.request.id}: {num_sentences_with_coords} sentences have coordinate data.")
+        app.logger.info(f"Task {self.request.id}: {num_sentences_with_coords} sentences have coordinate data for full analysis.")
 
         # Step 2: Analyze text complexity
         self.update_state(state='PROGRESS', meta={'current_step': 2, 'total_steps': 3, 'status_message': 'Analyzing text complexity...'})

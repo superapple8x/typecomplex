@@ -67,6 +67,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const playIcon = document.getElementById('play-icon'); // Existing icon
     const pauseIcon = document.getElementById('pause-icon'); // Existing icon
 
+    // --- NEW: Left Sidebar PDF Tool DOM References ---
+    const pdfUploadInput = document.getElementById('pdf-upload-input');
+    const pdfInfoContainer = document.getElementById('pdf-info-container');
+    const pdfFilenameEl = document.getElementById('pdf-filename');
+    const pdfActionsContainer = document.getElementById('pdf-actions-container');
+    const textExtractBtn = document.getElementById('text-extract-btn');
+    const pdfAnalysisBtn = document.getElementById('pdf-analysis-btn');
+    const pdfDownloadContainer = document.getElementById('pdf-download-container');
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    // --- NEW: Status elements for PDF operations (ensure these IDs exist in HTML) ---
+    const pdfExtractStatusEl = document.getElementById('pdf-extract-status');
+    const pdfAnalysisStatusEl = document.getElementById('pdf-analysis-status');
+
+
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
     // We will use a standard CSS class instead.
@@ -200,6 +214,239 @@ document.addEventListener('DOMContentLoaded', () => {
     const PASTE_DELETE_THRESHOLD_MS = 1500; // Time window to detect delete after paste (1.5 seconds)
     const PASTE_LENGTH_THRESHOLD = 20; // Minimum length to consider an insert a 'paste'
     const DELETE_MATCH_RATIO = 0.8; // Delete length must be at least 80% of paste length
+
+    let currentPdfTaskId = null; // Stores the current PDF processing task ID
+
+    // --- NEW: PDF Task Polling Function ---
+    function pollTaskStatus(taskId, operationType) {
+        const statusEl = operationType === 'extract_text' ? pdfExtractStatusEl : pdfAnalysisStatusEl;
+        const initialButtonText = operationType === 'extract_text' ? 'Extract Text' : 'Analyze PDF & Highlight';
+        const buttonEl = operationType === 'extract_text' ? textExtractBtn : pdfAnalysisBtn;
+
+        fetch(`/task_status/${taskId}`)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || `Failed to get task status (${response.status})`); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (statusEl) statusEl.textContent = data.status_message || `Status: ${data.state}`;
+                if (data.state === 'SUCCESS') {
+                    if (statusEl) {
+                        statusEl.classList.add('text-green-500');
+                        statusEl.classList.remove('text-red-500');
+                    }
+                    if (operationType === 'extract_text') {
+                        fetch(`/get_extracted_text/${taskId}`)
+                            .then(res => {
+                                if (!res.ok) return res.json().then(err => { throw new Error(err.error || 'Failed to get extracted text'); });
+                                return res.json();
+                            })
+                            .then(textData => {
+                                quill.setText(textData.extracted_text || 'No text was extracted.\n');
+                                if (statusEl) statusEl.textContent = 'Text extracted successfully!';
+                                textExtractBtn.disabled = false;
+                                pdfAnalysisBtn.disabled = false;
+                            })
+                            .catch(err => {
+                                console.error('Error fetching extracted text:', err);
+                                if (statusEl) {
+                                    statusEl.textContent = `Error: ${err.message}`;
+                                    statusEl.classList.add('text-red-500');
+                                }
+                                quill.setText(`Failed to load extracted text: ${err.message}\n`);
+                                textExtractBtn.disabled = false;
+                                pdfAnalysisBtn.disabled = false;
+                            });
+                    } else if (operationType === 'full_analysis') {
+                        // For full analysis, the result from task_status should contain highlighted_pdf_filename
+                        if (data.result && data.result.highlighted_pdf_filename) {
+                            currentPdfTaskId = taskId; // Ensure task ID is set for download button
+                            pdfDownloadContainer.classList.remove('hidden');
+                            if (statusEl) statusEl.textContent = 'Analysis complete. Ready for download.';
+                        } else {
+                             if (statusEl) statusEl.textContent = 'Analysis complete, but download info missing.';
+                             console.error('Full analysis success, but highlighted_pdf_filename missing in task result:', data.result);
+                        }
+                        textExtractBtn.disabled = false;
+                        pdfAnalysisBtn.disabled = false;
+                    }
+                } else if (data.state === 'FAILURE') {
+                    if (statusEl) {
+                        statusEl.textContent = `Error: ${data.error_details || 'Task failed'}`;
+                        statusEl.classList.add('text-red-500');
+                        statusEl.classList.remove('text-green-500');
+                    }
+                    quill.setText(`PDF processing failed: ${data.error_details || 'Unknown error'}.\n`);
+                    textExtractBtn.disabled = false;
+                    pdfAnalysisBtn.disabled = false;
+                } else if (data.state === 'PENDING' || data.state === 'PROGRESS') {
+                    // Continue polling if task is still pending or in progress
+                    if (statusEl && data.meta && data.meta.status_message) {
+                        statusEl.textContent = data.meta.status_message; // Show detailed progress from task
+                    } else if (statusEl) {
+                        statusEl.textContent = `Status: ${data.state}...`;
+                    }
+                    setTimeout(() => pollTaskStatus(taskId, operationType), 2000); // Poll every 2 seconds
+                } else {
+                    // Handle other states if necessary
+                     if (statusEl) statusEl.textContent = `Task status: ${data.state}`;
+                     textExtractBtn.disabled = false;
+                     pdfAnalysisBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error(`Error polling task ${taskId} status:`, error);
+                if (statusEl) {
+                    statusEl.textContent = `Polling error: ${error.message}`;
+                    statusEl.classList.add('text-red-500');
+                }
+                quill.setText(`Error checking PDF processing status: ${error.message}\n`);
+                textExtractBtn.disabled = false;
+                pdfAnalysisBtn.disabled = false;
+            });
+    }
+
+    // --- NEW: Left Sidebar PDF Tool Event Handlers ---
+    if (pdfUploadInput && pdfInfoContainer && pdfFilenameEl && pdfActionsContainer && textExtractBtn && pdfAnalysisBtn && pdfDownloadContainer && downloadPdfBtn) {
+        pdfUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                pdfFilenameEl.textContent = file.name;
+                pdfInfoContainer.classList.remove('hidden');
+                pdfActionsContainer.classList.remove('hidden');
+                pdfDownloadContainer.classList.add('hidden'); // Hide download btn until analysis
+                console.log('PDF Selected:', file.name);
+                // Clear previous task states if a new file is selected
+                currentPdfTaskId = null;
+                if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = '';
+                if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = '';
+            } else {
+                pdfFilenameEl.textContent = 'No file selected.';
+                pdfInfoContainer.classList.add('hidden');
+                pdfActionsContainer.classList.add('hidden');
+                pdfDownloadContainer.classList.add('hidden');
+            }
+        });
+
+        textExtractBtn.addEventListener('click', () => {
+            if (pdfUploadInput.files && pdfUploadInput.files[0]) {
+                const pdfFile = pdfUploadInput.files[0];
+                console.log('"Extract Text" clicked for:', pdfFile.name);
+                
+                const formData = new FormData();
+                formData.append('file', pdfFile);
+                formData.append('action', 'extract_text');
+
+                // Show loading state for extraction
+                if(pdfExtractStatusEl) {
+                    pdfExtractStatusEl.textContent = 'Uploading and extracting text...';
+                    pdfExtractStatusEl.classList.remove('text-green-500', 'text-red-500');
+                }
+                quill.setText('Extracting text from PDF, please wait...\n');
+                textExtractBtn.disabled = true;
+                pdfAnalysisBtn.disabled = true;
+
+                fetch('/upload_pdf', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Upload failed'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.task_id) {
+                        currentPdfTaskId = data.task_id; // Store task_id for this operation
+                        if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = `Processing text... (Task ID: ${data.task_id})`;
+                        pollTaskStatus(data.task_id, 'extract_text');
+                    } else {
+                        throw new Error(data.error || 'Failed to start text extraction task.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting text extraction:', error);
+                    if(pdfExtractStatusEl) {
+                        pdfExtractStatusEl.textContent = `Error: ${error.message}`;
+                        pdfExtractStatusEl.classList.add('text-red-500');
+                    }
+                    quill.setText(`Error during text extraction: ${error.message}\n`);
+                    textExtractBtn.disabled = false;
+                    pdfAnalysisBtn.disabled = false;
+                });
+            } else {
+                alert('Please select a PDF file first.');
+            }
+        });
+
+        pdfAnalysisBtn.addEventListener('click', () => {
+            if (pdfUploadInput.files && pdfUploadInput.files[0]) {
+                const pdfFile = pdfUploadInput.files[0];
+                console.log('"Analyze PDF & Highlight" clicked for:', pdfFile.name);
+
+                const formData = new FormData();
+                formData.append('file', pdfFile);
+                formData.append('action', 'full_analysis'); // Or omit, as it's the default
+
+                // Show loading state for analysis
+                if(pdfAnalysisStatusEl) {
+                    pdfAnalysisStatusEl.textContent = 'Uploading and analyzing PDF...';
+                    pdfAnalysisStatusEl.classList.remove('text-green-500', 'text-red-500');
+                }
+                quill.setText('Analyzing PDF, please wait...\nThis might take a few moments.\n');
+                textExtractBtn.disabled = true;
+                pdfAnalysisBtn.disabled = true;
+                pdfDownloadContainer.classList.add('hidden'); // Hide download button during new analysis
+
+                fetch('/upload_pdf', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Upload for analysis failed'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.task_id) {
+                        currentPdfTaskId = data.task_id; // Store task_id for this operation
+                        if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = `Processing PDF... (Task ID: ${data.task_id})`;
+                        pollTaskStatus(data.task_id, 'full_analysis');
+                    } else {
+                        throw new Error(data.error || 'Failed to start PDF analysis task.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting PDF analysis:', error);
+                    if(pdfAnalysisStatusEl) {
+                        pdfAnalysisStatusEl.textContent = `Error: ${error.message}`;
+                        pdfAnalysisStatusEl.classList.add('text-red-500');
+                    }
+                    quill.setText(`Error during PDF analysis: ${error.message}\n`);
+                    textExtractBtn.disabled = false;
+                    pdfAnalysisBtn.disabled = false;
+                });
+            } else {
+                alert('Please select a PDF file first.');
+            }
+        });
+
+        downloadPdfBtn.addEventListener('click', () => {
+            if (currentPdfTaskId) { // Use the stored task ID from the completed analysis task
+                // The actual filename might be part of the task result, but /download_highlighted_pdf/<task_id> handles it
+                console.log('"Download Analyzed PDF" clicked for task ID:', currentPdfTaskId);
+                window.open(`/download_highlighted_pdf/${currentPdfTaskId}`, '_blank');
+            } else {
+                alert('No analyzed PDF available for download. Please analyze a PDF first.');
+            }
+        });
+    } else {
+        console.warn('One or more PDF tool DOM elements are missing. PDF functionality may not work.');
+    }
 
 
     // --- Stats Calculation ---
