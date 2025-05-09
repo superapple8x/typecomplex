@@ -1,0 +1,92 @@
+/* PDF Toolkit Sidebar Layout Fixes */
+
+/* Create significant space at the top of the sidebar to avoid overlap with the collapse button */
+#left-sidebar {
+  padding-top: 3.5rem !important;
+}
+
+/* Position the collapse button more clearly in the corner */
+#toggle-left-sidebar-btn {
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  z-index: 50 !important;
+  background-color: rgba(31, 32, 40, 0.8) !important;
+  padding: 0.35rem !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Improved sidebar header spacing */
+#left-sidebar .pt-4 {
+  padding-top: 0 !important;
+}
+
+/* Ensure the sidebar header is well-positioned */
+#left-sidebar h2 {
+  margin-bottom: 1rem !important;
+}
+
+/* Add separation between header and upload card */
+#pdf-upload-card {
+  margin-top: 1.5rem !important;
+}
+
+/* Improved hover effects for buttons */
+.sidebar-button, .sidebar-button-accent {
+  transition: all 0.2s ease-in-out !important;
+}
+
+.sidebar-button:hover {
+  background-color: rgba(108, 111, 147, 0.15) !important;
+  transform: translateY(-1px) !important;
+}
+
+.sidebar-button-accent:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Fix spacing in action cards */
+#pdf-file-actions-card {
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+  background-color: rgba(31, 32, 40, 0.3) !important;
+}
+
+/* Ensure tooltips appear above other elements */
+.tippy-box {
+  z-index: 100 !important;
+}
+
+/* Enhance the status text visibility */
+.status-text {
+  padding: 0.25rem 0 !important;
+  font-size: 0.75rem !important;
+  transition: opacity 0.3s ease !important;
+}
+
+/* Improved spacing for main content area */
+main {
+  padding: 1.5rem !important;
+}
+
+/* Editor container improvements */
+#editor-container {
+  border-radius: 0.5rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Right sidebar refinements */
+#complexity-sidebar {
+  padding-top: 1.5rem !important;
+}
+
+/* More visible button to open sidebars */
+#open-left-sidebar-btn, #open-sidebar-btn {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+#open-left-sidebar-btn:hover, #open-sidebar-btn:hover {
+  transform: scale(1.05) !important;
+} 

@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='editor-theme.css') }}">
     <!-- Link to Quill Snow theme CSS (we'll copy this file later) -->
     <link href="{{ url_for('static', filename='quill.snow.css') }}" rel="stylesheet">
+    <!-- Custom layout fixes - Added for better UI spacing -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='custom-layout-fixes.css') }}">
 </head>
 <body class="flex flex-col min-h-screen scroll-smooth">
     <!-- Enhanced Header -->
@@ -28,9 +30,16 @@
     <div class="flex flex-grow overflow-hidden">
 
         <!-- NEW Left Sidebar for PDF Tools - Redesigned -->
-        <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-4 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md">
-            <!-- Sidebar Header -->
-            <div class="pb-2 border-b border-[var(--border-color-muted)]">
+        <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-6 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md relative">
+            <!-- Collapse button for left sidebar -->
+            <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="absolute top-1 right-1 p-0.5 bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+            </button>
+
+            <!-- Sidebar Header with improved spacing -->
+            <div class="pt-4 pb-2 border-b border-[var(--border-color-muted)]">
                 <h2 class="text-xl font-semibold text-[var(--text-primary)] flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-blue)]">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -39,8 +48,10 @@
                 </h2>
             </div>
 
-            <!-- Upload Card - Initially Visible -->
-            <div id="pdf-upload-card" class="sidebar-card">
+            <!-- Content Container for better organization -->
+            <div class="flex flex-col space-y-6 pt-2">
+                <!-- Upload Card with better styling -->
+                <div id="pdf-upload-card" class="sidebar-card bg-[rgba(31,32,40,0.2)] rounded-lg">
                 <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
                 <label for="pdf-upload-input" class="flex flex-col items-center justify-center w-full h-32 p-4 border-2 border-dashed border-[var(--border-color-muted)] rounded-lg cursor-pointer hover:border-[var(--accent-blue)] hover:bg-[rgba(var(--accent-blue-rgb),0.05)] transition-colors duration-150">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2 text-[var(--text-secondary)]">
@@ -52,9 +63,9 @@
             </div>
 
             <!-- File Display & Actions Card - Initially Hidden -->
-            <div id="pdf-file-actions-card" class="sidebar-card hidden">
-                <!-- File Info Section (Replaces old pdf-info-container) -->
-                <div id="pdf-info-container" class="mb-4"> <!-- Retaining ID for JS -->
+                <div id="pdf-file-actions-card" class="sidebar-card hidden space-y-4">
+                    <!-- File Info Section with improved styling -->
+                    <div id="pdf-info-container" class="mb-4 bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
                     <div class="flex items-center mb-2">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-green)]">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
@@ -66,34 +77,33 @@
                             </svg>
                         </button>
                     </div>
-                </div>
+            </div>
 
-                <!-- Actions (Replaces old pdf-actions-container) -->
-                <div id="pdf-actions-container" class="space-y-3"> <!-- Retaining ID for JS -->
-                    <div>
+                    <!-- Actions with improved styling -->
+                    <div id="pdf-actions-container" class="space-y-3 bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
+                <div>
                         <button id="text-extract-btn" class="sidebar-button w-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
-                            </svg>
-                            Extract Text
-                        </button>
-                        <div id="pdf-extract-status" class="status-text"></div> <!-- Retaining ID for JS -->
-                    </div>
-                    <div>
+                        </svg>
+                        Extract Text
+                    </button>
+                            <div id="pdf-extract-status" class="status-text"></div>
+                </div>
+                <div>
                         <button id="pdf-analysis-btn" class="sidebar-button w-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                            </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                        </svg>
                             Analyze & Highlight
-                        </button>
-                        <div id="pdf-analysis-status" class="status-text"></div> <!-- Retaining ID for JS -->
-                    </div>
+                    </button>
+                            <div id="pdf-analysis-status" class="status-text"></div>
+                        </div>
                 </div>
             </div>
 
-            <!-- Download Card - Initially Hidden -->
-            <div id="pdf-download-card" class="sidebar-card hidden">
-                 <!-- Retaining pdf-download-container ID for JS to control visibility -->
+                <!-- Download Card - Initially Hidden with improved styling -->
+                <div id="pdf-download-card" class="sidebar-card hidden bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
                 <div id="pdf-download-container">
                     <button id="download-pdf-btn" class="sidebar-button-accent w-full">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
@@ -101,14 +111,23 @@
                         </svg>
                         Download Analyzed PDF
                     </button>
+                    </div>
                 </div>
             </div>
         </aside>
 
+        <!-- ADDED: Open button for left sidebar (initially hidden) -->
+        <button id="open-left-sidebar-btn" class="hidden fixed top-4 left-2 z-20 text-gray-100 hover:text-white transition-colors duration-150 bg-[rgba(31,32,40,0.8)] p-2 rounded-md shadow-lg backdrop-blur-sm" title="Open PDF Toolkit">
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </button>
+        <!-- End of Added Open Button -->
+
         <!-- Main content area -->
-        <main class="flex-grow flex flex-col p-6 overflow-y-auto"> <!-- Added overflow-y-auto to main -->
+        <main class="flex-grow flex flex-col p-6 overflow-y-auto">
             <!-- Editor Container - takes remaining vertical space -->
-            <div id="editor-container" class="flex-grow min-h-[300px] overflow-y-auto h-0">
+            <div id="editor-container" class="flex-grow min-h-[300px] overflow-y-auto h-0 bg-[rgba(31,32,40,0.2)] rounded-lg p-2">
                 <!-- Quill editor will be initialized here -->
             </div>
         </main>
@@ -146,22 +165,29 @@
                                 <li>
                                     <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="fast-only">
                                         <!-- Lightning Bolt Icon -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /> </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                                        </svg>
                                         Fast analysis only
                                     </a>
                                 </li>
                                 <li>
                                     <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="full-only">
                                         <!-- Magnifying Glass Icon -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"> <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /> </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                        </svg>
                                         Full analysis only
                                     </a>
                                 </li>
                             </ul>
                         </div>
                     </div>
-                    <span id="analysis-loading-indicator" class="ml-2 hidden"> <!-- Loading indicator span -->
-                        <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle> <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                    <span id="analysis-loading-indicator" class="ml-2 hidden">
+                        <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </span>
                     <!-- Analysis Phase Indicator -->
                     <span id="analysis-phase-indicator" class="ml-2 w-3 h-3 rounded-full hidden" title="Analysis Phase"></span>
@@ -213,10 +239,10 @@
                 </div>
 
                 <!-- Target Audience Selector (Custom Dropdown) -->
-                <div class="mt-6 relative"> <!-- Added relative positioning for absolute dropdown list -->
+                <div class="mt-6 relative">
                     <label for="target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience</label>
                     <button id="target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
-                        <span id="target-audience-selected">Standard</span> <!-- Default value -->
+                        <span id="target-audience-selected">Standard</span>
                         <!-- Chevron down icon -->
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]">
                           <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
@@ -253,7 +279,7 @@
                 </div>
 
                 <!-- Target Audience Goal Input (conditionally shown/enabled by JS) -->
-                <div id="target-audience-goal-container" class="mt-2 hidden"> <!-- Start hidden -->
+                <div id="target-audience-goal-container" class="mt-2 hidden">
                     <!-- Target Audience Goal Input Removed -->
                 </div>
 
@@ -288,24 +314,19 @@
                             <div id="gunning-fog-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
                             <div class="text-xs text-[var(--text-secondary)]">Gunning Fog <span id="gunning-fog-target" class="text-xs text-[var(--text-secondary)] ml-1 hidden"></span></div>
                         </div>
-                        <div class="bg-[var(--input-bg)] p-3 rounded col-span-2"> <!-- Span across 2 cols for SMOG -->
+                        <div class="bg-[var(--input-bg)] p-3 rounded col-span-2">
                             <div id="smog-index-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
                             <div class="text-xs text-[var(--text-secondary)]">SMOG Index</div>
                         </div>
-                        <!-- Removed the old single 'Readability' score from status bar logic -->
-                        <!-- <div class="bg-gray-700 dark:bg-gray-700 p-2 rounded">
-                            <div id="readability-score" class="text-lg font-semibold text-gray-100">-</div>
-                            <div class="text-xs text-gray-400">Overall Readability</div>
-                        </div> -->
                     </div>
                 </div>
 
                 <!-- Visual Sentence Map Section (Add this inside the sidebar) -->
                 <div class="mt-6">
                     <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Visual Sentence Map</h3>
-                    <div id="document-map-container" class="rounded p-3 h-24 overflow-x-auto"> <!-- Added overflow-x-auto -->
-                        <div id="document-map" class="flex items-end gap-px"> <!-- Removed inline style -->
-                        <!-- Map segments will be dynamically added here by JavaScript -->
+                    <div id="document-map-container" class="rounded p-3 h-24 overflow-x-auto">
+                        <div id="document-map" class="flex items-end gap-px">
+                        </div>
                     </div>
                 </div>
 
@@ -335,19 +356,16 @@
                         <!-- END NEW -->
                     </div>
                 </div>
-
-                <!-- Add more analysis details here later if needed -->
              </div>
         </aside>
 
         <!-- Button to Open Sidebar (Initially Hidden, shown when sidebar is closed) -->
-         <button id="open-sidebar-btn" class="fixed top-1/2 right-0 transform -translate-y-1/2 bg-[var(--input-bg)] hover:bg-[var(--border-color)] text-[var(--text-primary)] p-2 rounded-l-md shadow-lg focus:outline-none hidden z-10">
+        <button id="open-sidebar-btn" class="fixed top-1/2 right-0 transform -translate-y-1/2 bg-[rgba(31,32,40,0.8)] hover:bg-[rgba(49,50,68,0.9)] text-gray-100 hover:text-white p-2 rounded-l-md shadow-lg focus:outline-none hidden z-10 backdrop-blur-sm">
             <!-- Heroicon: chevron-left -->
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
          </button>
-
     </div>
 
     <!-- Enhanced Status Bar -->
@@ -356,8 +374,6 @@
             <span class="has-tooltip" data-tippy-content="Total words">Words: <span id="word-count">0</span></span>
             <span class="has-tooltip" data-tippy-content="Total sentences">Sentences: <span id="sentence-count">0</span></span>
             <span class="has-tooltip" data-tippy-content="Total characters">Chars: <span id="character-count">0</span></span>
-            <!-- Removed the single 'Readability' score from status bar -->
-            <!-- <span class="has-tooltip" data-tippy-content="Estimated reading level">Readability: <span id="readability-score">-</span></span> -->
         </div>
         <div>
             <span class="has-tooltip" data-tippy-content="Last analysis time">Analysis: <span id="analysis-time">0ms</span></span>

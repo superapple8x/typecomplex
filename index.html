@@ -1,0 +1,34 @@
+<body class="bg-gray-900 text-gray-100 flex h-screen font-sans antialiased">
+
+    <!-- Left Sidebar (PDF Tools) -->
+    <aside id="left-sidebar" class="left-sidebar-state-open bg-opacity-50 backdrop-blur-lg border-r border-gray-700 p-4 w-72 min-w-72 flex flex-col gap-4 transition-all duration-300 ease-in-out relative">
+        <!-- Collapse button for left sidebar - STYLED WITH TAILWIND LIKE RIGHT SIDEBAR (ASSUMPTION) -->
+        <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="absolute top-3 right-3 p-1.5 bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+        </button>
+
+        <div class="pb-2 border-b border-gray-700 pt-8"> <!-- Added pt-8 to give space for button -->
+            <h2 class="text-lg font-semibold text-gray-200">PDF Toolkit</h2>
+        </div>
+    </aside>
+
+    <!-- Main Content Area (Editor + Right Sidebar) -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- ADDED: Open button for left sidebar (initially hidden) -->
+        <button id="open-left-sidebar-btn" class="hidden fixed top-4 left-2 z-20 text-gray-400 hover:text-white transition-colors duration-150 bg-gray-800 p-2 rounded-md shadow-lg" title="Open PDF Toolkit">
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </button>
+        <!-- End of Added Open Button -->
+
+        <div id="main-content" class="flex-1 flex p-4 gap-4 overflow-y-auto">
+            <!-- Editor Column -->
+            <div class="flex-1 flex flex-col">
+                <div id="editor-container" class="flex-1 rounded-lg shadow-xl"></div>
+            </div>
+        </div>
+    </div>
+</body> 

@@ -15,4 +15,4 @@ uploads/
 celery_worker.log
 celery_worker.log
 dump.rdb
-celery_worker.log
+dump.rdb

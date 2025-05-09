@@ -85,6 +85,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdfExtractStatusEl = document.getElementById('pdf-extract-status');
     const pdfAnalysisStatusEl = document.getElementById('pdf-analysis-status');
 
+    // --- ANIMATION SETUP: Initial state for PDF cards ---
+    const cardsToAnimate = [pdfUploadCard, pdfFileActionsCard, pdfDownloadCard];
+    cardsToAnimate.forEach(card => {
+        if (card) {
+            card.classList.remove('hidden'); // Remove Tailwind's hidden if present
+        }
+    });
+
+    if (pdfUploadCard) {
+        pdfUploadCard.classList.add('card-active');
+        pdfUploadCard.classList.remove('card-inactive');
+    }
+    if (pdfFileActionsCard) {
+        pdfFileActionsCard.classList.add('card-inactive');
+        pdfFileActionsCard.classList.remove('card-active');
+    }
+    if (pdfDownloadCard) {
+        pdfDownloadCard.classList.add('card-inactive');
+        pdfDownloadCard.classList.remove('card-active');
+    }
+    // --- END ANIMATION SETUP ---
+
 
     // --- Quill Initialization ---
     // Removed the custom Attributor registration as it caused errors with global script loading.
@@ -247,18 +269,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.state === 'SUCCESS') {
                     buttonEl.disabled = false;
                     if (operationType === 'extract_text') {
-                        if (data.result && data.result.text_content) {
-                            quill.setText(data.result.text_content + '\n');
+                        if (data.result && data.result.extracted_text) { // CHANGED: from data.result.text_content
+                            quill.setText(data.result.extracted_text + '\n'); // CHANGED: from data.result.text_content
                             if (statusEl) statusEl.textContent = 'Text extracted successfully.';
                         } else {
                             if (statusEl) statusEl.textContent = 'Text extraction complete, but no content found.';
-                            console.error('Text extraction success, but text_content missing in task result:', data.result);
+                            console.error('Text extraction success, but extracted_text (formerly text_content) missing in task result:', data.result);
                         }
                         pdfAnalysisBtn.disabled = false; // Re-enable analysis button
                     } else if (operationType === 'full_analysis') {
                         if (data.result && data.result.highlighted_pdf_filename) {
                             currentPdfTaskId = taskId; // Ensure task ID is set for download button
-                            pdfDownloadCard.classList.remove('hidden'); // Show the download card
+                            // pdfDownloadCard.classList.remove('hidden'); // Show the download card
+                            pdfDownloadCard.classList.add('card-active');
+                            pdfDownloadCard.classList.remove('card-inactive');
                             // pdfDownloadContainer.classList.remove('hidden'); // This is inside pdfDownloadCard, so it becomes visible
                             if (statusEl) statusEl.textContent = 'Analysis complete. Ready for download.';
                         } else {
@@ -296,9 +320,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pdfUploadCard && pdfFileActionsCard && pdfDownloadCard && pdfRemoveBtn && pdfUploadInput && pdfInfoContainer && pdfFilenameEl && pdfActionsContainer && textExtractBtn && pdfAnalysisBtn && pdfDownloadContainer && downloadPdfBtn) {
         
         function showUploadState() {
-            pdfUploadCard.classList.remove('hidden');
-            pdfFileActionsCard.classList.add('hidden');
-            pdfDownloadCard.classList.add('hidden'); // Hide the entire download card
+            // pdfUploadCard.classList.remove('hidden');
+            pdfUploadCard.classList.add('card-active');
+            pdfUploadCard.classList.remove('card-inactive');
+
+            // pdfFileActionsCard.classList.add('hidden');
+            pdfFileActionsCard.classList.add('card-inactive');
+            pdfFileActionsCard.classList.remove('card-active');
+
+            // pdfDownloadCard.classList.add('hidden'); // Hide the entire download card
+            pdfDownloadCard.classList.add('card-inactive');
+            pdfDownloadCard.classList.remove('card-active');
             
             pdfFilenameEl.textContent = 'No file selected.';
             if(pdfUploadInput) pdfUploadInput.value = ''; // Clear file input
@@ -314,9 +346,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (file) {
                 pdfFilenameEl.textContent = file.name;
                 
-                pdfUploadCard.classList.add('hidden');
-                pdfFileActionsCard.classList.remove('hidden');
-                pdfDownloadCard.classList.add('hidden'); // Keep download card hidden initially
+                // pdfUploadCard.classList.add('hidden');
+                pdfUploadCard.classList.add('card-inactive');
+                pdfUploadCard.classList.remove('card-active');
+
+                // pdfFileActionsCard.classList.remove('hidden');
+                pdfFileActionsCard.classList.add('card-active');
+                pdfFileActionsCard.classList.remove('card-inactive');
+
+                // pdfDownloadCard.classList.add('hidden'); // Keep download card hidden initially
+                pdfDownloadCard.classList.add('card-inactive');
+                pdfDownloadCard.classList.remove('card-active');
 
                 // pdfInfoContainer and pdfActionsContainer are inside pdfFileActionsCard, so they become visible with it.
                 // pdfDownloadContainer is inside pdfDownloadCard, so it's also hidden for now.
@@ -412,7 +452,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 quill.setText('Analyzing PDF, please wait...\nThis might take a few moments.\n');
                 textExtractBtn.disabled = true;
                 pdfAnalysisBtn.disabled = true;
-                pdfDownloadCard.classList.add('hidden'); // Ensure download card is hidden
+                pdfDownloadCard.classList.add('card-inactive');
+                pdfDownloadCard.classList.remove('card-active');
                 // pdfDownloadContainer.classList.add('hidden'); // This is inside pdfDownloadCard now
 
                 fetch('/upload_pdf', {
@@ -2404,6 +2445,65 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }
     };
     console.log("typecomplexApp object exposed on window."); // DEBUG
+
+    // --- NEW: Left Sidebar Collapse Logic ---
+    const leftSidebar = document.getElementById('left-sidebar');
+    const toggleLeftSidebarBtn = document.getElementById('toggle-left-sidebar-btn');
+    const openLeftSidebarBtn = document.getElementById('open-left-sidebar-btn');
+    const mainContentArea = document.getElementById('main-content'); // Assuming your main content area has an ID like 'main-content'
+
+    function openLeftSidebar() {
+        if (leftSidebar && openLeftSidebarBtn && toggleLeftSidebarBtn) {
+            leftSidebar.classList.remove('left-sidebar-state-closed');
+            leftSidebar.classList.add('left-sidebar-state-open');
+            openLeftSidebarBtn.classList.add('hidden');
+            toggleLeftSidebarBtn.classList.remove('hidden');
+            // Optional: Adjust main content margin if it was pushed
+            if (mainContentArea) {
+                // mainContentArea.style.marginLeft = '18.4rem'; // Or whatever the open width is
+            }
+        }
+    }
+
+    function closeLeftSidebar() {
+        if (leftSidebar && openLeftSidebarBtn && toggleLeftSidebarBtn) {
+            leftSidebar.classList.remove('left-sidebar-state-open');
+            leftSidebar.classList.add('left-sidebar-state-closed');
+            toggleLeftSidebarBtn.classList.add('hidden');
+            // Delay showing the open button until transition is somewhat complete
+            setTimeout(() => {
+                if (openLeftSidebarBtn) openLeftSidebarBtn.classList.remove('hidden');
+            }, 200); // Slightly less than transition to feel responsive
+             // Optional: Adjust main content margin if it was pushed
+            if (mainContentArea) {
+                // mainContentArea.style.marginLeft = '0';
+            }
+        }
+    }
+
+    if (toggleLeftSidebarBtn) {
+        toggleLeftSidebarBtn.addEventListener('click', closeLeftSidebar);
+    }
+
+    if (openLeftSidebarBtn) {
+        openLeftSidebarBtn.addEventListener('click', openLeftSidebar);
+    }
+
+    // Initial state: Ensure sidebar is open by default unless a class is already set by server/HTML
+    if (leftSidebar && !leftSidebar.classList.contains('left-sidebar-state-closed') && !leftSidebar.classList.contains('left-sidebar-state-open')) {
+        leftSidebar.classList.add('left-sidebar-state-open');
+        if(toggleLeftSidebarBtn) toggleLeftSidebarBtn.classList.remove('hidden');
+        if(openLeftSidebarBtn) openLeftSidebarBtn.classList.add('hidden');
+    } else if (leftSidebar && leftSidebar.classList.contains('left-sidebar-state-closed')){
+        // If it's meant to start closed
+        if(toggleLeftSidebarBtn) toggleLeftSidebarBtn.classList.add('hidden');
+        if(openLeftSidebarBtn) openLeftSidebarBtn.classList.remove('hidden');
+    } else {
+        // It starts open, ensure buttons are correct
+        if(toggleLeftSidebarBtn) toggleLeftSidebarBtn.classList.remove('hidden');
+        if(openLeftSidebarBtn) openLeftSidebarBtn.classList.add('hidden');
+    }
+    // --- END Left Sidebar Collapse Logic ---
 
 }); // End DOMContentLoaded
 
