@@ -11,6 +11,11 @@
   --border-radius: 12px;
   --transition-speed: 0.2s;
   --input-bg: #181825; /* Added solid background for inputs/dropdowns */
+  --sidebar-bg-rgb: 24, 24, 37;
+  --status-bg-rgb: 239, 68, 68;
+  --status-text: #cdd6f4;
+  --border-color-muted: rgba(108, 111, 147, 0.2);
+  --accent-blue-rgb: 137, 180, 250; /* For hover effect on upload */
 }
 
 /* Body background */
@@ -177,34 +182,200 @@ body {
   line-height: 1.6;
 }
 
-/* Sidebar Improvements */
-#complexity-sidebar {
-  background-color: var(--sidebar-bg);
-  border-left: 1px solid rgba(108, 111, 147, 0.2);
-  padding: 1.25rem 1rem 1.25rem 1.5rem;
+/* Left Sidebar General Styling */
+#left-sidebar {
+  background-color: rgba(var(--sidebar-bg-rgb), 0.5);
+  border-right: 1px solid var(--border-color-muted);
+  padding: 1rem; /* Adjusted padding */
   width: 18.4rem;
   min-width: 18.4rem;
   backdrop-filter: blur(10px);
-  margin-left: -0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* Adjusted gap between cards */
 }
 
-/* Ensure proper spacing for all elements */
-#complexity-sidebar > *:not(:last-child) {
-  margin-bottom: 1.25rem;
+/* Sidebar Header */
+#left-sidebar .pb-2.border-b {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.5rem; /* Space below header */
 }
 
-/* Special spacing for tightly grouped elements */
-#analysis-controls-container {
-  margin-left: 0.5rem;
+/* General Sidebar Card Styling - Matches right sidebar analysis cards */
+.sidebar-card {
+  background-color: rgba(49, 50, 68, 0.6); /* Slightly more opaque for cards */
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(108, 111, 147, 0.15);
+  border-radius: 10px;
+  padding: 1rem;
+  transition: all var(--transition-speed) ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Focus states that don't overlap */
-[type="checkbox"]:focus,
-[type="range"]:focus,
-button:focus {
-  outline: 2px solid var(--accent-blue);
-  outline-offset: 2px;
+.sidebar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
+
+/* Upload Card Specifics */
+#pdf-upload-card label[for="pdf-upload-input"] {
+  border-color: var(--border-color-muted);
+  transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+}
+
+#pdf-upload-card label[for="pdf-upload-input"]:hover {
+  border-color: var(--accent-blue);
+  background-color: rgba(var(--accent-blue-rgb), 0.05);
+}
+
+/* File Info in File Actions Card */
+#pdf-info-container {
+  padding: 0; /* Remove extra padding if card already has it */
+  margin-bottom: 1rem; /* Space before action buttons */
+}
+
+#pdf-info-container .flex.items-center {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color-muted);
+}
+
+#pdf-filename {
+  font-weight: 500;
+}
+
+#pdf-remove-btn svg {
+ transition: stroke var(--transition-speed) ease;
+}
+
+/* Sidebar Buttons - General Styling */
+.sidebar-button,
+.sidebar-button-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--transition-speed) ease;
+  cursor: pointer;
+}
+
+.sidebar-button {
+  background-color: rgba(var(--input-bg-rgb, 24, 24, 37), 0.7); /* Use RGB for input-bg or default */
+  border: 1px solid var(--border-color-muted);
+  color: var(--text-primary);
+}
+
+.sidebar-button:hover {
+  background-color: rgba(108, 111, 147, 0.2);
+  transform: translateY(-1px);
+  border-color: rgba(108, 111, 147, 0.4);
+}
+
+.sidebar-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue);
+}
+
+/* Accent Button (e.g., Download) */
+.sidebar-button-accent {
+  background-color: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
+  color: #fff; /* White text for accent button */
+}
+
+.sidebar-button-accent:hover {
+  background-color: #7da8e8; /* Lighter blue on hover */
+  border-color: #7da8e8;
+  transform: translateY(-1px);
+}
+
+.sidebar-button-accent:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.5);
+}
+
+/* Status Text Styling */
+.status-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.35rem 0.25rem;
+  margin-top: 0.35rem;
+  min-height: 1.25rem; /* Ensure space even if empty */
+  text-align: center;
+  border-radius: 4px;
+  transition: all var(--transition-speed) ease;
+}
+
+.status-text.success {
+  color: var(--accent-green);
+  background-color: rgba(166, 227, 161, 0.1);
+}
+
+.status-text.error {
+  color: var(--accent-red);
+  background-color: rgba(243, 139, 168, 0.1);
+}
+
+.status-text.loading { /* Optional: specific loading style */
+  color: var(--accent-blue);
+  /* background-color: rgba(var(--accent-blue-rgb), 0.1); */
+}
+
+/* Remove previous #left-sidebar specific styles that might conflict */
+/* (The user confirmed the previous iteration was an improvement, so some styles might be similar, but IDs like #text-extract-btn are now general .sidebar-button) */
+#left-sidebar h2 { /* Already styled by Tailwind in HTML or general h2 */
+  margin-bottom: 0; /* Remove specific margin if new layout handles it*/
+}
+
+#pdf-extract-status,
+#pdf-analysis-status {
+  /* These IDs are now styled by .status-text */
+  background-color: transparent; /* Reset if any specific inline-ish styles were there */
+  color: var(--text-secondary); /* Reset */
+  padding: 0.35rem 0.25rem; /* Ensure consistency with .status-text */
+  margin-top: 0.35rem;
+}
+
+#pdf-extract-status.success,
+#pdf-analysis-status.success {
+  color: var(--accent-green);
+  background-color: rgba(166, 227, 161, 0.1);
+}
+
+#pdf-extract-status.error,
+#pdf-analysis-status.error {
+  color: var(--accent-red);
+  background-color: rgba(243, 139, 168, 0.1);
+}
+
+/* Clean up old button styling if they were too specific */
+#text-extract-btn, #pdf-analysis-btn, #download-pdf-btn, label[for="pdf-upload-input"] {
+    /* Covered by .sidebar-button and .sidebar-button-accent */
+    /* Resetting some properties to ensure they don't override the new classes */
+    background-color: initial;
+    border: initial;
+    padding: initial;
+    font-size: initial;
+    font-weight: initial;
+    color: initial;
+    gap: initial;
+}
+
+#complexity-sidebar {
+    background-color: var(--sidebar-bg);
+    border-left:
+  1px solid rgba(108, 111, 147, 0.2);
+    padding:
+  1.5rem 1.5rem 1.5rem 1rem;
+    width: 18.4rem;
+    min-width: 18.4rem;
+    backdrop-filter: blur(10px);
+    margin-left: -0.5rem;
+  }
 
 /* Analysis Cards */
 #overall-complexity-meter,

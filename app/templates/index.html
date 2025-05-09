@@ -27,50 +27,75 @@
     <!-- Flex container for main content and sidebars -->
     <div class="flex flex-grow overflow-hidden">
 
-        <!-- NEW Left Sidebar for PDF Tools -->
-        <aside id="left-sidebar" class="w-64 bg-[var(--sidebar-bg)] p-4 border-r border-[var(--border-color)] flex flex-col shrink-0 space-y-4">
-            <div>
-                <h2 class="text-lg font-semibold text-[var(--text-primary)] mb-3">PDF Tools</h2>
-                <!-- Import Button -->
+        <!-- NEW Left Sidebar for PDF Tools - Redesigned -->
+        <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-4 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md">
+            <!-- Sidebar Header -->
+            <div class="pb-2 border-b border-[var(--border-color-muted)]">
+                <h2 class="text-xl font-semibold text-[var(--text-primary)] flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-blue)]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    PDF Toolkit
+                </h2>
+            </div>
+
+            <!-- Upload Card - Initially Visible -->
+            <div id="pdf-upload-card" class="sidebar-card">
                 <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
-                <label for="pdf-upload-input" class="w-full cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md shadow-sm text-sm font-medium text-[var(--text-primary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-blue)] transition-colors duration-150">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                <label for="pdf-upload-input" class="flex flex-col items-center justify-center w-full h-32 p-4 border-2 border-dashed border-[var(--border-color-muted)] rounded-lg cursor-pointer hover:border-[var(--accent-blue)] hover:bg-[rgba(var(--accent-blue-rgb),0.05)] transition-colors duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2 text-[var(--text-secondary)]">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 17.25V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 17.25z" />
                     </svg>
-                    Import PDF
+                    <span class="text-sm font-medium text-[var(--text-primary)]">Import PDF</span>
+                    <span class="text-xs text-[var(--text-secondary)]">Drag & drop or click to browse</span>
                 </label>
             </div>
 
-            <!-- Placeholder for PDF file info (e.g., filename) - Initially hidden -->
-            <div id="pdf-info-container" class="hidden mt-4 p-3 bg-[var(--input-bg)] border border-[var(--border-color)] rounded">
-                <p class="text-sm text-[var(--text-primary)] font-medium">Loaded PDF:</p>
-                <p id="pdf-filename" class="text-xs text-[var(--text-secondary)] truncate">No file selected.</p>
-                <!-- Status messages for PDF operations -->
-                <p id="pdf-extract-status" class="text-xs mt-1"></p>
-                <p id="pdf-analysis-status" class="text-xs mt-1"></p>
+            <!-- File Display & Actions Card - Initially Hidden -->
+            <div id="pdf-file-actions-card" class="sidebar-card hidden">
+                <!-- File Info Section (Replaces old pdf-info-container) -->
+                <div id="pdf-info-container" class="mb-4"> <!-- Retaining ID for JS -->
+                    <div class="flex items-center mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-green)]">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
+                        </svg>
+                        <p id="pdf-filename" class="text-sm font-medium text-[var(--text-primary)] truncate">No file selected.</p>
+                        <button id="pdf-remove-btn" class="ml-auto text-[var(--text-secondary)] hover:text-[var(--accent-red)] transition-colors p-1" title="Remove PDF">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Actions (Replaces old pdf-actions-container) -->
+                <div id="pdf-actions-container" class="space-y-3"> <!-- Retaining ID for JS -->
+                    <div>
+                        <button id="text-extract-btn" class="sidebar-button w-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
+                            </svg>
+                            Extract Text
+                        </button>
+                        <div id="pdf-extract-status" class="status-text"></div> <!-- Retaining ID for JS -->
+                    </div>
+                    <div>
+                        <button id="pdf-analysis-btn" class="sidebar-button w-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                            </svg>
+                            Analyze & Highlight
+                        </button>
+                        <div id="pdf-analysis-status" class="status-text"></div> <!-- Retaining ID for JS -->
+                    </div>
+                </div>
             </div>
 
-            <!-- Options revealed after PDF import - Initially hidden -->
-            <div id="pdf-actions-container" class="hidden space-y-3">
-                <div>
-                    <button id="text-extract-btn" class="w-full inline-flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md shadow-sm text-sm font-medium text-[var(--text-primary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-blue)] transition-colors duration-150">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                        </svg>
-                        Extract Text
-                    </button>
-                </div>
-                <div>
-                    <button id="pdf-analysis-btn" class="w-full inline-flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md shadow-sm text-sm font-medium text-[var(--text-primary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-blue)] transition-colors duration-150">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                        </svg>
-                        Analyze PDF & Highlight
-                    </button>
-                </div>
-                <!-- Download button, shown after analysis -->
-                <div id="pdf-download-container" class="hidden mt-3">
-                    <button id="download-pdf-btn" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[var(--accent-blue)] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-blue)] transition-colors duration-150">
+            <!-- Download Card - Initially Hidden -->
+            <div id="pdf-download-card" class="sidebar-card hidden">
+                 <!-- Retaining pdf-download-container ID for JS to control visibility -->
+                <div id="pdf-download-container">
+                    <button id="download-pdf-btn" class="sidebar-button-accent w-full">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                         </svg>

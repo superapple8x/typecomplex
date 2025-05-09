@@ -67,14 +67,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const playIcon = document.getElementById('play-icon'); // Existing icon
     const pauseIcon = document.getElementById('pause-icon'); // Existing icon
 
-    // --- NEW: Left Sidebar PDF Tool DOM References ---
+    // --- NEW: Left Sidebar PDF Tool DOM References (Updated for Card Layout) ---
+    const pdfUploadCard = document.getElementById('pdf-upload-card');
+    const pdfFileActionsCard = document.getElementById('pdf-file-actions-card');
+    const pdfDownloadCard = document.getElementById('pdf-download-card'); // The main card for download
+    const pdfRemoveBtn = document.getElementById('pdf-remove-btn');
+
     const pdfUploadInput = document.getElementById('pdf-upload-input');
-    const pdfInfoContainer = document.getElementById('pdf-info-container');
+    const pdfInfoContainer = document.getElementById('pdf-info-container'); // Still used for file info display inside pdfFileActionsCard
     const pdfFilenameEl = document.getElementById('pdf-filename');
-    const pdfActionsContainer = document.getElementById('pdf-actions-container');
+    const pdfActionsContainer = document.getElementById('pdf-actions-container'); // Still used for action buttons inside pdfFileActionsCard
     const textExtractBtn = document.getElementById('text-extract-btn');
     const pdfAnalysisBtn = document.getElementById('pdf-analysis-btn');
-    const pdfDownloadContainer = document.getElementById('pdf-download-container');
+    const pdfDownloadContainer = document.getElementById('pdf-download-container'); // Inner container for the button, inside pdfDownloadCard
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
     // --- NEW: Status elements for PDF operations (ensure these IDs exist in HTML) ---
     const pdfExtractStatusEl = document.getElementById('pdf-extract-status');
@@ -231,39 +236,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 return response.json();
             })
             .then(data => {
-                if (statusEl) statusEl.textContent = data.status_message || `Status: ${data.state}`;
+                if (statusEl) {
+                    statusEl.textContent = data.status_message || `Status: ${data.state}`;
+                    if (data.state === 'SUCCESS') statusEl.className = 'status-text success';
+                    else if (data.state === 'FAILURE') statusEl.className = 'status-text error';
+                    else if (data.state === 'PENDING' || data.state === 'PROGRESS') statusEl.className = 'status-text loading';
+                    else statusEl.className = 'status-text'; // Default
+                }
+
                 if (data.state === 'SUCCESS') {
-                    if (statusEl) {
-                        statusEl.classList.add('text-green-500');
-                        statusEl.classList.remove('text-red-500');
-                    }
+                    buttonEl.disabled = false;
                     if (operationType === 'extract_text') {
-                        fetch(`/get_extracted_text/${taskId}`)
-                            .then(res => {
-                                if (!res.ok) return res.json().then(err => { throw new Error(err.error || 'Failed to get extracted text'); });
-                                return res.json();
-                            })
-                            .then(textData => {
-                                quill.setText(textData.extracted_text || 'No text was extracted.\n');
-                                if (statusEl) statusEl.textContent = 'Text extracted successfully!';
-                                textExtractBtn.disabled = false;
-                                pdfAnalysisBtn.disabled = false;
-                            })
-                            .catch(err => {
-                                console.error('Error fetching extracted text:', err);
-                                if (statusEl) {
-                                    statusEl.textContent = `Error: ${err.message}`;
-                                    statusEl.classList.add('text-red-500');
-                                }
-                                quill.setText(`Failed to load extracted text: ${err.message}\n`);
-                                textExtractBtn.disabled = false;
-                                pdfAnalysisBtn.disabled = false;
-                            });
+                        if (data.result && data.result.text_content) {
+                            quill.setText(data.result.text_content + '\n');
+                            if (statusEl) statusEl.textContent = 'Text extracted successfully.';
+                        } else {
+                            if (statusEl) statusEl.textContent = 'Text extraction complete, but no content found.';
+                            console.error('Text extraction success, but text_content missing in task result:', data.result);
+                        }
+                        pdfAnalysisBtn.disabled = false; // Re-enable analysis button
                     } else if (operationType === 'full_analysis') {
-                        // For full analysis, the result from task_status should contain highlighted_pdf_filename
                         if (data.result && data.result.highlighted_pdf_filename) {
                             currentPdfTaskId = taskId; // Ensure task ID is set for download button
-                            pdfDownloadContainer.classList.remove('hidden');
+                            pdfDownloadCard.classList.remove('hidden'); // Show the download card
+                            // pdfDownloadContainer.classList.remove('hidden'); // This is inside pdfDownloadCard, so it becomes visible
                             if (statusEl) statusEl.textContent = 'Analysis complete. Ready for download.';
                         } else {
                              if (statusEl) statusEl.textContent = 'Analysis complete, but download info missing.';
@@ -273,61 +269,78 @@ document.addEventListener('DOMContentLoaded', () => {
                         pdfAnalysisBtn.disabled = false;
                     }
                 } else if (data.state === 'FAILURE') {
-                    if (statusEl) {
-                        statusEl.textContent = `Error: ${data.error_details || 'Task failed'}`;
-                        statusEl.classList.add('text-red-500');
-                        statusEl.classList.remove('text-green-500');
-                    }
-                    quill.setText(`PDF processing failed: ${data.error_details || 'Unknown error'}.\n`);
-                    textExtractBtn.disabled = false;
-                    pdfAnalysisBtn.disabled = false;
+                    if (statusEl) statusEl.textContent = data.error || 'Task failed. Please check server logs.';
+                    buttonEl.disabled = false;
+                    if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
                 } else if (data.state === 'PENDING' || data.state === 'PROGRESS') {
-                    // Continue polling if task is still pending or in progress
-                    if (statusEl && data.meta && data.meta.status_message) {
-                        statusEl.textContent = data.meta.status_message; // Show detailed progress from task
-                    } else if (statusEl) {
-                        statusEl.textContent = `Status: ${data.state}...`;
-                    }
                     setTimeout(() => pollTaskStatus(taskId, operationType), 2000); // Poll every 2 seconds
                 } else {
-                    // Handle other states if necessary
-                     if (statusEl) statusEl.textContent = `Task status: ${data.state}`;
-                     textExtractBtn.disabled = false;
-                     pdfAnalysisBtn.disabled = false;
+                    // Handle other states if necessary, or assume task completion implies enabling buttons
+                    buttonEl.disabled = false;
+                    if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
                 }
             })
             .catch(error => {
-                console.error(`Error polling task ${taskId} status:`, error);
+                console.error(`Error polling task ${taskId} (${operationType}):`, error);
                 if (statusEl) {
                     statusEl.textContent = `Polling error: ${error.message}`;
-                    statusEl.classList.add('text-red-500');
+                    statusEl.className = 'status-text error';
                 }
-                quill.setText(`Error checking PDF processing status: ${error.message}\n`);
-                textExtractBtn.disabled = false;
-                pdfAnalysisBtn.disabled = false;
+                buttonEl.disabled = false;
+                if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
             });
     }
 
     // --- NEW: Left Sidebar PDF Tool Event Handlers ---
-    if (pdfUploadInput && pdfInfoContainer && pdfFilenameEl && pdfActionsContainer && textExtractBtn && pdfAnalysisBtn && pdfDownloadContainer && downloadPdfBtn) {
+    // Ensure all new card elements are checked in the initial if
+    if (pdfUploadCard && pdfFileActionsCard && pdfDownloadCard && pdfRemoveBtn && pdfUploadInput && pdfInfoContainer && pdfFilenameEl && pdfActionsContainer && textExtractBtn && pdfAnalysisBtn && pdfDownloadContainer && downloadPdfBtn) {
+        
+        function showUploadState() {
+            pdfUploadCard.classList.remove('hidden');
+            pdfFileActionsCard.classList.add('hidden');
+            pdfDownloadCard.classList.add('hidden'); // Hide the entire download card
+            
+            pdfFilenameEl.textContent = 'No file selected.';
+            if(pdfUploadInput) pdfUploadInput.value = ''; // Clear file input
+            if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = '';
+            if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = '';
+            currentPdfTaskId = null;
+            textExtractBtn.disabled = false;
+            pdfAnalysisBtn.disabled = false;
+        }
+
         pdfUploadInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
                 pdfFilenameEl.textContent = file.name;
-                pdfInfoContainer.classList.remove('hidden');
-                pdfActionsContainer.classList.remove('hidden');
-                pdfDownloadContainer.classList.add('hidden'); // Hide download btn until analysis
+                
+                pdfUploadCard.classList.add('hidden');
+                pdfFileActionsCard.classList.remove('hidden');
+                pdfDownloadCard.classList.add('hidden'); // Keep download card hidden initially
+
+                // pdfInfoContainer and pdfActionsContainer are inside pdfFileActionsCard, so they become visible with it.
+                // pdfDownloadContainer is inside pdfDownloadCard, so it's also hidden for now.
+
                 console.log('PDF Selected:', file.name);
-                // Clear previous task states if a new file is selected
                 currentPdfTaskId = null;
-                if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = '';
-                if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = '';
+                if(pdfExtractStatusEl) {
+                    pdfExtractStatusEl.textContent = '';
+                    pdfExtractStatusEl.className = 'status-text'; // Reset status style
+                }
+                if(pdfAnalysisStatusEl) {
+                    pdfAnalysisStatusEl.textContent = '';
+                    pdfAnalysisStatusEl.className = 'status-text'; // Reset status style
+                }
+                textExtractBtn.disabled = false;
+                pdfAnalysisBtn.disabled = false;
             } else {
-                pdfFilenameEl.textContent = 'No file selected.';
-                pdfInfoContainer.classList.add('hidden');
-                pdfActionsContainer.classList.add('hidden');
-                pdfDownloadContainer.classList.add('hidden');
+                showUploadState(); // Revert to upload state if no file is chosen
             }
+        });
+
+        pdfRemoveBtn.addEventListener('click', () => {
+            showUploadState();
+            console.log('PDF Removed. UI reset to upload state.');
         });
 
         textExtractBtn.addEventListener('click', () => {
@@ -342,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Show loading state for extraction
                 if(pdfExtractStatusEl) {
                     pdfExtractStatusEl.textContent = 'Uploading and extracting text...';
-                    pdfExtractStatusEl.classList.remove('text-green-500', 'text-red-500');
+                    pdfExtractStatusEl.className = 'status-text loading'; // Use new class for loading
                 }
                 quill.setText('Extracting text from PDF, please wait...\n');
                 textExtractBtn.disabled = true;
@@ -371,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error starting text extraction:', error);
                     if(pdfExtractStatusEl) {
                         pdfExtractStatusEl.textContent = `Error: ${error.message}`;
-                        pdfExtractStatusEl.classList.add('text-red-500');
+                        pdfExtractStatusEl.className = 'status-text error'; // Use new class for error
                     }
                     quill.setText(`Error during text extraction: ${error.message}\n`);
                     textExtractBtn.disabled = false;
@@ -394,12 +407,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Show loading state for analysis
                 if(pdfAnalysisStatusEl) {
                     pdfAnalysisStatusEl.textContent = 'Uploading and analyzing PDF...';
-                    pdfAnalysisStatusEl.classList.remove('text-green-500', 'text-red-500');
+                    pdfAnalysisStatusEl.className = 'status-text loading'; // Use new class for loading
                 }
                 quill.setText('Analyzing PDF, please wait...\nThis might take a few moments.\n');
                 textExtractBtn.disabled = true;
                 pdfAnalysisBtn.disabled = true;
-                pdfDownloadContainer.classList.add('hidden'); // Hide download button during new analysis
+                pdfDownloadCard.classList.add('hidden'); // Ensure download card is hidden
+                // pdfDownloadContainer.classList.add('hidden'); // This is inside pdfDownloadCard now
 
                 fetch('/upload_pdf', {
                     method: 'POST',
@@ -424,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error starting PDF analysis:', error);
                     if(pdfAnalysisStatusEl) {
                         pdfAnalysisStatusEl.textContent = `Error: ${error.message}`;
-                        pdfAnalysisStatusEl.classList.add('text-red-500');
+                        pdfAnalysisStatusEl.className = 'status-text error'; // Use new class for error
                     }
                     quill.setText(`Error during PDF analysis: ${error.message}\n`);
                     textExtractBtn.disabled = false;
