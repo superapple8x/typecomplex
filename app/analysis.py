@@ -1115,74 +1115,143 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
     results = []
     cancelled_mid_loop = False # Flag to track cancellation during loop
     
-    # Iterate through sentences_list instead of doc.sents
-    for i, sentence_text in enumerate(sentences_list):
-        # Skip empty sentences
-        if not sentence_text.strip():
-            logging.debug(f"Skipping empty sentence at index {i}")
-            continue
-            
-        # Check for cancellation before processing each sentence
-        if analysis_id and task_manager.is_cancelled(analysis_id):
+    # Correctly get Spans or an empty list if doc is None or has no sentences
+    spacy_sentences_from_doc = []
+    if doc and doc.has_annotation("SENT_START"):
+        spacy_sentences_from_doc = list(doc.sents)
+    elif doc and not doc.has_annotation("SENT_START") and len(list(doc.sents)) > 0 : # Added this condition
+        logger.warning(f"spaCy doc for (ID: {analysis_id}) produced sentences but no SENT_START annotation. Using doc.sents anyway.")
+        spacy_sentences_from_doc = list(doc.sents)
+    elif doc: # doc exists but no sents or no annotation
+        logger.warning(f"spaCy doc for (ID: {analysis_id}) has no sentences or no SENT_START annotation.")
+    # If doc is None, spacy_sentences_from_doc remains empty.
+
+    # (Decision logic for sentences_to_iterate)
+    sentences_to_iterate = []
+    using_spacy_spans_directly = False # Flag to know how to handle offsets
+
+    if spacy_sentences_from_doc: # Prefer sentences from the full doc if available
+        sentences_to_iterate = spacy_sentences_from_doc
+        using_spacy_spans_directly = True
+        if sentences_list and len(sentences_list) != len(spacy_sentences_from_doc):
+            logger.warning(f"Mismatch (ID: {analysis_id}): spaCy found {len(spacy_sentences_from_doc)} sents from full text, pre-segmented list had {len(sentences_list)}. Prioritizing spaCy's full text segmentation.")
+    elif sentences_list: # Fallback to using the provided list of sentence strings
+        logger.warning(f"Using pre-segmented sentences_list for analysis (ID: {analysis_id}) as spaCy processing of full text failed or yielded no usable sentences.")
+        sentences_to_iterate = sentences_list # This is a list of strings
+        using_spacy_spans_directly = False
+    else:
+        # Fallback for unexpected case
+        logger.warning(f"Unexpected case in analyze_text_complexity: sentences_to_iterate is empty. Returning basic analysis.")
+        return {
+            "results": [],
+            "overall_level": {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"},
+            "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
+            "target_readability_scores": profile['target_readability']
+        }
+
+    # --- Per-Sentence Analysis Loop ---
+    all_sentence_results = []
+    # Keep track of search position in full text for fallback mode
+    current_search_offset_in_full_text = 0
+
+    for i, sentence_obj_or_str in enumerate(sentences_to_iterate):
+        if task_manager.is_cancelled(analysis_id): # Check before each sentence
             logging.info(f"Analysis (ID: {analysis_id}) cancelled during sentence loop at index {i}.")
             cancelled_mid_loop = True
             break # Exit the loop
 
-        # Create a spaCy doc for the current sentence if spaCy is available
-        current_spacy_object = sentence_text # Default to string
-        current_doc_context = None # Default context is None
+        # Determine the mode to be passed to analyze_single_spacy_sentence, which in turn passes it to calculate_complexity.
+        # This mode must be either 'full' or 'fast' for calculate_complexity.
+        mode_for_sentence_calculation = 'fast' # Default to 'fast' for safety
+        if mode == 'full' or mode == 'fast_final_detailed': # These parent modes require full calculation for sentences
+            mode_for_sentence_calculation = 'full'
+        elif mode == 'fast': # This parent mode requires fast calculation for sentences
+            mode_for_sentence_calculation = 'fast'
+        # Any other 'mode' value for analyze_text_complexity will result in 'fast' calculation for sentences.
 
-        if nlp and mode != 'fast':
-            # Process the current sentence string with spaCy to get a Doc object
-            # This Doc object itself will be passed as the primary sentence object to analyze
-            current_spacy_object = nlp(sentence_text) 
-            current_doc_context = current_spacy_object # The sentence's own Doc is its context
-
-        sentence_result = analyze_single_spacy_sentence(
-            spacy_sentence_arg=current_spacy_object, # Pass string or spaCy Doc
-            doc_arg=current_doc_context, # Pass the sentence's own Doc as context, or None
-            profile=profile,
-            sentence_index=i,
+        # Call analyze_single_spacy_sentence.
+        # It will internally handle if sentence_obj_or_str is a Span or string for metric calculation.
+        # The `doc` passed is the one from nlp(plain_text_for_doc_stats), which might be None if spaCy failed.
+        # analyze_single_spacy_sentence needs to be robust to doc=None for some metrics.
+        sentence_analysis_output_dict = analyze_single_spacy_sentence(
+            sentence_obj_or_str,
+            doc, # This is the Doc object from plain_text_for_doc_stats (or None)
+            profile,
+            i, # Index
             target_audience_name=target_audience,
-            mode=mode,
+            mode=mode_for_sentence_calculation, # Pass the corrected mode ('full' or 'fast')
             analysis_id=analysis_id
         )
-        
-        # IMPORTANT: analyze_text_complexity needs the raw result, not the wrapped one
-        if sentence_result and 'result' in sentence_result:
-            # --- Add Detailed Logging ---
-            res_data = sentence_result['result']
-            log_msg = (
-                f"Task {analysis_id} (Mode: {mode}): Appending result for index {i}: "
-                f"start={res_data.get('start')}, end={res_data.get('end')}, "
-                f"score={res_data.get('score'):.3f}, "
-                f"sentence='{res_data.get('sentence', '')[:30]}...'"
-            )
-            logging.debug(log_msg)
-            # --- End Logging ---
-            
-            # Ensure the original sentence text is used in the result
-            res_data['sentence'] = sentence_text
-            results.append(res_data)
 
-    # --- Handle Cancellation Mid-Loop ---
+        if sentence_analysis_output_dict and 'result' in sentence_analysis_output_dict:
+            processed_sentence_result = sentence_analysis_output_dict['result']
+
+            if not using_spacy_spans_directly:
+                # Fallback mode: sentence_obj_or_str is a STRING.
+                # Offsets from analyze_single_spacy_sentence are 0-based relative to the string itself.
+                # We must correct them relative to plain_text_for_doc_stats.
+                sentence_str_to_find = str(sentence_obj_or_str) # Ensure it's a string
+
+                # Ensure the sentence text in the result is the original string from sentences_list
+                processed_sentence_result['sentence'] = sentence_str_to_find
+                
+                try:
+                    # Find the current sentence string in the full text, starting from the last offset
+                    actual_start = plain_text_for_doc_stats.find(sentence_str_to_find, current_search_offset_in_full_text)
+                    
+                    if actual_start != -1:
+                        actual_end = actual_start + len(sentence_str_to_find)
+                        processed_sentence_result['start'] = actual_start
+                        processed_sentence_result['end'] = actual_end
+                        # Update search offset for the next iteration to ensure we find subsequent occurrences
+                        current_search_offset_in_full_text = actual_end 
+                    else:
+                        # This is problematic: the sentence string from sentences_list was not found
+                        # sequentially in plain_text_for_doc_stats.
+                        # Log an error. Offsets will remain 0-based from analyze_single_spacy_sentence.
+                        logger.error(
+                            f"Fallback offset calculation (ID: {analysis_id}): Could not find sentence string "
+                            f"'{sentence_str_to_find[:50]}...' in plain_text_for_doc_stats "
+                            f"starting from offset {current_search_offset_in_full_text}. "
+                            f"Using 0-based offsets for this sentence."
+                        )
+                        # To prevent finding earlier occurrences in next iteration if this was a fluke,
+                        # advance offset by length of string anyway, though this is a heuristic.
+                        current_search_offset_in_full_text += len(sentence_str_to_find)
+
+                except Exception as e:
+                    logger.error(
+                        f"Fallback offset calculation (ID: {analysis_id}): Exception while finding sentence string: {e}. "
+                        f"Using 0-based offsets for this sentence '{sentence_str_to_find[:50]}...'.",
+                        exc_info=True
+                    )
+                    # Advance offset heuristically
+                    current_search_offset_in_full_text += len(sentence_str_to_find)
+
+            all_sentence_results.append(processed_sentence_result)
+        else:
+            logger.warning(f"Sentence analysis for obj/str (ID: {analysis_id}) '{str(sentence_obj_or_str)[:50]}...' at index {i} did not yield a valid result dict.")
+            # Append a placeholder or skip? For now, skip.
+            # Consider what should happen if a single sentence analysis fails.
+
+    # --- Aggregation and Final Output ---
     if cancelled_mid_loop:
         # Return partial results but indicate cancellation in overall level
         logging.info(f"Analysis (ID: {analysis_id}) returning partial results due to cancellation.")
         return {
-            "results": results, # Return results processed so far
+            "results": all_sentence_results, # Return results processed so far
             "overall_level": {"level": 0, "description": "Analysis cancelled", "color_class": "bg-gray-600"},
             "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None}, # Or calculate based on partial text? For now, None.
             "target_readability_scores": profile['target_readability'],
-            "total_sentences_provided": len(sentences_list),
-            "total_sentences_analyzed": len(results)
+            "total_sentences_provided": len(sentences_to_iterate),
+            "total_sentences_analyzed": len(all_sentence_results)
         }
 
     # Calculate overall score (average of sentence scores) only if results exist and not cancelled
     # This block should be at the same indentation level as the 'if cancelled_mid_loop:' block
-    if results:
-        total_score = sum(r['score'] for r in results)
-        num_sentences = len(results)
+    if all_sentence_results:
+        total_score = sum(r['score'] for r in all_sentence_results)
+        num_sentences = len(all_sentence_results)
         overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
         overall_level_details = get_overall_complexity_level(overall_score, profile)
     else: # Handle case where text had no valid sentences after processing
@@ -1201,14 +1270,14 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         smog_index = None
 
     # === Logging before return ===
-    logger.info(f"analyze_text_complexity: Final count of sentence results (in 'results' list var): {len(results)} for analysis_id: {analysis_id}")
-    if results and len(results) > 0:
+    logger.info(f"analyze_text_complexity: Final count of sentence results (in 'results' list var): {len(all_sentence_results)} for analysis_id: {analysis_id}")
+    if all_sentence_results and len(all_sentence_results) > 0:
         try:
-            sample_sentence_log = str(results[0])[:250] # Increased sample length
+            sample_sentence_log = str(all_sentence_results[0])[:250] # Increased sample length
         except Exception as e_log_sample:
             sample_sentence_log = f"Error logging sample: {e_log_sample}"
         logger.info(f"analyze_text_complexity: First sentence data (sample from 'results' list var): {sample_sentence_log}...")
-    elif not results:
+    elif not all_sentence_results:
         logger.warning(f"analyze_text_complexity: 'results' list is None or empty before returning for analysis_id: {analysis_id}")
     # === End Logging ===
 
@@ -1224,8 +1293,8 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
             "gunning_fog": gunning_fog,
             "smog_index": smog_index
         },
-        "sentences": results,  # <--- Key used by tasks.py, value is the 'results' list
-        "total_sentences_in_report": len(results) if results else 0,
+        "sentences": all_sentence_results,  # <--- Key used by tasks.py, value is the 'results' list
+        "total_sentences_in_report": len(all_sentence_results) if all_sentence_results else 0,
         "target_audience_profile": target_audience,
         "target_readability_scores": profile['target_readability'], # Added from original structure
         "mode": mode,
@@ -1233,8 +1302,8 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         "text_length_chars": len(plain_text_for_doc_stats),
         "text_length_words": len(plain_text_for_doc_stats.split()), # A simple word count, spaCy's might be more accurate
         "text_preview": plain_text_for_doc_stats[:100] + "..." if len(plain_text_for_doc_stats) > 100 else plain_text_for_doc_stats,
-        "total_sentences_provided": len(sentences_list),
-        "total_sentences_analyzed": len(results)
+        "total_sentences_provided": len(sentences_to_iterate),
+        "total_sentences_analyzed": len(all_sentence_results)
     }
     # task_manager.update_progress(analysis_id, "Complexity analysis complete.") # Final update REMOVED
     # logger.debug(f"Analysis results for audience \'{target_audience}\': {final_result}")
@@ -1272,7 +1341,7 @@ if __name__ == '__main__':
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
     print("\nSentence Analysis:")
-    for result in analysis_results_gp_simple['results']:
+    for result in analysis_results_gp_simple['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
@@ -1288,7 +1357,7 @@ if __name__ == '__main__':
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
     print("\nSentence Analysis:")
-    for result in analysis_results_acad_complex['results']:
+    for result in analysis_results_acad_complex['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
@@ -1303,7 +1372,7 @@ if __name__ == '__main__':
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
     print("\nSentence Analysis:")
-    for result in analysis_results_std_coref['results']:
+    for result in analysis_results_std_coref['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
         print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled

@@ -69,16 +69,20 @@ def analyze_text():
 
     analysis_results = None # Initialize
     try:
-        # --- Perform Full Analysis ---
-        # This will now use the refactored analyze_text_complexity which calls
-        # analyze_single_spacy_sentence internally for all sentences.
-        # Pass mode='full' for the standard analysis endpoint
-        # Pass analysis_id for cancellation checks
+        # Split the input text into sentences for per-sentence analysis
+        try:
+            doc_for_sentences = nlp(text_to_analyze)
+            sentences_list = [sent.text for sent in doc_for_sentences.sents]
+        except Exception:
+            # Fallback: use NLTK if spaCy segmentation fails
+            from nltk import sent_tokenize
+            sentences_list = sent_tokenize(text_to_analyze)
         analysis_results = analyze_text_complexity(
-            text_to_analyze,
+            plain_text_for_doc_stats=text_to_analyze,
+            sentences_list=sentences_list,
             target_audience=target_audience_profile,
-            mode=mode, # <<< Pass the extracted mode
-            analysis_id=analysis_id # Pass ID
+            mode=mode,
+            analysis_id=analysis_id
         )
     except Exception as e:
         logging.error(f"Error during full analysis (ID: {analysis_id}): {e}", exc_info=True)
