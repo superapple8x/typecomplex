@@ -437,9 +437,213 @@ COMPLEXITY_COLORS = {
     "bg-gray-600": (0.325, 0.361, 0.408)    # Tailwind gray-600 (e.g. for "No sentences found" or "Analysis cancelled") - Added for completeness
 }
 
-def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coordinates_map, output_pdf_path):
+def _draw_overview_page_content(page, analysis_results, overview_top_x_count, overview_top_x_type, overview_show_visual_map):
+    """Helper function to draw content on the overview page."""
+    # Page dimensions and margins
+    page_rect = page.rect
+    margin = 50  # points
+    content_width = page_rect.width - 2 * margin
+    current_y = margin
+
+    # Font settings
+    font_title = "Helvetica-Bold" # Helvetica Bold
+    font_heading = "Helvetica-Bold"
+    font_body = "helv"
+    fontsize_title = 18
+    fontsize_heading = 14
+    fontsize_body = 10
+    line_height_body = 12
+    line_height_heading = 16
+    section_spacing = 20
+    item_spacing = 5
+
+    # Helper to draw text and update current_y
+    def draw_text(text, x, y, fontname, fontsize, color=(0, 0, 0), update_y=True, align=fitz.TEXT_ALIGN_LEFT):
+        nonlocal current_y
+        text_rect = fitz.Rect(x, y, x + content_width, y + 2 * fontsize) # Generous height for simple text
+        page.insert_textbox(text_rect, text, fontname=fontname, fontsize=fontsize, color=color, align=align)
+        if update_y:
+            current_y += fontsize * 1.5 # Approximate line height advance
+        return fontsize * 1.5
+
+    # --- Title ---
+    title_rect = fitz.Rect(margin, current_y, page_rect.width - margin, current_y + fontsize_title * 1.5)
+    page.insert_textbox(title_rect, "Complexity Analysis Overview", fontname=font_title, fontsize=fontsize_title, align=fitz.TEXT_ALIGN_CENTER)
+    current_y += fontsize_title * 2 + section_spacing / 2
+    page.draw_line(fitz.Point(margin, current_y), fitz.Point(page_rect.width - margin, current_y)) # Horizontal line
+    current_y += section_spacing / 2
+
+
+    # --- Overall Complexity & Target Audience ---
+    overall_level_details = analysis_results.get('overall_level', {})
+    target_audience = analysis_results.get('target_audience_profile', 'N/A')
+    
+    draw_text(f"Overall Complexity:", margin, current_y, font_heading, fontsize_heading, update_y=False)
+    current_y += line_height_heading
+    complexity_desc = overall_level_details.get('description', 'N/A')
+    draw_text(f"Level: {complexity_desc}", margin + 15, current_y, font_body, fontsize_body)
+    
+    draw_text(f"Target Audience:", margin, current_y, font_heading, fontsize_heading, update_y=False)
+    current_y += line_height_heading
+    draw_text(target_audience, margin + 15, current_y, font_body, fontsize_body)
+    current_y += section_spacing
+    page.draw_line(fitz.Point(margin, current_y), fitz.Point(page_rect.width - margin, current_y))
+    current_y += section_spacing / 2
+
+    # --- Readability Scores ---
+    readability = analysis_results.get('readability_scores', {})
+    draw_text("Readability Scores:", margin, current_y, font_heading, fontsize_heading)
+    
+    fk_grade = readability.get('flesch_kincaid_grade', 'N/A')
+    draw_text(f"Flesch-Kincaid Grade:", margin + 15, current_y, font_body, fontsize_body, update_y=False)
+    text_len = fitz.get_text_length("Flesch-Kincaid Grade:", font_body, fontsize_body)
+    draw_text(str(fk_grade), margin + 15 + text_len + 10, current_y, font_body, fontsize_body) # Value next to label
+
+    gunning_fog = readability.get('gunning_fog', 'N/A')
+    draw_text(f"Gunning Fog Index:", margin + 15, current_y, font_body, fontsize_body, update_y=False)
+    text_len = fitz.get_text_length("Gunning Fog Index:", font_body, fontsize_body)
+    draw_text(str(gunning_fog), margin + 15 + text_len + 10, current_y, font_body, fontsize_body)
+
+    smog_index = readability.get('smog_index', 'N/A')
+    draw_text(f"SMOG Index:", margin + 15, current_y, font_body, fontsize_body, update_y=False)
+    text_len = fitz.get_text_length("SMOG Index:", font_body, fontsize_body)
+    draw_text(str(smog_index), margin + 15 + text_len + 10, current_y, font_body, fontsize_body)
+    
+    current_y += section_spacing
+    page.draw_line(fitz.Point(margin, current_y), fitz.Point(page_rect.width - margin, current_y))
+    current_y += section_spacing / 2
+
+    # --- Visual Sentence Map ---
+    if overview_show_visual_map:
+        draw_text("Visual Sentence Map:", margin, current_y, font_heading, fontsize_heading)
+        sentences_for_map = analysis_results.get('sentences', [])
+        if sentences_for_map:
+            map_area_rect = fitz.Rect(margin, current_y, margin + content_width, current_y + 30) # Area for the map
+            page.draw_rect(map_area_rect, color=(0.9, 0.9, 0.9), fill=(0.9, 0.9, 0.9)) # Light gray background for map area
+            
+            bar_height = 20
+            map_padding = 2
+            bar_area_y = current_y + (map_area_rect.height - bar_height) / 2 # Center bars vertically
+            
+            total_bars = len(sentences_for_map)
+            max_bars_to_draw = 100 # Limit number of bars to prevent visual clutter if too many sentences
+            bars_to_draw_list = sentences_for_map
+            if total_bars > max_bars_to_draw:
+                bars_to_draw_list = sentences_for_map[:max_bars_to_draw] # Or sample, etc.
+            
+            num_bars_final = len(bars_to_draw_list)
+            if num_bars_final > 0:
+                available_width_for_bars = content_width - 2 * map_padding
+                bar_width = (available_width_for_bars / num_bars_final) if num_bars_final > 0 else 0
+                
+                current_x_map = margin + map_padding
+                for i, sentence_detail in enumerate(bars_to_draw_list):
+                    color_class = sentence_detail.get('color_class', 'bg-gray-500')
+                    bar_color_rgb = COMPLEXITY_COLORS.get(color_class, COMPLEXITY_COLORS['bg-gray-500'])
+                    
+                    bar_rect = fitz.Rect(current_x_map, bar_area_y, current_x_map + bar_width, bar_area_y + bar_height)
+                    page.draw_rect(bar_rect, color=bar_color_rgb, fill=bar_color_rgb)
+                    current_x_map += bar_width
+            current_y += map_area_rect.height + item_spacing
+        else:
+            draw_text("No sentence data for map.", margin + 15, current_y, font_body, fontsize_body)
+        current_y += section_spacing
+        page.draw_line(fitz.Point(margin, current_y), fitz.Point(page_rect.width - margin, current_y))
+        current_y += section_spacing / 2
+
+    # --- Top X Sentences ---
+    if overview_top_x_count > 0:
+        logger.info(f"Overview: Drawing Top X Sentences. Count: {overview_top_x_count}, Type: {overview_top_x_type}")
+        section_title = f"Top {overview_top_x_count} {overview_top_x_type.capitalize()} Sentences:"
+        draw_text(section_title, margin, current_y, font_heading, fontsize_heading)
+        current_y += section_spacing  # Add extra spacing after header to separate from sentence list
+        
+        all_sentences = analysis_results.get('sentences', [])
+        logger.info(f"Overview: Found {len(all_sentences)} sentences in analysis_results.")
+
+        if all_sentences:
+            sorted_sentences = sorted(
+                all_sentences,
+                key=lambda s: s.get('score', 0),
+                reverse=(overview_top_x_type == "complex")
+            )
+            top_sentences_list = sorted_sentences[:overview_top_x_count]
+            logger.info(f"Overview: Top sentences list created with {len(top_sentences_list)} sentences.")
+
+            indicator_size = fontsize_body * 0.8
+            text_start_x = margin + 15 + indicator_size + 5 # x-pos for sentence text
+            sentence_area_width = content_width - (text_start_x - margin)
+
+            if not top_sentences_list:
+                logger.warning("Overview: Top sentences list is empty, nothing to draw.")
+            
+            for i, sentence_data in enumerate(top_sentences_list):
+                logger.info(f"Overview: Drawing sentence {i+1}")
+
+                # Prepare display text and color indicator
+                score_val = sentence_data.get('score')
+                score_str = f"{score_val:.2f}" if isinstance(score_val, (int, float)) else "N/A"
+                display_text = f"{i+1}. {sentence_data.get('sentence', 'N/A')} (Score: {score_str})"
+                color_class = sentence_data.get('color_class', 'bg-gray-500')
+                item_color_rgb = COMPLEXITY_COLORS.get(color_class, COMPLEXITY_COLORS['bg-gray-500'])
+
+                # Check for page overflow before drawing
+                # Estimate height needed: worst-case (one line) to decide
+                if current_y + line_height_body > page_rect.height - margin:
+                    page = page.parent.new_page(-1, width=page_rect.width, height=page_rect.height)
+                    current_y = margin
+                    page_rect = page.rect
+                    draw_text(f"(Continued) {section_title}", margin, current_y, font_heading, fontsize_heading)
+
+                # Draw color indicator
+                indicator_y_pos = current_y + (line_height_body - indicator_size) / 2
+                indicator_rect = fitz.Rect(margin + 15, indicator_y_pos,
+                                           margin + 15 + indicator_size, indicator_y_pos + indicator_size)
+                page.draw_rect(indicator_rect, color=item_color_rgb, fill=item_color_rgb)
+
+                # Manual text wrapping by measuring widths
+                words = display_text.split()
+                lines = []
+                cur_line = ''
+                for w in words:
+                    test_line = f"{cur_line} {w}".strip() if cur_line else w
+                    if fitz.get_text_length(test_line, font_body, fontsize_body) <= sentence_area_width:
+                        cur_line = test_line
+                    else:
+                        if cur_line:
+                            lines.append(cur_line)
+                        cur_line = w
+                if cur_line:
+                    lines.append(cur_line)
+
+                # Draw each wrapped line
+                for line in lines:
+                    page.insert_text(fitz.Point(text_start_x, current_y),
+                                     line,
+                                     fontname=font_body,
+                                     fontsize=fontsize_body)
+                    current_y += line_height_body
+
+                # Spacing after the item
+                current_y += item_spacing
+
+            # ... existing code continues for the `else:` of all_sentences ...
+        else:
+            logger.warning("Overview: all_sentences is empty. Drawing 'No sentence data available.'")
+            draw_text("No sentence data available.", margin + 15, current_y, font_body, fontsize_body)
+        current_y += section_spacing
+    else:
+        logger.info(f"Overview: Top X Sentences section skipped because overview_top_x_count is {overview_top_x_count}.")
+
+def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coordinates_map, output_pdf_path,
+                             include_overview_page: bool = True, 
+                             overview_top_x_count: int = 5, 
+                             overview_top_x_type: str = "complex",  # "complex" or "simple"
+                             overview_show_visual_map: bool = True
+                            ):
     """
     Generates a new PDF with sentences highlighted based on their complexity scores.
+    Optionally adds an overview page with analysis summary.
     Relies on sentence_coordinates_map having 'line_segment_coords' and 'page_num'.
     The 'analysis_results' should have a 'sentences' list, where each item has a 'text'
     and 'color_class' (or similar scoring attribute like 'score' or 'level').
@@ -587,6 +791,20 @@ def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coord
                 logger.error(f"Error adding highlight annotation for bbox {segment_bbox} on page {page_num}: {e_annot}", exc_info=True)
     
     logger.info(f"Highlighting process complete. Added {matched_highlight_count} highlight annotations total across all pages.")
+
+    # --- Add Complexity Overview Page ---
+    if include_overview_page:
+        logger.info("Adding complexity overview page to the PDF.")
+        try:
+            # Add a new page at the end of the document
+            # Standard A4 dimensions: width=595, height=842 points.
+            # Using -1 for page_number adds it at the end.
+            overview_page = doc.new_page(-1, width=fitz.paper_size("a4")[0], height=fitz.paper_size("a4")[1])
+            _draw_overview_page_content(overview_page, analysis_results, overview_top_x_count, overview_top_x_type, overview_show_visual_map)
+            logger.info("Successfully drew content on the overview page.")
+        except Exception as e_overview:
+            logger.error(f"Error creating or drawing on the overview page: {e_overview}", exc_info=True)
+    # --- End Overview Page ---
 
     try:
         doc.save(output_pdf_path, garbage=4, deflate=True, clean=True)

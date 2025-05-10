@@ -288,57 +288,78 @@ def rewrite_suggestion():
     Provides feedback and rewrite suggestions for a specific sentence using DeepSeek.
     """
     data = request.get_json()
-    required_fields = ['sentence_text', 'surrounding_context', 'target_audience', 'complexity_score']
-    if not data or not all(field in data for field in required_fields):
-        missing = [field for field in required_fields if field not in (data or {})]
-        logging.warning(f"'/rewrite_suggestion' request missing fields: {missing}")
-        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+    if not data or 'sentence_text' not in data or 'target_audience' not in data:
+        return jsonify({"error": "Missing required fields in request body"}), 400
 
     sentence_text = data.get('sentence_text')
-    surrounding_context = data.get('surrounding_context')
     target_audience = data.get('target_audience')
-    complexity_score = data.get('complexity_score') # Frontend sends this directly
-
-    logging.info(f"Received rewrite suggestion request. Audience: {target_audience}, Score: {complexity_score:.2f}")
+    full_document_context = data.get('full_document_context', '') # Optional
 
     try:
-        result = get_rewrite_suggestion(
-            sentence_text=sentence_text,
-            surrounding_context=surrounding_context,
-            target_audience_profile=target_audience,
-            complexity_score=complexity_score
-        )
-        return jsonify(result)
+        suggestion = get_rewrite_suggestion(sentence_text, target_audience, full_document_context)
+        return jsonify({"suggestion": suggestion})
     except Exception as e:
-        logging.error(f"Error during rewrite suggestion call: {e}", exc_info=True)
-        return jsonify({"error": f"Server error during rewrite suggestion: {e}"}), 500
+        current_app.logger.error(f"Error in /rewrite_suggestion: {e}", exc_info=True)
+        return jsonify({"error": "Failed to get rewrite suggestion."}), 500
 
 # --- PDF Processing Routes ---
 
 @app.route('/upload_pdf', methods=['POST'])
 def upload_pdf_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
+    if 'pdf-file' not in request.files:
+        return jsonify({"error": "No PDF file part"}), 400
+    file = request.files['pdf-file']
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "No PDF selected"}), 400
+
     if file and allowed_file(file.filename):
         original_filename = secure_filename(file.filename)
-        # Save the file temporarily with a unique name to avoid conflicts
-        temp_filename = str(uuid.uuid4()) + "_" + original_filename
+        # Generate a unique filename for storing to avoid conflicts
+        unique_suffix = str(uuid.uuid4())
+        temp_filename = f"{unique_suffix}_{original_filename}"
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
         file.save(file_path)
+        app.logger.info(f"PDF '{original_filename}' uploaded and saved to {file_path}")
 
-        # Get the action from the form data (e.g., 'extract_text' or 'full_analysis')
-        action = request.form.get('action', 'full_analysis') 
-        app.logger.info(f"Uploading PDF: {original_filename}, Action: {action}")
+        # Get additional parameters from the form
+        target_audience = request.form.get('target_audience', 'Standard')
+        action = request.form.get('action', 'full_analysis') # e.g., 'extract_text' or 'full_analysis'
 
-        # Launch Celery task with the file path, original name, and action
-        task = process_pdf_task.delay(file_path, original_filename, action)
-        app.logger.info(f"Celery task {task.id} started for {original_filename} with action '{action}'.")
-        return jsonify({"task_id": task.id}), 202
-    
-    return jsonify({"error": "File type not allowed or error saving file"}), 400
+        # Get PDF overview parameters from form data
+        include_overview_page_str = request.form.get('include_overview_page', 'true').lower()
+        include_overview_page = include_overview_page_str == 'true'
+        
+        overview_top_x_count_str = request.form.get('overview_top_x_count', '5')
+        try:
+            overview_top_x_count = int(overview_top_x_count_str)
+        except ValueError:
+            overview_top_x_count = 5 # Default if conversion fails
+
+        overview_top_x_type = request.form.get('overview_top_x_type', 'complex')
+        if overview_top_x_type not in ['complex', 'simple']:
+            overview_top_x_type = 'complex' # Default
+
+        overview_show_visual_map_str = request.form.get('overview_show_visual_map', 'true').lower()
+        overview_show_visual_map = overview_show_visual_map_str == 'true'
+
+        app.logger.info(f"Enqueuing PDF processing task for '{original_filename}'. Action: {action}, Target Audience: {target_audience}, Overview Page: {include_overview_page}, Top X: {overview_top_x_count} ({overview_top_x_type}), Show Map: {overview_show_visual_map}")
+
+        # Enqueue the Celery task
+        task = process_pdf_task.delay(
+            file_path, 
+            original_filename, 
+            action=action, 
+            target_audience=target_audience,
+            include_overview_page=include_overview_page,
+            overview_top_x_count=overview_top_x_count,
+            overview_top_x_type=overview_top_x_type,
+            overview_show_visual_map=overview_show_visual_map
+        )
+        app.logger.info(f"Task {task.id} for '{original_filename}' enqueued.")
+
+        return jsonify({"message": "PDF uploaded successfully, processing started.", "task_id": task.id, "filename": original_filename}), 202
+    else:
+        return jsonify({"error": "Invalid file type, only PDF allowed"}), 400
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def get_task_status(task_id):

@@ -81,7 +81,31 @@
 
                     <!-- Actions with improved styling -->
                     <div id="pdf-actions-container" class="space-y-3 bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
-                <div>
+                        <!-- NEW Target Audience Selector for PDF -->
+                        <div class="relative">
+                            <label for="pdf-target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-1">Target Audience (PDF)</label>
+                            <button id="pdf-target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
+                                <span id="pdf-target-audience-selected">Standard</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+                            <div id="pdf-target-audience-options" class="absolute z-20 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-60 overflow-y-auto">
+                                <ul class="py-1 text-sm text-[var(--text-primary)]">
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Standard">Standard</a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="General Public">General Public (Grade 8-10)</a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Academic / Technical">Academic / Technical</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <!-- END NEW Target Audience Selector for PDF -->
+                        <div>
                         <button id="text-extract-btn" class="sidebar-button w-full">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
@@ -89,7 +113,7 @@
                         Extract Text
                     </button>
                             <div id="pdf-extract-status" class="status-text"></div>
-                </div>
+                        </div>
                 <div>
                         <button id="pdf-analysis-btn" class="sidebar-button w-full">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
@@ -99,8 +123,41 @@
                     </button>
                             <div id="pdf-analysis-status" class="status-text"></div>
                         </div>
+
+                        <!-- NEW PDF Overview Page Options -->
+                        <div class="mt-4 pt-3 border-t border-[var(--border-color-muted)]">
+                            <h4 class="text-xs font-semibold text-[var(--text-secondary)] mb-2 uppercase">PDF Overview Page Options</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-center justify-between">
+                                    <label for="include-overview-page" class="text-[var(--text-primary)] cursor-pointer flex items-center">
+                                        <input type="checkbox" id="include-overview-page" name="include_overview_page" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked>
+                                        Include Overview Page
+                                    </label>
+                                </div>
+                                <div id="overview-options-details" class="space-y-3 pl-2 border-l-2 border-gray-700 ml-2">
+                                    <div>
+                                        <label for="overview-top-x-count" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Top X Sentences (0-20)</label>
+                                        <input type="number" id="overview-top-x-count" name="overview_top_x_count" min="0" max="20" value="5" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)]">
+                                    </div>
+                                    <div>
+                                        <label for="overview-top-x-type" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Show Top</label>
+                                        <select id="overview-top-x-type" name="overview_top_x_type" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)]">
+                                            <option value="complex" selected>Complex Sentences</option>
+                                            <option value="simple">Simple Sentences</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <label for="overview-show-visual-map" class="text-[var(--text-primary)] cursor-pointer flex items-center">
+                                            <input type="checkbox" id="overview-show-visual-map" name="overview_show_visual_map" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked>
+                                            Show Visual Sentence Map
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- END NEW PDF Overview Page Options -->
+                    </div>
                 </div>
-            </div>
 
                 <!-- Download Card - Initially Hidden with improved styling -->
                 <div id="pdf-download-card" class="sidebar-card hidden bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
