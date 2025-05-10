@@ -10,10 +10,11 @@
   --accent-red: #f38ba8;
   --border-radius: 12px;
   --transition-speed: 0.2s;
-  --input-bg: #181825; /* Added solid background for inputs/dropdowns */
+  --input-bg: #242434; /* Changed to a slightly lighter color than sidebar */
   --sidebar-bg-rgb: 24, 24, 37;
   --status-bg-rgb: 239, 68, 68;
   --status-text: #cdd6f4;
+  --border-color: rgba(108, 111, 147, 0.3); /* Added explicit border-color variable */
   --border-color-muted: rgba(108, 111, 147, 0.2);
   --accent-blue-rgb: 137, 180, 250; /* For hover effect on upload */
 }
@@ -185,236 +186,191 @@ body {
 /* Left Sidebar General Styling - Enhanced for Collapsing - RESTORED BASE STYLES */
 #left-sidebar {
   /* --- Base visual and layout properties --- */
-  background-color: rgba(var(--sidebar-bg-rgb), 0.5) !important; /* From original theme */
-  border-right: 1px solid var(--border-color-muted) !important; /* CRITICAL: Restore border */
-  backdrop-filter: blur(10px) !important; /* From original theme */
+  background-color: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--border-color-muted) !important;
+  backdrop-filter: blur(10px) !important;
   display: flex !important;
   flex-direction: column !important;
   width: 18.4rem; /* Default open width - will be managed by state classes too */
   min-width: 18.4rem; /* Default open min-width */
   box-sizing: border-box !important; /* Already set but good to ensure */
   position: relative !important; /* For positioning toggle button and collapse transform */
-
-  /* --- Transitions --- */
-  padding: 1rem; /* Default padding when open - will be transitioned by state classes */
-  gap: 0; /* Card margins will handle spacing */
-  transition: min-width var(--transition-speed) ease-in-out,
-              width var(--transition-speed) ease-in-out,
-              padding var(--transition-speed) ease-in-out,
-              opacity var(--transition-speed) ease-in-out,
-              transform var(--transition-speed) ease-in-out,
-              border-right-width var(--transition-speed) ease-in-out, /* Transition for border */
-              overflow var(--transition-speed) step-end; /* Delay overflow change */
-  overflow: hidden; /* Initially hidden to prevent content spill during collapse, open state makes it visible */
+  padding: 3.5rem 1.5rem 1.5rem 1rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
-/* State: Left Sidebar Open (Default or Explicitly Set) */
+/* Open sidebar state class */
 .left-sidebar-state-open {
-  width: 18.4rem !important;
-  min-width: 18.4rem !important;
-  padding: 1rem !important;
+  transform: translateX(0) !important;
   opacity: 1 !important;
-  transform: translateX(0%) !important;
-  overflow: visible !important; /* Allow content like dropdowns to show */
-  border-right-width: 1px !important; /* Ensure border is visible when open */
+  width: 18.4rem !important; /* Ensure width is set exactly */
+  min-width: 18.4rem !important;
+  max-width: 18.4rem !important;
+  padding: 3.5rem 1.5rem 1.5rem 1rem !important; /* Matches complexity sidebar */
 }
 
-/* State: Left Sidebar Closed (Collapsed) */
+/* Closed sidebar state class */
 .left-sidebar-state-closed {
-  width: 0rem !important;
-  min-width: 0rem !important;
-  padding: 0rem !important; /* Collapse padding */
+  transform: translateX(-100%) !important;
   opacity: 0 !important;
-  transform: translateX(-20px) !important; /* Slight pull-left effect */
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
   overflow: hidden !important;
-  border-right-width: 0px !important; /* Collapse border */
 }
 
-/* Sidebar Header */
-#left-sidebar .pb-2.border-b {
-  padding-bottom: 0.75rem;
-  margin-bottom: 0.5rem; /* Space below header */
-}
-
-/* General Sidebar Card Styling - Matches right sidebar analysis cards */
+/* Sidebar cards and UI elements consistency */
 .sidebar-card {
-  background-color: rgba(49, 50, 68, 0.6); /* Slightly more opaque for cards */
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(108, 111, 147, 0.15);
-  border-radius: 10px;
-  padding: 1rem;
-  transition: opacity var(--transition-speed) ease-in-out,
-              transform var(--transition-speed) ease-in-out,
-              max-height 0.35s ease-in-out, /* Slightly longer for height */
-              margin-bottom var(--transition-speed) ease-in-out,
-              padding-top 0.35s ease-in-out, /* Match max-height duration */
-              padding-bottom 0.35s ease-in-out, /* Match max-height duration */
-              border-width 0.35s ease-in-out; /* Match max-height duration */
-  overflow: hidden; /* Crucial for max-height animation */
-  will-change: opacity, transform, max-height, margin-bottom, padding, border-width; /* Performance hint */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: rgba(49, 50, 68, 0.5) !important; 
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important; 
+  padding: 1.25rem !important;
+  margin-bottom: 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 .sidebar-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* Animation State: Active/Visible Card */
+/* Active and inactive states for cards */
 .card-active {
-  opacity: 1;
-  transform: translateY(0px) scale(1);
-  max-height: 40rem; /* Sufficiently large for card content */
-  pointer-events: auto;
-  margin-bottom: 1rem; /* Creates the gap between active cards */
-  padding-top: 1rem; /* Restore original padding */
-  padding-bottom: 1rem; /* Restore original padding */
-  border-width: 1px; /* Restore border defined in .sidebar-card */
-  /* Ensure other .sidebar-card properties like background, box-shadow etc are not overridden if not intended */
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important;
+  padding: 1.25rem !important;
+  margin-bottom: 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
-/* Animation State: Inactive/Hidden Card (Animated Out) */
 .card-inactive {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.98); /* Effect: slides up and shrinks slightly */
-  max-height: 0 !important;
-  pointer-events: none !important;
-  margin-top: 0 !important; /* Collapse any top margin */
-  margin-bottom: 0 !important; /* Collapse bottom margin, thus removing gap */
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  border-top-width: 0px !important; /* Collapse border */
-  border-bottom-width: 0px !important; /* Collapse border */
-  /* Note: side borders (left/right) will also collapse if border-width is used.
-     If only top/bottom borders should collapse, use border-top-width and border-bottom-width.
-     The current .sidebar-card has a general 'border: 1px solid ...', so border-width: 0 will remove all.
-     This is usually desired for a full collapse. */
-  overflow: hidden !important; /* Re-ensure */
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important;
+  opacity: 0.7 !important;
+  padding: 1.25rem !important;
+  margin-bottom: 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
-/* === Force Button Size Consistency (Height and Square X Button) === */
-
-/* --- Shared base for height, alignment, border-radius --- */
+/* PDF upload card and button styles - Consistent with complexity sidebar buttons */
 #pdf-upload-card label[for="pdf-upload-input"],
+label[for="pdf-upload-input"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  cursor: pointer !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#pdf-upload-card label[for="pdf-upload-input"]:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* PDF Remove button styling - Consistent with complexity sidebar */
 #pdf-remove-btn {
-    box-sizing: border-box !important;
-    height: 2.25rem !important; /* Approx 36px, for a standard button feel */
-    border-radius: 8px !important; /* Consistent with other sidebar buttons if they use this */
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-decoration: none !important; /* Essential for the label acting as a button */
-    line-height: 1.3 !important; /* Adjusted for typical text vertical centering in fixed height */
-    /* Specific background, color, border are expected to be handled by their individual existing rules */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 0.5rem !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
-/* --- Shared Icon Styling --- */
-#pdf-upload-card label[for="pdf-upload-input"] .upload-icon, /* Targets the icon if it has this class */
-#pdf-upload-card label[for="pdf-upload-input"] > svg,       /* Fallback if the SVG is a direct child of the label */
-#pdf-remove-btn svg {
-    width: 1rem !important;  /* Default icon size */
-    height: 1rem !important; /* Default icon size */
-    flex-shrink: 0 !important;
-}
-
-/* --- Import PDF Button (label: icon + text) Specifics --- */
-#pdf-upload-card label[for="pdf-upload-input"] {
-    padding-left: 0.75rem !important;  /* Approx 12px horizontal padding */
-    padding-right: 0.75rem !important;
-    gap: 0.5rem !important;           /* Space between icon and text */
-    font-size: 0.875rem !important;   /* 14px font, standard for UI buttons */
-    /* This button will inherit the common height. Its width will be determined by content + padding + gap. */
-    /* Its specific background/color/border styling comes from other existing rules. */
-}
-
-/* --- Discard/Reset Button (X icon only) Specifics --- */
-#pdf-remove-btn {
-    width: 2.25rem !important;        /* Width matches the explicit height to ensure a square button */
-    padding: 0 !important;            /* Icon is centered within fixed dimensions; no internal padding needed */
-    margin-left: 0.75rem !important;  /* Preserves existing desired spacing to its left */
-    /* This button inherits the common height. */
-    /* Its specific background/color/border (e.g., red accent) comes from other existing rules. */
-}
-
-/* Make action buttons much more visible */
+/* PDF file actions buttons - Consistent with complexity sidebar buttons */
 #pdf-file-actions-card .action-button {
-    color: var(--accent-blue) !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    padding: 0.5rem 0.75rem !important;
-    border: 1px solid rgba(var(--accent-blue-rgb), 0.3) !important;
-    background-color: rgba(var(--accent-blue-rgb), 0.1) !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 #pdf-file-actions-card .action-button:hover {
-    background-color: rgba(var(--accent-blue-rgb), 0.2) !important;
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* Dramatically improve spacing */
+/* PDF file actions card styling - Already styled in custom-layout-fixes.css */
 #pdf-file-actions-card {
-    gap: 1rem !important;
-    padding: 1.25rem !important;
+  margin-top: 1rem !important;
 }
 
-#pdf-file-actions-card .action-button {
-    margin: 0.75rem 0 !important;
-}
-
+/* PDF info container styling - Already styled in custom-layout-fixes.css */ 
 #pdf-info-container {
-    margin-bottom: 1.25rem !important;
-    padding-bottom: 1rem !important;
-    border-bottom: 1px solid var(--border-color-muted) !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important;
 }
 
-/* Sidebar Buttons - General Styling */
+/* General sidebar buttons */
 .sidebar-button,
 .sidebar-button-accent {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all var(--transition-speed) ease;
-  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.5rem 0.75rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 .sidebar-button {
-  background-color: rgba(var(--input-bg-rgb, 24, 24, 37), 0.7); /* Use RGB for input-bg or default */
-  border: 1px solid var(--border-color-muted);
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
 }
 
 .sidebar-button:hover {
-  background-color: rgba(108, 111, 147, 0.2);
-  transform: translateY(-1px);
-  border-color: rgba(108, 111, 147, 0.4);
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .sidebar-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-blue);
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
 }
 
-/* Accent Button (e.g., Download) */
 .sidebar-button-accent {
-  background-color: var(--accent-blue);
-  border: 1px solid var(--accent-blue);
-  color: #fff; /* White text for accent button */
+  background-color: var(--accent-blue) !important;
+  color: #fff !important; 
+  border-color: var(--accent-blue) !important;
 }
 
 .sidebar-button-accent:hover {
-  background-color: #7da8e8; /* Lighter blue on hover */
-  border-color: #7da8e8;
-  transform: translateY(-1px);
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
 
 .sidebar-button-accent:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.5);
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.5) !important;
 }
 
 /* Status Text Styling */
@@ -1053,4 +1009,48 @@ h1, h2, h3 {
 
 #open-left-sidebar-btn.hidden {
     display: none !important; /* Keep this to hide it when not needed */
+}
+
+/* Make sidebar toggle buttons consistent */
+#toggle-sidebar-btn {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#toggle-sidebar-btn svg {
+  transition: transform var(--transition-speed) ease !important;
+  color: var(--text-primary) !important;
+}
+
+/* Other PDF toolkit buttons */
+#text-extract-btn, 
+#pdf-analysis-btn, 
+#download-pdf-btn {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--text-primary) !important;
+}
+
+#pdf-upload-card label[for="pdf-upload-input"] .upload-icon, 
+#text-extract-btn svg, 
+#pdf-analysis-btn svg, 
+#download-pdf-btn svg {
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#pdf-upload-card label[for="pdf-upload-input"]:hover .upload-icon,
+#text-extract-btn:hover svg, 
+#pdf-analysis-btn:hover svg, 
+#download-pdf-btn:hover svg {
+  color: var(--accent-blue) !important;
 }

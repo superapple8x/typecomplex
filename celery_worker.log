@@ -1,19 +1,19 @@
 1 RLock(s) were not greened, to fix this error make sure you run eventlet.monkey_patch() before importing any other modules.
 /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/spacy/util.py:910: UserWarning: [W095] Model 'en_core_web_sm' (3.8.0) was trained with spaCy v3.8.0 and may not be 100% compatible with the current version (3.7.4). If you see errors or degraded performance, download a newer compatible model or retrain your custom model with the current spaCy version. For more details and available updates, run: python -m spacy validate
   warnings.warn(warn_msg)
-2025-05-10 17:30:47,186 - INFO - DeepSeek client initialized successfully.
-2025-05-10 17:30:47,257 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
+2025-05-10 23:17:28,537 - INFO - DeepSeek client initialized successfully.
+2025-05-10 23:17:28,606 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
 [nltk_data] Downloading package wordnet to /home/pepper/nltk_data...
 [nltk_data]   Package wordnet is already up-to-date!
-2025-05-10 17:30:47,396 - INFO - NLTK resource 'wordnet' downloaded successfully.
-2025-05-10 17:30:47,397 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
-2025-05-10 17:30:47,397 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
-[2025-05-10 17:30:47,422: DEBUG/MainProcess] | Worker: Preparing bootsteps.
-[2025-05-10 17:30:47,423: DEBUG/MainProcess] | Worker: Building graph...
-[2025-05-10 17:30:47,424: DEBUG/MainProcess] | Worker: New boot order: {Timer, Hub, Pool, Autoscaler, Beat, StateDB, Consumer}
-[2025-05-10 17:30:47,429: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
-[2025-05-10 17:30:47,429: DEBUG/MainProcess] | Consumer: Building graph...
-[2025-05-10 17:30:47,444: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Agent, Events, Mingle, Tasks, DelayedDelivery, Heart, Control, Gossip, event loop}
+2025-05-10 23:17:28,749 - INFO - NLTK resource 'wordnet' downloaded successfully.
+2025-05-10 23:17:28,749 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
+2025-05-10 23:17:28,749 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
+[2025-05-10 23:17:28,772: DEBUG/MainProcess] | Worker: Preparing bootsteps.
+[2025-05-10 23:17:28,773: DEBUG/MainProcess] | Worker: Building graph...
+[2025-05-10 23:17:28,774: DEBUG/MainProcess] | Worker: New boot order: {StateDB, Beat, Timer, Hub, Pool, Autoscaler, Consumer}
+[2025-05-10 23:17:28,778: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
+[2025-05-10 23:17:28,779: DEBUG/MainProcess] | Consumer: Building graph...
+[2025-05-10 23:17:28,793: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Mingle, Tasks, DelayedDelivery, Agent, Heart, Gossip, Control, event loop}
 Loading frequency data from: /home/pepper/typecomplex/app/data/ngram_freq.csv
 CSV Columns loaded: ['word', 'count']
 Using existing 'word' and 'count' columns.
@@ -24,10 +24,10 @@ Successfully loaded 'punkt' tokenizer.
  
  -------------- celery@fedora v5.5.2 (immunity)
 --- ***** ----- 
--- ******* ---- Linux-6.14.5-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-10 17:30:47
+-- ******* ---- Linux-6.14.5-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-10 23:17:28
 - *** --- * --- 
 - ** ---------- [config]
-- ** ---------- .> app:         app:0x7f98b25b1f50
+- ** ---------- .> app:         app:0x7f1d0926d990
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/0
 - *** --- * --- .> concurrency: 8 (eventlet)
@@ -50,34 +50,144 @@ Successfully loaded 'punkt' tokenizer.
   . celery.map
   . celery.starmap
 
-[2025-05-10 17:30:47,472: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
+[2025-05-10 23:17:28,822: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
     The 'CELERY_RESULT_BACKEND' setting is deprecated and scheduled for removal in
     version 6.0.0. Use the result_backend instead
 
   deprecated.warn(description=f'The {setting!r} setting',
 
-[2025-05-10 17:30:47,472: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
-[2025-05-10 17:30:47,472: DEBUG/MainProcess] | Worker: Starting Pool
-[2025-05-10 17:30:47,472: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:47,472: DEBUG/MainProcess] | Worker: Starting Consumer
-[2025-05-10 17:30:47,473: DEBUG/MainProcess] | Consumer: Starting Connection
-[2025-05-10 17:30:47,475: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2025-05-10 17:30:47,475: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:47,475: DEBUG/MainProcess] | Consumer: Starting Events
-[2025-05-10 17:30:47,477: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:47,477: DEBUG/MainProcess] | Consumer: Starting Mingle
-[2025-05-10 17:30:47,478: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-10 17:30:48,491: INFO/MainProcess] mingle: all alone
-[2025-05-10 17:30:48,491: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:48,492: DEBUG/MainProcess] | Consumer: Starting Tasks
-[2025-05-10 17:30:48,496: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:48,496: DEBUG/MainProcess] | Consumer: Starting Heart
-[2025-05-10 17:30:48,500: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:48,500: DEBUG/MainProcess] | Consumer: Starting Control
-[2025-05-10 17:30:48,501: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:48,501: DEBUG/MainProcess] | Consumer: Starting Gossip
-[2025-05-10 17:30:48,507: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
-[2025-05-10 17:30:48,520: DEBUG/MainProcess] ^-- substep ok
-[2025-05-10 17:30:48,520: DEBUG/MainProcess] | Consumer: Starting event loop
-[2025-05-10 17:30:48,520: INFO/MainProcess] celery@fedora ready.
-[2025-05-10 17:30:48,520: DEBUG/MainProcess] basic.qos: prefetch_count->32
+[2025-05-10 23:17:28,822: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
+[2025-05-10 23:17:28,822: DEBUG/MainProcess] | Worker: Starting Pool
+[2025-05-10 23:17:28,822: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:28,822: DEBUG/MainProcess] | Worker: Starting Consumer
+[2025-05-10 23:17:28,822: DEBUG/MainProcess] | Consumer: Starting Connection
+[2025-05-10 23:17:28,825: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-05-10 23:17:28,826: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:28,826: DEBUG/MainProcess] | Consumer: Starting Events
+[2025-05-10 23:17:28,829: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:28,829: DEBUG/MainProcess] | Consumer: Starting Mingle
+[2025-05-10 23:17:28,829: INFO/MainProcess] mingle: searching for neighbors
+[2025-05-10 23:17:29,841: INFO/MainProcess] mingle: all alone
+[2025-05-10 23:17:29,841: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:29,841: DEBUG/MainProcess] | Consumer: Starting Tasks
+[2025-05-10 23:17:29,845: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:29,845: DEBUG/MainProcess] | Consumer: Starting Heart
+[2025-05-10 23:17:29,848: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:29,848: DEBUG/MainProcess] | Consumer: Starting Gossip
+[2025-05-10 23:17:29,854: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:29,854: DEBUG/MainProcess] | Consumer: Starting Control
+[2025-05-10 23:17:29,854: DEBUG/MainProcess] ^-- substep ok
+[2025-05-10 23:17:29,854: DEBUG/MainProcess] | Consumer: Starting event loop
+[2025-05-10 23:17:29,854: INFO/MainProcess] celery@fedora ready.
+[2025-05-10 23:17:29,854: DEBUG/MainProcess] basic.qos: prefetch_count->32
+[2025-05-10 23:17:29,858: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
+[2025-05-10 23:17:54,543: INFO/MainProcess] Task app.tasks.process_pdf_task[18e5650d-e80c-4894-8e5b-669db051bef3] received
+[2025-05-10 23:17:54,544: DEBUG/MainProcess] TaskPool: Apply <function fast_trace_task at 0x7f1d0977f560> (args:('app.tasks.process_pdf_task', '18e5650d-e80c-4894-8e5b-669db051bef3', {'lang': 'py', 'task': 'app.tasks.process_pdf_task', 'id': '18e5650d-e80c-4894-8e5b-669db051bef3', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': '18e5650d-e80c-4894-8e5b-669db051bef3', 'parent_id': None, 'argsrepr': "('/home/pepper/typecomplex/uploads/f27c19e7-dc11-4b5b-82fd-e44649c000b8_1280-1.pdf', '1280-1.pdf')", 'kwargsrepr': "{'action': 'full_analysis', 'target_audience': 'Academic / Technical', 'include_overview_page': True, 'overview_top_x_count': 20, 'overview_top_x_type': 'complex', 'overview_show_visual_map': True}", 'origin': 'gen78364@fedora', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}, 'properties': {'correlation_id': '18e5650d-e80c-4894-8e5b-669db051bef3', 'reply_to': 'd35df1a0-6567-334e-a283-b923cc56ab32', 'delivery_mode': 2, 'delivery_info': {'exchange': '', 'routing_key': 'celery'},... kwargs:{})
+[2025-05-10 23:17:54,544: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: PyMuPDF (fitz) version: 1.25.5
+[2025-05-10 23:17:54,545: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: PyMuPDF (fitz) path: /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/fitz/__init__.py
+[2025-05-10 23:17:54,545: INFO/MainProcess] Starting PDF processing for: 1280-1.pdf (Task ID: 18e5650d-e80c-4894-8e5b-669db051bef3) at path: /home/pepper/typecomplex/uploads/f27c19e7-dc11-4b5b-82fd-e44649c000b8_1280-1.pdf
+[2025-05-10 23:17:54,561: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: Extracting text and coordinates from /home/pepper/typecomplex/uploads/f27c19e7-dc11-4b5b-82fd-e44649c000b8_1280-1.pdf...
+[2025-05-10 23:17:54,603: INFO/MainProcess]   SUCCESS (Block-NLTK): 'EPDE2020/1280...' Coords: 1. P1 B0
+[2025-05-10 23:17:54,606: INFO/MainProcess]   SUCCESS (Block-NLTK): 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 1...' Coords: 2. P1 B1
+[2025-05-10 23:17:54,610: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MATERIAL DESIGNERS WHEN...' Coords: 3. P1 B2
+[2025-05-10 23:17:54,614: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School of Art and Communicat...' Coords: 2. P1 B3
+[2025-05-10 23:17:54,619: INFO/MainProcess]   SUCCESS (Block-NLTK): 'ABSTRACT The recent academic literature on material practices within d...' Coords: 8. P1 B4
+[2025-05-10 23:17:54,624: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials and the Material Driven Design met...' Coords: 13. P1 B4
+[2025-05-10 23:17:54,628: INFO/MainProcess]   SUCCESS (Block-NLTK): 'This paper presents a qualitative case study of the challenges faced b...' Coords: 12. P1 B4
+[2025-05-10 23:17:54,632: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A comparative case study of twenty-eight material driven design projec...' Coords: 2. P1 B4
+[2025-05-10 23:17:54,636: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The result suggest: (a) that designers have a tendency to focus more o...' Coords: 6. P1 B4
+[2025-05-10 23:17:54,641: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper we also build on our previous research, regarding the de...' Coords: 2. P1 B4
+[2025-05-10 23:17:54,644: INFO/MainProcess]   SUCCESS (Block-NLTK): 'It is hoped that this research can contribute to the further developme...' Coords: 2. P1 B4
+[2025-05-10 23:17:54,648: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Keywords: DIY-materials, material driven design, experiential knowledg...' Coords: 2. P1 B5
+[2025-05-10 23:17:54,653: INFO/MainProcess]   SUCCESS (Block-NLTK): '1 INTRODUCTION The recent academic literature on material practices wi...' Coords: 4. P1 B6
+[2025-05-10 23:17:54,657: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper, we use the definition of DIY-materials as defined by Ro...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,661: INFO/MainProcess]   SUCCESS (Block-NLTK): '‘ materials which are created through individual or collective self-pr...' Coords: 3. P1 B6
+[2025-05-10 23:17:54,665: INFO/MainProcess]   SUCCESS (Block-NLTK): 'They can be totally new materials, modified, or further developed vers...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,670: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials [5] and the Material Driven Design...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,674: INFO/MainProcess]   SUCCESS (Block-NLTK): 'TU Delft (NL), Politecnico di Milano (IT), Imperial College London (UK...' Coords: 3. P1 B6
+[2025-05-10 23:17:54,678: INFO/MainProcess]   SUCCESS (Block-NLTK): 'However, these designers and students are facing great challenges when...' Coords: 3. P1 B6
+[2025-05-10 23:17:54,682: WARNING/MainProcess] Block-Search: Sentence 'There are numerous examples of DIY- materials that reach the...' NOT FOUND by page.search_for(). Attempting word-level fallback. P1 B6.
+[2025-05-10 23:17:54,691: INFO/MainProcess]   SUCCESS (Word-Fallback): Found coords for 'There are numerous examples of DIY- materials that reach the...'. P1 B6. Coords: 3
+[2025-05-10 23:17:54,691: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are numerous examples of DIY- materials that reach the developme...' Coords: 3. P1 B6
+[2025-05-10 23:17:54,695: INFO/MainProcess]   SUCCESS (Block-NLTK): 'These are often communicated through tempting images and storytelling ...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,699: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Unfortunately, few DIY-materials manage to reach the stage of viable m...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,704: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are however a few examples of successful circular and sustainabl...' Coords: 15. P1 B6
+[2025-05-10 23:17:54,707: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Terroir, Residue and Mestic....' Coords: 1. P1 B6
+[2025-05-10 23:17:54,712: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The Terroir project by the Danish designers Edvard & Steenfatt [7] use...' Coords: 14. P1 B6
+[2025-05-10 23:17:54,716: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The cork like composite is then used in a local craft production of fu...' Coords: 4. P1 B6
+[2025-05-10 23:17:54,720: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Swedish designer Hanna Carlsson developed a wood composite made of res...' Coords: 3. P1 B6
+[2025-05-10 23:17:54,724: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The residue material is moulded into double curved surfaces in furnitu...' Coords: 2. P1 B6
+[2025-05-10 23:17:54,724: INFO/MainProcess] Block-Level NLTK Extraction Complete for /home/pepper/typecomplex/uploads/f27c19e7-dc11-4b5b-82fd-e44649c000b8_1280-1.pdf. Total sentences mapped: 28
+[2025-05-10 23:17:54,724: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: Text extraction complete for action 'full_analysis'. Extracted 4280 characters. Found 28 potential sentence coordinate entries.
+[2025-05-10 23:17:54,724: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: 28 sentences have coordinate data for full analysis.
+[2025-05-10 23:17:54,725: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: Analyzing text complexity...
+[2025-05-10 23:17:54,725: INFO/MainProcess] Task 18e5650d-e80c-4894-8e5b-669db051bef3: Extracted 28 sentences for analysis.
+[2025-05-10 23:17:54,725: DEBUG/MainProcess] Task None: Starting spaCy processing in analyze_text_complexity.
+[2025-05-10 23:17:54,866: DEBUG/MainProcess] Task None: Finished spaCy processing in analyze_text_complexity.
+[2025-05-10 23:17:54,866: WARNING/MainProcess] Mismatch (ID: None): spaCy found 22 sents from full text, while pre-segmented list had 28. Prioritizing pre-segmented list (28 sentences) to maintain coordinate mapping integrity.
+[2025-05-10 23:17:54,872: DEBUG/MainProcess] Cache MISS for sentence index 0 (Key: 24505b0a...)
+[2025-05-10 23:17:54,873: DEBUG/MainProcess] Stored result in cache for sentence index 0 (Key: 24505b0a...)
+[2025-05-10 23:17:54,882: DEBUG/MainProcess] Cache MISS for sentence index 1 (Key: eecb72fb...)
+[2025-05-10 23:18:01,595: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1947 for sentence: 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUC...'
+[2025-05-10 23:18:01,595: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 3.130434782608696, 'has_passive_voice': 0}, Combined Factor: 0.199
+[2025-05-10 23:18:01,595: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 1, 'max_pp_nesting_depth': 1}, Combined Factor: 0.059
+[2025-05-10 23:18:01,595: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.3333333333333333}, Combined Factor: 0.197
+[2025-05-10 23:18:01,596: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.697, Factor: 0.000
+[2025-05-10 23:18:01,596: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.266 for sentence: 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUC...'
+[2025-05-10 23:18:01,596: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'INTERNATIONAL CONFERENCE ON EN', 'length_factor': 0.45714285714285713, 'word_len_factor': 0.8828125, 'frequency_factor': 0.022027841791005382, 'embedding_factor': 0.19474815856665373, 'syntactic_factor': 0.19914596273291924, 'dependency_factor': 0.05886243386243386, 'lexical_factor': 0.19696969696969702, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:01,596: DEBUG/MainProcess] Stored result in cache for sentence index 1 (Key: eecb72fb...)
+[2025-05-10 23:18:01,603: DEBUG/MainProcess] Cache MISS for sentence index 2 (Key: cadfcb8a...)
+[2025-05-10 23:18:03,091: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1474 for sentence: 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MAT...'
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 4, 'num_clauses': 1, 'avg_dependency_length': 2.0714285714285716, 'has_passive_voice': 0}, Combined Factor: 0.129
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 1, 'max_pp_nesting_depth': 1}, Combined Factor: 0.206
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.45454545454545453}, Combined Factor: 0.087
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.508, Factor: 0.000
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.223 for sentence: 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MAT...'
+[2025-05-10 23:18:03,092: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'A QUALITATIVE STUDY OF THE CHA', 'length_factor': 0.4, 'word_len_factor': 0.7321428571428571, 'frequency_factor': 0.013978849307296742, 'embedding_factor': 0.14739495302949632, 'syntactic_factor': 0.12886904761904763, 'dependency_factor': 0.2060846560846561, 'lexical_factor': 0.08677685950413228, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:03,092: DEBUG/MainProcess] Stored result in cache for sentence index 2 (Key: cadfcb8a...)
+[2025-05-10 23:18:03,099: DEBUG/MainProcess] Cache MISS for sentence index 3 (Key: b88bf789...)
+[2025-05-10 23:18:04,722: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1888 for sentence: 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School o...'
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 3.0, 'has_passive_voice': 0}, Combined Factor: 0.161
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 1, 'max_pp_nesting_depth': 1}, Combined Factor: 0.062
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.0}, Combined Factor: 0.500
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Task None: Semantic Coherence Score: 1.000, Factor: 0.000
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.282 for sentence: 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School o...'
+[2025-05-10 23:18:04,723: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Charlotte Asbjørn SÖRENSEN and', 'length_factor': 0.42857142857142855, 'word_len_factor': 0.7416666666666667, 'frequency_factor': 0.12639973208851038, 'embedding_factor': 0.18879583080609638, 'syntactic_factor': 0.1607142857142857, 'dependency_factor': 0.062169312169312166, 'lexical_factor': 0.5, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:04,723: DEBUG/MainProcess] Stored result in cache for sentence index 3 (Key: b88bf789...)
+[2025-05-10 23:18:04,733: DEBUG/MainProcess] Cache MISS for sentence index 4 (Key: 14df0be0...)
+[2025-05-10 23:18:07,370: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1829 for sentence: 'ABSTRACT The recent academic literature on materia...'
+[2025-05-10 23:18:07,370: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 1, 'avg_dependency_length': 2.64, 'has_passive_voice': 0}, Combined Factor: 0.166
+[2025-05-10 23:18:07,371: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.169
+[2025-05-10 23:18:07,371: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.6}, Combined Factor: 0.138
+[2025-05-10 23:18:07,371: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.428, Factor: 0.049
+[2025-05-10 23:18:07,371: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.266 for sentence: 'ABSTRACT The recent academic literature on materia...'
+[2025-05-10 23:18:07,371: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'ABSTRACT The recent academic l', 'length_factor': 0.6857142857142857, 'word_len_factor': 0.7239583333333334, 'frequency_factor': 0.008154328762589766, 'embedding_factor': 0.1828813012689352, 'syntactic_factor': 0.1657142857142857, 'dependency_factor': 0.16887125220458554, 'lexical_factor': 0.13804713804713797, 'semantic_coherence_factor': 0.04900038053118992}
+[2025-05-10 23:18:07,371: DEBUG/MainProcess] Stored result in cache for sentence index 4 (Key: 14df0be0...)
+[2025-05-10 23:18:07,380: DEBUG/MainProcess] Cache MISS for sentence index 5 (Key: 039623ad...)
+[2025-05-10 23:18:10,148: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1746 for sentence: 'Designers educated in DIY-materials and the Materi...'
+[2025-05-10 23:18:10,148: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 8, 'num_clauses': 4, 'avg_dependency_length': 3.4482758620689653, 'has_passive_voice': 0}, Combined Factor: 0.315
+[2025-05-10 23:18:10,148: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 2, 'subordination_count': 2, 'pp_count': 4, 'max_pp_nesting_depth': 1}, Combined Factor: 0.243
+[2025-05-10 23:18:10,148: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.56}, Combined Factor: 0.009
+[2025-05-10 23:18:10,148: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.500, Factor: 0.000
+[2025-05-10 23:18:10,149: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.290 for sentence: 'Designers educated in DIY-materials and the Materi...'
+[2025-05-10 23:18:10,149: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Designers educated in DIY-mate', 'length_factor': 0.7714285714285715, 'word_len_factor': 0.7546296296296297, 'frequency_factor': 0.007248292233413125, 'embedding_factor': 0.17463193281933112, 'syntactic_factor': 0.31469622331691294, 'dependency_factor': 0.24312169312169313, 'lexical_factor': 0.009090909090909097, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:10,149: DEBUG/MainProcess] Stored result in cache for sentence index 5 (Key: 039623ad...)
+[2025-05-10 23:18:10,157: DEBUG/MainProcess] Cache MISS for sentence index 6 (Key: 927bce55...)
+[2025-05-10 23:18:14,117: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1804 for sentence: 'This paper presents a qualitative case study of th...'
+[2025-05-10 23:18:14,118: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 14, 'num_clauses': 3, 'avg_dependency_length': 3.048780487804878, 'has_passive_voice': 0}, Combined Factor: 0.346
+[2025-05-10 23:18:14,118: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 2, 'subordination_count': 2, 'pp_count': 6, 'max_pp_nesting_depth': 5}, Combined Factor: 0.353
+[2025-05-10 23:18:14,118: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.6153846153846154}, Combined Factor: 0.059
+[2025-05-10 23:18:14,118: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.532, Factor: 0.000
+[2025-05-10 23:18:14,118: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.340 for sentence: 'This paper presents a qualitative case study of th...'
+[2025-05-10 23:18:14,119: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'This paper presents a qualitat', 'length_factor': 1.1142857142857143, 'word_len_factor': 0.717948717948718, 'frequency_factor': 0.00659196269434829, 'embedding_factor': 0.18042036394278207, 'syntactic_factor': 0.3456591173054588, 'dependency_factor': 0.35317460317460314, 'lexical_factor': 0.059440559440559426, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:14,119: DEBUG/MainProcess] Stored result in cache for sentence index 6 (Key: 927bce55...)
+[2025-05-10 23:18:14,125: DEBUG/MainProcess] Cache MISS for sentence index 7 (Key: a2e77697...)
+[2025-05-10 23:18:16,216: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1447 for sentence: 'A comparative case study of twenty-eight material ...'
+[2025-05-10 23:18:16,217: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 3.782608695652174, 'has_passive_voice': 1}, Combined Factor: 0.463
+[2025-05-10 23:18:16,217: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.082
+[2025-05-10 23:18:16,217: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.7}, Combined Factor: 0.136
+[2025-05-10 23:18:16,218: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.520, Factor: 0.000
+[2025-05-10 23:18:16,218: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.291 for sentence: 'A comparative case study of twenty-eight material ...'
+[2025-05-10 23:18:16,218: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'A comparative case study of tw', 'length_factor': 0.6, 'word_len_factor': 0.7738095238095238, 'frequency_factor': 0.01291104222678315, 'embedding_factor': 0.1447140858286903, 'syntactic_factor': 0.46273291925465837, 'dependency_factor': 0.082010582010582, 'lexical_factor': 0.13636363636363627, 'semantic_coherence_factor': 0.0}
+[2025-05-10 23:18:16,218: DEBUG/MainProcess] Stored result in cache for sentence index 7 (Key: a2e77697...)
+[2025-05-10 23:18:16,236: DEBUG/MainProcess] Cache MISS for sentence index 8 (Key: f731eb16...)

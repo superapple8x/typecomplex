@@ -30,30 +30,30 @@
     <div class="flex flex-grow overflow-hidden">
 
         <!-- NEW Left Sidebar for PDF Tools - Redesigned -->
-        <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-6 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md relative">
-            <!-- Collapse button for left sidebar -->
-            <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="absolute top-1 right-1 p-0.5 bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
-            </button>
-
-            <!-- Sidebar Header with improved spacing -->
-            <div class="pt-4 pb-2 border-b border-[var(--border-color-muted)]">
-                <h2 class="text-xl font-semibold text-[var(--text-primary)] flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-blue)]">
+        <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-6 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md">
+            <!-- MODIFIED Header: Flex container for title and collapse button -->
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="font-semibold text-[var(--text-primary)] text-base flex items-center h-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-[var(--accent-blue)]">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                     PDF Toolkit
                 </h2>
+                <!-- Collapse button (no longer absolute) -->
+                <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10 flex items-center justify-center h-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
             </div>
+            <hr class="border-[var(--border-color)] mb-3"> <!-- Added HR -->
 
-            <!-- Content Container for better organization -->
-            <div class="flex flex-col space-y-6 pt-2">
+            <!-- Content Container for better organization - pt-2 removed, relies on header's mb -->
+            <div class="flex flex-col space-y-6">
                 <!-- Upload Card with better styling -->
-                <div id="pdf-upload-card" class="sidebar-card bg-[rgba(31,32,40,0.2)] rounded-lg">
+                <div id="pdf-upload-card" class="sidebar-card bg-[var(--input-bg)] rounded-lg border border-[var(--border-color)] p-2">
                 <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
-                <label for="pdf-upload-input" class="flex flex-col items-center justify-center w-full h-32 p-4 border-2 border-dashed border-[var(--border-color-muted)] rounded-lg cursor-pointer hover:border-[var(--accent-blue)] hover:bg-[rgba(var(--accent-blue-rgb),0.05)] transition-colors duration-150">
+                <label for="pdf-upload-input" class="flex flex-col items-center justify-center w-full h-32 p-4 border-2 border-dashed border-[var(--border-color)] rounded-lg cursor-pointer hover:border-[var(--accent-blue)] hover:bg-[rgba(var(--accent-blue-rgb),0.05)] transition-colors duration-150">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2 text-[var(--text-secondary)]">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 17.25V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 17.25z" />
                     </svg>
@@ -63,9 +63,9 @@
             </div>
 
             <!-- File Display & Actions Card - Initially Hidden -->
-                <div id="pdf-file-actions-card" class="sidebar-card hidden space-y-4">
+                <div id="pdf-file-actions-card" class="sidebar-card hidden space-y-4 bg-[var(--sidebar-bg)] p-4 rounded-lg border border-[var(--border-color)]">
                     <!-- File Info Section with improved styling -->
-                    <div id="pdf-info-container" class="mb-4 bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
+                    <div id="pdf-info-container" class="mb-2 bg-[var(--input-bg)] p-3 rounded-lg">
                     <div class="flex items-center mb-2">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-green)]">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
@@ -80,76 +80,75 @@
             </div>
 
                     <!-- Actions with improved styling -->
-                    <div id="pdf-actions-container" class="space-y-3 bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
-                        <!-- NEW Target Audience Selector for PDF -->
-                        <div class="relative">
-                            <label for="pdf-target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-1">Target Audience (PDF)</label>
+                    <div id="pdf-actions-container" class="space-y-3 p-3 rounded-md">
+                        <!-- PDF Target Audience Selector -->
+                        <div class="mt-2 relative">
+                            <label for="pdf-target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience (PDF)</label>
                             <button id="pdf-target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
                                 <span id="pdf-target-audience-selected">Standard</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                                 </svg>
                             </button>
-                            <div id="pdf-target-audience-options" class="absolute z-20 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-60 overflow-y-auto">
+                            <div id="pdf-target-audience-options" class="absolute z-10 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-60 overflow-y-auto">
                                 <ul class="py-1 text-sm text-[var(--text-primary)]">
-                                    <li>
-                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Standard">Standard</a>
-                                    </li>
-                                    <li>
-                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="General Public">General Public (Grade 8-10)</a>
-                                    </li>
-                                    <li>
-                                        <a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Academic / Technical">Academic / Technical</a>
-                                    </li>
+                                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Standard">Standard</a></li>
+                                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="General Public">General Public (Grade 8-10)</a></li>
+                                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Academic / Technical">Academic / Technical</a></li>
                                 </ul>
                             </div>
                         </div>
-                        <!-- END NEW Target Audience Selector for PDF -->
+                        
+                        <!-- Consolidated PDF Actions: Extract Text & Analyze -->
                         <div>
-                        <button id="text-extract-btn" class="sidebar-button w-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
-                        </svg>
-                        Extract Text
-                    </button>
-                            <div id="pdf-extract-status" class="status-text"></div>
-                        </div>
-                <div>
-                        <button id="pdf-analysis-btn" class="sidebar-button w-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                        </svg>
-                            Analyze & Highlight
-                    </button>
-                            <div id="pdf-analysis-status" class="status-text"></div>
+                            <button id="text-extract-btn" class="sidebar-button w-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" /></svg>
+                                Extract Text
+                            </button>
+                            <button id="pdf-analysis-btn" class="sidebar-button w-full mt-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+                                Analyze & Highlight
+                            </button>
+                            <div id="pdf-action-status" class="status-text"></div>
                         </div>
 
                         <!-- NEW PDF Overview Page Options -->
-                        <div class="mt-4 pt-3 border-t border-[var(--border-color-muted)]">
+                        <div class="mt-4 pt-3 border-t border-[var(--border-color)]">
                             <h4 class="text-xs font-semibold text-[var(--text-secondary)] mb-2 uppercase">PDF Overview Page Options</h4>
                             <div class="space-y-3 text-sm">
-                                <div class="flex items-center justify-between">
-                                    <label for="include-overview-page" class="text-[var(--text-primary)] cursor-pointer flex items-center">
-                                        <input type="checkbox" id="include-overview-page" name="include_overview_page" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked>
-                                        Include Overview Page
-                                    </label>
-                                </div>
-                                <div id="overview-options-details" class="space-y-3 pl-2 border-l-2 border-gray-700 ml-2">
+                                <div id="overview-options-details" class="space-y-3 pl-2 border-l-2 border-[var(--border-color)] ml-2">
                                     <div>
                                         <label for="overview-top-x-count" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Top X Sentences (0-20)</label>
                                         <input type="number" id="overview-top-x-count" name="overview_top_x_count" min="0" max="20" value="5" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)]">
                                     </div>
                                     <div>
-                                        <label for="overview-top-x-type" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Show Top</label>
-                                        <select id="overview-top-x-type" name="overview_top_x_type" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)]">
+                                        <label for="overview-top-x-type-button" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Show Top</label>
+                                        <select id="overview-top-x-type" name="overview_top_x_type" class="hidden">
                                             <option value="complex" selected>Complex Sentences</option>
                                             <option value="simple">Simple Sentences</option>
                                         </select>
+                                        <button id="overview-top-x-type-button" type="button" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
+                                            <span id="overview-top-x-type-selected" class="py-0.5">Complex Sentences</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                        </button>
+                                        <div id="overview-top-x-type-options" class="absolute z-10 mt-1 bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-40 overflow-y-auto" style="min-width: calc(100% - 16px);">
+                                            <ul class="py-1 text-xs text-[var(--text-primary)]">
+                                                <li><a href="#" class="block px-3 py-1.5 hover:bg-[rgba(108,111,147,0.1)]" data-value="complex">Complex Sentences</a></li>
+                                                <li><a href="#" class="block px-3 py-1.5 hover:bg-[rgba(108,111,147,0.1)]" data-value="simple">Simple Sentences</a></li>
+                                            </ul>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center justify-between">
+                                    <div class="flex items-center justify-between mt-6">
                                         <label for="overview-show-visual-map" class="text-[var(--text-primary)] cursor-pointer flex items-center">
                                             <input type="checkbox" id="overview-show-visual-map" name="overview_show_visual_map" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked>
                                             Show Visual Sentence Map
+                                        </label>
+                                    </div>
+                                    <!-- MOVED "Include Overview Page" toggle here -->
+                                    <div class="flex items-center justify-between">
+                                        <label for="include-overview-page" class="text-[var(--text-primary)] cursor-pointer flex items-center">
+                                            <input type="checkbox" id="include-overview-page" name="include_overview_page" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked>
+                                            Include Overview Page
                                         </label>
                                     </div>
                                 </div>
@@ -160,7 +159,7 @@
                 </div>
 
                 <!-- Download Card - Initially Hidden with improved styling -->
-                <div id="pdf-download-card" class="sidebar-card hidden bg-[rgba(31,32,40,0.3)] p-3 rounded-lg">
+                <div id="pdf-download-card" class="sidebar-card hidden bg-[var(--input-bg)] p-3 rounded-lg">
                 <div id="pdf-download-container">
                     <button id="download-pdf-btn" class="sidebar-button-accent w-full">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">

@@ -3,6 +3,13 @@
 /* Create significant space at the top of the sidebar to avoid overlap with the collapse button */
 #left-sidebar {
   padding-top: 3.5rem !important;
+  background-color: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--border-color-muted) !important;
+  backdrop-filter: blur(10px) !important;
+  width: 18.4rem !important;
+  min-width: 18.4rem !important;
+  padding: 3.5rem 1.5rem 1.5rem 1rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 /* Position the collapse button more clearly in the corner */
@@ -10,10 +17,18 @@
   top: 0.5rem !important;
   right: 0.5rem !important;
   z-index: 50 !important;
-  background-color: rgba(31, 32, 40, 0.8) !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
   padding: 0.35rem !important;
   border-radius: 0.375rem !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#toggle-left-sidebar-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Improved sidebar header spacing */
@@ -24,38 +39,385 @@
 /* Ensure the sidebar header is well-positioned */
 #left-sidebar h2 {
   margin-bottom: 1rem !important;
+  color: var(--text-primary) !important;
 }
 
 /* Add separation between header and upload card */
 #pdf-upload-card {
   margin-top: 1.5rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important;
+  padding: 1.25rem !important;
+  margin-bottom: 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
-/* Improved hover effects for buttons */
-.sidebar-button, .sidebar-button-accent {
-  transition: all 0.2s ease-in-out !important;
+#pdf-upload-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure parent card container has the correct sidebar background */
+#pdf-file-actions-card {
+  background-color: var(--sidebar-bg) !important;
+  margin-top: 1rem !important;
+  padding: 0.75rem !important;
+}
+
+/* PDF info container styling */
+#pdf-info-container {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-radius: 10px !important;
+  padding: 1.25rem !important;
+  margin-bottom: 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#pdf-info-container:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure the direct children/containers inside pdf-file-actions-card are transparent */
+#pdf-actions-container,
+#pdf-actions-container > .mt-4.pt-3.border-t { /* This is the container for overview options */
+  background-color: transparent !important;
+}
+
+/* --- STYLING FOR SPECIFIC CONTROLS --- */
+
+/* New, more direct approach for Target Audience PDF Button */
+#pdf-target-audience-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.5rem 0.75rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+  opacity: 1 !important;
+}
+
+#pdf-target-audience-button:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+#pdf-target-audience-button:disabled {
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+}
+
+/* PDF Target Audience Options Dropdown */
+#pdf-target-audience-options {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  color: var(--text-primary) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 20 !important;
+}
+
+#pdf-target-audience-options a {
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#pdf-target-audience-options a:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+/* New, more direct approach for Overview Top X Count Input */
+#overview-top-x-count {
+  width: 100% !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 8px !important;
+  margin-bottom: 1rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+  -webkit-appearance: textfield !important;
+  -moz-appearance: textfield !important;
+}
+
+#overview-top-x-count:focus {
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+}
+
+#overview-top-x-count:disabled {
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+}
+
+/* Remove default styling for number inputs */
+#overview-top-x-count::-webkit-inner-spin-button,
+#overview-top-x-count::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+/* New, more direct approach for Overview Top X Type Select */
+#overview-top-x-type,
+select#overview-top-x-type.w-full,
+select#overview-top-x-type.w-full.p-1\.5 {
+  width: 100% !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 8px !important;
+  margin-bottom: 1rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+  /* Enhanced styling for select element */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a6adc8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.5rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1em 1em !important;
+}
+
+#overview-top-x-type:focus,
+select#overview-top-x-type.w-full:focus,
+select#overview-top-x-type.w-full.p-1\.5:focus {
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+}
+
+#overview-top-x-type:disabled,
+select#overview-top-x-type.w-full:disabled,
+select#overview-top-x-type.w-full.p-1\.5:disabled {
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+  /* Keep the dropdown arrow for consistency even when disabled */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a6adc8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.5rem center !important;
+}
+
+/* Style dropdown options */
+#overview-top-x-type option {
+  background-color: rgba(49, 50, 68, 0.9) !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem !important;
+}
+
+/* Force correct display in all states */
+select#overview-top-x-type[aria-disabled="true"],
+select#overview-top-x-type.pointer-events-none {
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(108, 111, 147, 0.1) !important;
+  opacity: 0.7 !important;
+}
+
+/* Override parent's opacity for these specific controls */
+#overview-options-details.opacity-50 #overview-top-x-count,
+#overview-options-details.opacity-50 #overview-top-x-type,
+#overview-options-details.opacity-50 label[for="overview-top-x-count"],
+#overview-options-details.opacity-50 label[for="overview-top-x-type"] {
+  opacity: 1 !important;
+}
+
+/* Custom dropdown for "Show Top" select */
+#overview-top-x-type-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.5rem 0.75rem !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+  min-height: 32px !important;
+  width: 100% !important;
+}
+
+#overview-top-x-type-button:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+#overview-top-x-type-button:disabled {
+  background-color: rgba(49, 50, 68, 0.3) !important;
+  border: 1px solid rgba(108, 111, 147, 0.1) !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+}
+
+#overview-top-x-type-options {
+  position: absolute !important;
+  z-index: 30 !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  margin-top: 2px !important;
+  left: 0 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+}
+
+#overview-top-x-type-options a {
+  padding: 0.5rem 0.75rem !important;
+  min-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: all var(--transition-speed) ease !important;
+}
+
+#overview-top-x-type-options a:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+/* Fix positioning for the dropdown options container */
+#overview-top-x-type-button + #overview-top-x-type-options {
+  position: absolute !important;
+  width: calc(100% - 2px) !important;
+}
+
+/* --- END SPECIFIC CONTROLS --- */
+
+/* General buttons in sidebar */
+.sidebar-button, 
+.sidebar-button-accent {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 .sidebar-button:hover {
-  background-color: rgba(108, 111, 147, 0.15) !important;
+  background-color: rgba(108, 111, 147, 0.2) !important;
   transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.sidebar-button-accent {
+  background-color: var(--accent-blue) !important;
+  color: #fff !important;
+  border-color: var(--accent-blue) !important;
 }
 
 .sidebar-button-accent:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  opacity: 0.9 !important;
 }
 
-/* Fix spacing in action cards */
-#pdf-file-actions-card {
-  padding: 1rem !important;
-  border-radius: 0.5rem !important;
-  background-color: rgba(31, 32, 40, 0.3) !important;
+/* Actions buttons in PDF toolkit */
+#text-extract-btn, 
+#pdf-analysis-btn, 
+#download-pdf-btn, 
+label[for="pdf-upload-input"] {
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all var(--transition-speed) ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 0.75rem !important;
+}
+
+#text-extract-btn:hover, 
+#pdf-analysis-btn:hover, 
+#download-pdf-btn:hover, 
+label[for="pdf-upload-input"]:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure consistent spacing between buttons */
+#pdf-file-actions-card .action-button {
+  margin-bottom: 0.75rem !important;
+}
+
+/* Remove margin from last button in each container */
+#pdf-file-actions-card .action-button:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Ensure all PDF toolkit sections have consistent spacing */
+#pdf-actions-container > div,
+#pdf-actions-container > .mt-4.pt-3.border-t {
+  margin-top: 1rem !important;
+  padding-top: 1rem !important;
+  border-top: 1px solid rgba(108, 111, 147, 0.1) !important;
 }
 
 /* Ensure tooltips appear above other elements */
 .tippy-box {
   z-index: 100 !important;
+  background-color: rgba(49, 50, 68, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  color: var(--text-primary) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] {
+  background-color: rgba(49, 50, 68, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  color: var(--text-primary) !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] .tippy-content {
+  padding: 0.75rem !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] a {
+  color: var(--accent-blue) !important;
+  text-decoration: none !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] a:hover {
+  text-decoration: underline !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] strong {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.tippy-box[data-theme~='tippy-dark'] hr {
+  border-color: rgba(108, 111, 147, 0.2) !important;
+  margin: 0.5rem 0 !important;
 }
 
 /* Enhance the status text visibility */
@@ -67,26 +429,61 @@
 
 /* Improved spacing for main content area */
 main {
-  padding: 1.5rem !important;
+  padding: 1rem !important;
 }
 
-/* Editor container improvements */
+/* Ensure proper editor container spacing */
 #editor-container {
-  border-radius: 0.5rem !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  margin-top: 1rem !important;
+  margin-bottom: 1rem !important;
 }
 
-/* Right sidebar refinements */
+/* Right sidebar adjustment to match left sidebar */
 #complexity-sidebar {
-  padding-top: 1.5rem !important;
+  padding: 1.5rem 1.5rem 1.5rem 1rem !important;
+  backdrop-filter: blur(10px) !important;
+  border-left: 1px solid var(--border-color-muted) !important;
 }
 
-/* More visible button to open sidebars */
+/* Make sidebar toggle buttons consistent */
 #open-left-sidebar-btn, #open-sidebar-btn {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
-  transition: all 0.2s ease !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  padding: 0.35rem !important;
+  border-radius: 0.375rem !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 #open-left-sidebar-btn:hover, #open-sidebar-btn:hover {
-  transform: scale(1.05) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Fix for Firefox select dropdown styling */
+@-moz-document url-prefix() {
+    #overview-top-x-type {
+        background-color: var(--input-bg) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        text-indent: 0.01px;
+        text-overflow: '';
+    }
+    
+    #overview-top-x-type:disabled {
+        background-color: var(--input-bg) !important;
+        color: var(--text-secondary) !important;
+        opacity: 1 !important;
+    }
+    
+    /* Remove the default dropdown arrow in Firefox */
+    #overview-top-x-type::-moz-focusring {
+        color: transparent !important;
+        text-shadow: 0 0 0 var(--text-primary) !important;
+    }
+}
+
+/* Position fix specifically for the overview top-x-type dropdown in left sidebar */
+#overview-options-details {
+  position: relative !important;
 } 

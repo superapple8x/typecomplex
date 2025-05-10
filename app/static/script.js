@@ -68,22 +68,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const pauseIcon = document.getElementById('pause-icon'); // Existing icon
 
     // --- NEW: Left Sidebar PDF Tool DOM References (Updated for Card Layout) ---
+    const pdfUploadInput = document.getElementById('pdf-upload-input');
     const pdfUploadCard = document.getElementById('pdf-upload-card');
     const pdfFileActionsCard = document.getElementById('pdf-file-actions-card');
-    const pdfDownloadCard = document.getElementById('pdf-download-card'); // The main card for download
-    const pdfRemoveBtn = document.getElementById('pdf-remove-btn');
-
-    const pdfUploadInput = document.getElementById('pdf-upload-input');
-    const pdfInfoContainer = document.getElementById('pdf-info-container'); // Still used for file info display inside pdfFileActionsCard
+    const pdfInfoContainer = document.getElementById('pdf-info-container'); // ADD THIS LINE
     const pdfFilenameEl = document.getElementById('pdf-filename');
-    const pdfActionsContainer = document.getElementById('pdf-actions-container'); // Still used for action buttons inside pdfFileActionsCard
+    const pdfRemoveBtn = document.getElementById('pdf-remove-btn');
+    const pdfActionsContainer = document.getElementById('pdf-actions-container'); // ADD THIS LINE
     const textExtractBtn = document.getElementById('text-extract-btn');
     const pdfAnalysisBtn = document.getElementById('pdf-analysis-btn');
+    const pdfActionStatusEl = document.getElementById('pdf-action-status'); // Shared status element
+    const pdfDownloadCard = document.getElementById('pdf-download-card');
+    // --- NEW: Status elements for PDF operations (ensure these IDs exist in HTML) ---
+    // const pdfExtractStatusEl = document.getElementById('pdf-extract-status'); // No longer separate
+    // const pdfAnalysisStatusEl = document.getElementById('pdf-analysis-status'); // No longer separate
     const pdfDownloadContainer = document.getElementById('pdf-download-container'); // Inner container for the button, inside pdfDownloadCard
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
-    // --- NEW: Status elements for PDF operations (ensure these IDs exist in HTML) ---
-    const pdfExtractStatusEl = document.getElementById('pdf-extract-status');
-    const pdfAnalysisStatusEl = document.getElementById('pdf-analysis-status');
 
     // --- NEW: PDF Target Audience Dropdown Elements ---
     const pdfTargetAudienceButton = document.getElementById('pdf-target-audience-button');
@@ -97,6 +97,89 @@ document.addEventListener('DOMContentLoaded', () => {
     const overviewTopXCountInput = document.getElementById('overview-top-x-count');
     const overviewTopXTypeSelect = document.getElementById('overview-top-x-type');
     const overviewShowVisualMapCheckbox = document.getElementById('overview-show-visual-map');
+    // --- END NEW ---
+
+    // --- NEW: Input validation for Top X Sentences ---
+    if (overviewTopXCountInput) {
+        overviewTopXCountInput.addEventListener('input', function(event) {
+            let value = event.target.value;
+            // Remove non-numeric characters
+            let numericValue = value.replace(/\D/g, '');
+
+            if (numericValue === '') {
+                event.target.value = ''; // Allow empty input or set to min, e.g., '0'
+                return;
+            }
+
+            let num = parseInt(numericValue, 10);
+
+            if (isNaN(num)) {
+                event.target.value = ''; // Should not happen if only digits are allowed
+                return;
+            }
+
+            // Enforce min/max
+            if (num < 0) num = 0;
+            if (num > 20) num = 20;
+
+            event.target.value = num;
+        });
+    }
+    // --- END NEW ---
+
+    // --- NEW: Custom Overview Top X Type Dropdown Logic ---
+    const overviewTopXTypeButton = document.getElementById('overview-top-x-type-button');
+    const overviewTopXTypeOptions = document.getElementById('overview-top-x-type-options');
+    const overviewTopXTypeSelected = document.getElementById('overview-top-x-type-selected');
+    const hiddenSelectElement = document.getElementById('overview-top-x-type');
+
+    if (overviewTopXTypeButton && overviewTopXTypeOptions && overviewTopXTypeSelected && hiddenSelectElement) {
+        // Toggle options display when button is clicked
+        overviewTopXTypeButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            overviewTopXTypeOptions.classList.toggle('hidden');
+        });
+
+        // Handle option selection
+        overviewTopXTypeOptions.addEventListener('click', (event) => {
+            const link = event.target.closest('a');
+            if (link && link.dataset.value) {
+                event.preventDefault();
+                const selectedValue = link.dataset.value;
+                const selectedText = link.textContent;
+                
+                // Update the visible text
+                overviewTopXTypeSelected.textContent = selectedText;
+                overviewTopXTypeSelected.dataset.value = selectedValue;
+                
+                // Update the hidden select for form submission
+                for (let i = 0; i < hiddenSelectElement.options.length; i++) {
+                    if (hiddenSelectElement.options[i].value === selectedValue) {
+                        hiddenSelectElement.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                overviewTopXTypeOptions.classList.add('hidden');
+                console.log(`Overview Top X Type changed to: ${selectedValue}`);
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!overviewTopXTypeButton.contains(event.target) && 
+                !overviewTopXTypeOptions.contains(event.target) && 
+                !overviewTopXTypeOptions.classList.contains('hidden')) {
+                overviewTopXTypeOptions.classList.add('hidden');
+            }
+        });
+
+        // Set initial state - make sure the selected text matches the select value
+        const initialValue = hiddenSelectElement.options[hiddenSelectElement.selectedIndex].value;
+        const initialText = hiddenSelectElement.options[hiddenSelectElement.selectedIndex].text;
+        overviewTopXTypeSelected.textContent = initialText;
+        overviewTopXTypeSelected.dataset.value = initialValue;
+    }
     // --- END NEW ---
 
     // --- ANIMATION SETUP: Initial state for PDF cards ---
@@ -292,73 +375,101 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- NEW: PDF Task Polling Function ---
     function pollTaskStatus(taskId, operationType) {
-        const statusEl = operationType === 'extract_text' ? pdfExtractStatusEl : pdfAnalysisStatusEl;
-        const initialButtonText = operationType === 'extract_text' ? 'Extract Text' : 'Analyze PDF & Highlight';
+        const statusEl = pdfActionStatusEl; // Always use the shared status element
         const buttonEl = operationType === 'extract_text' ? textExtractBtn : pdfAnalysisBtn;
+        // const initialButtonText = operationType === 'extract_text' ? 'Extract Text' : 'Analyze PDF & Highlight'; // Not strictly needed if just disabling
 
-        fetch(`/task_status/${taskId}`)
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || `Failed to get task status (${response.status})`); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (statusEl) {
-                    statusEl.textContent = data.status_message || `Status: ${data.state}`;
-                    if (data.state === 'SUCCESS') statusEl.className = 'status-text success';
-                    else if (data.state === 'FAILURE') statusEl.className = 'status-text error';
-                    else if (data.state === 'PENDING' || data.state === 'PROGRESS') statusEl.className = 'status-text loading';
-                    else statusEl.className = 'status-text'; // Default
-                }
+        if (statusEl) {
+            statusEl.textContent = `Monitoring ${operationType.replace('_', ' ')}... (Task ID: ${taskId})`;
+            statusEl.className = 'status-text loading';
+        }
+        // updatePdfActionButtonsState(true); // Ensure buttons are disabled at the start of polling - this is now handled by handlePdfProcessing
+        setAnalysisLoading(true, 'pdf');
 
-                if (data.state === 'SUCCESS') {
-                    buttonEl.disabled = false;
-                    if (operationType === 'extract_text') {
-                        if (data.result && data.result.extracted_text) { // CHANGED: from data.result.text_content
-                            quill.setText(data.result.extracted_text + '\n'); // CHANGED: from data.result.text_content
-                            if (statusEl) statusEl.textContent = 'Text extracted successfully.';
-                        } else {
-                            if (statusEl) statusEl.textContent = 'Text extraction complete, but no content found.';
-                            console.error('Text extraction success, but extracted_text (formerly text_content) missing in task result:', data.result);
-                        }
-                        pdfAnalysisBtn.disabled = false; // Re-enable analysis button
-                    } else if (operationType === 'full_analysis') {
-                        if (data.result && data.result.highlighted_pdf_filename) {
-                            currentPdfTaskId = taskId; // Ensure task ID is set for download button
-                            // pdfDownloadCard.classList.remove('hidden'); // Show the download card
-                            pdfDownloadCard.classList.add('card-active');
-                            pdfDownloadCard.classList.remove('card-inactive');
-                            // pdfDownloadContainer.classList.remove('hidden'); // This is inside pdfDownloadCard, so it becomes visible
-                            if (statusEl) statusEl.textContent = 'Analysis complete. Ready for download.';
-                        } else {
-                             if (statusEl) statusEl.textContent = 'Analysis complete, but download info missing.';
-                             console.error('Full analysis success, but highlighted_pdf_filename missing in task result:', data.result);
-                        }
-                        textExtractBtn.disabled = false;
-                        pdfAnalysisBtn.disabled = false;
+        const intervalId = setInterval(() => {
+            fetch(`/task_status/${taskId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok when checking task status.');
                     }
-                } else if (data.state === 'FAILURE') {
-                    if (statusEl) statusEl.textContent = data.error || 'Task failed. Please check server logs.';
-                    buttonEl.disabled = false;
-                    if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
-                } else if (data.state === 'PENDING' || data.state === 'PROGRESS') {
-                    setTimeout(() => pollTaskStatus(taskId, operationType), 2000); // Poll every 2 seconds
-                } else {
-                    // Handle other states if necessary, or assume task completion implies enabling buttons
-                    buttonEl.disabled = false;
-                    if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error(`Error polling task ${taskId} (${operationType}):`, error);
-                if (statusEl) {
-                    statusEl.textContent = `Polling error: ${error.message}`;
-                    statusEl.className = 'status-text error';
-                }
-                buttonEl.disabled = false;
-                if (operationType === 'extract_text') pdfAnalysisBtn.disabled = false;
-            });
+                    return response.json();
+                })
+                .then(data => {
+                    // Ensure setAnalysisLoading(false, 'pdf') is called even if errors occur in UI updates
+                    // by putting the main state processing in a try block and setAnalysisLoading in a finally.
+                    // However, setAnalysisLoading should only be false if the task is terminal (SUCCESS/FAILURE)
+                    // or if polling itself errors out.
+                    
+                    if (data.state === 'SUCCESS') {
+                        clearInterval(intervalId); // Stop polling
+                        try {
+                            if (statusEl) {
+                                statusEl.textContent = data.status_message || `${operationType.replace('_', ' ')} completed successfully.`;
+                                statusEl.className = 'status-text success';
+                            }
+                            updatePdfActionButtonsState(false); // Re-enable all PDF action buttons
+
+                            if (operationType === 'extract_text' && data.result && data.result.extracted_text) {
+                                quill.setText(data.result.extracted_text);
+                            } else if (operationType === 'full_analysis' && data.result) {
+                                currentPdfTaskId = taskId; //  <--- Fix: Ensure currentPdfTaskId is set for download
+                                // For full_analysis, the main action is enabling download.
+                                // Other UI updates (like scores, map, or editor content) would depend on 
+                                // how 'full_analysis' data from data.result is meant to be used by the frontend.
+                                console.log('PDF Full Analysis Result:', data.result); 
+                                if (data.result.highlighted_pdf_filename) {
+                                    console.log("Full analysis successful, enabling download card for:", data.result.highlighted_pdf_filename);
+                                    pdfDownloadCard.classList.remove('card-inactive');
+                                    pdfDownloadCard.classList.add('card-active');
+                                } else {
+                                    console.warn("Full analysis successful, but no highlighted PDF filename received.");
+                                    pdfDownloadCard.classList.add('card-inactive');
+                                    pdfDownloadCard.classList.remove('card-active');
+                                }
+                            }
+                        } catch (uiError) {
+                            console.error(`Error updating UI after task success (${operationType}):`, uiError);
+                            if (statusEl) { // Still try to set a generic error message on UI error
+                                statusEl.textContent = `Error updating UI for ${operationType}. Check console.`;
+                                statusEl.className = 'status-text error';
+                            }
+                        } finally {
+                            setAnalysisLoading(false, 'pdf'); // Ensure loading is stopped
+                        }
+                    } else if (data.state === 'FAILURE') {
+                        clearInterval(intervalId); // Stop polling
+                        try {
+                            if (statusEl) {
+                                statusEl.textContent = data.error_details || data.status_message || `An error occurred during ${operationType.replace('_', ' ')}.`;
+                                statusEl.className = 'status-text error';
+                            }
+                            updatePdfActionButtonsState(false); // Re-enable all PDF action buttons
+                        } finally {
+                            setAnalysisLoading(false, 'pdf'); // Ensure loading is stopped
+                        }
+                    } else if (data.state === 'PROGRESS') {
+                        if (statusEl) {
+                            statusEl.textContent = data.status_message || `Processing ${operationType.replace('_', ' ')}...`;
+                            // If you have specific progress percentage or steps in data.meta:
+                            // e.g., if (data.meta && data.meta.progress) statusEl.textContent += ` (${data.meta.progress}%)`;
+                        }
+                    } else if (data.state === 'PENDING') {
+                         if (statusEl) {
+                            statusEl.textContent = data.status_message || `Task for ${operationType.replace('_', ' ')} is pending...`;
+                        }
+                    } // Other states like PENDING, RETRY don't necessarily stop the main loading indicator
+                })
+                .catch(error => {
+                    console.error('Polling error:', error);
+                    clearInterval(intervalId);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error checking task status. Check console.';
+                        statusEl.className = 'status-text error';
+                    }
+                    updatePdfActionButtonsState(false); // Re-enable all PDF action buttons
+                    setAnalysisLoading(false, 'pdf'); // Stop loading on polling error
+                });
+        }, 2000); // Poll every 2 seconds
     }
 
     // --- NEW: Left Sidebar PDF Tool Event Handlers ---
@@ -380,8 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             pdfFilenameEl.textContent = 'No file selected.';
             if(pdfUploadInput) pdfUploadInput.value = ''; // Clear file input
-            if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = '';
-            if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = '';
+            if(pdfActionStatusEl) pdfActionStatusEl.textContent = '';
+            // if(pdfDownloadStatusEl) pdfDownloadStatusEl.textContent = ''; // This element was removed
             currentPdfTaskId = null;
             textExtractBtn.disabled = false;
             pdfAnalysisBtn.disabled = false;
@@ -393,30 +504,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentPdfFile = file; // Correctly assign the selected file to the outer scope variable
                 pdfFilenameEl.textContent = file.name;
                 
-                // pdfUploadCard.classList.add('hidden');
                 pdfUploadCard.classList.add('card-inactive');
                 pdfUploadCard.classList.remove('card-active');
 
-                // pdfFileActionsCard.classList.remove('hidden');
                 pdfFileActionsCard.classList.add('card-active');
                 pdfFileActionsCard.classList.remove('card-inactive');
 
-                // pdfDownloadCard.classList.add('hidden'); // Keep download card hidden initially
                 pdfDownloadCard.classList.add('card-inactive');
                 pdfDownloadCard.classList.remove('card-active');
 
-                // pdfInfoContainer and pdfActionsContainer are inside pdfFileActionsCard, so they become visible with it.
-                // pdfDownloadContainer is inside pdfDownloadCard, so it's also hidden for now.
-
                 console.log('PDF Selected:', file.name);
                 currentPdfTaskId = null;
-                if(pdfExtractStatusEl) {
-                    pdfExtractStatusEl.textContent = '';
-                    pdfExtractStatusEl.className = 'status-text'; // Reset status style
-                }
-                if(pdfAnalysisStatusEl) {
-                    pdfAnalysisStatusEl.textContent = '';
-                    pdfAnalysisStatusEl.className = 'status-text'; // Reset status style
+                if(pdfActionStatusEl) {
+                    pdfActionStatusEl.textContent = '';
+                    pdfActionStatusEl.className = 'status-text'; // Reset status style
                 }
                 textExtractBtn.disabled = false;
                 pdfAnalysisBtn.disabled = false;
@@ -430,135 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('PDF Removed. UI reset to upload state.');
         });
 
-        textExtractBtn.addEventListener('click', () => {
-            // if (pdfUploadInput.files && pdfUploadInput.files[0]) { // Check currentPdfFile directly now
-            if (currentPdfFile) {
-                // const pdfFile = pdfUploadInput.files[0]; // Redundant, use currentPdfFile
-                console.log('"Extract Text" clicked for:', currentPdfFile.name);
-                
-                // FormData creation and initial appends are now handled in handlePdfProcessing
-                // const formData = new FormData();
-                // formData.append('file', currentPdfFile);
-                // formData.append('action', 'extract_text');
-
-                // Show loading state for extraction
-                if(pdfExtractStatusEl) {
-                    pdfExtractStatusEl.textContent = 'Uploading and extracting text...';
-                    pdfExtractStatusEl.className = 'status-text loading'; // Use new class for loading
-                }
-                quill.setText('Extracting text from PDF, please wait...\n');
-                textExtractBtn.disabled = true;
-                pdfAnalysisBtn.disabled = true;
-
-                fetch('/upload_pdf', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.error || 'Upload failed'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.task_id) {
-                        currentPdfTaskId = data.task_id; // Store task_id for this operation
-                        if(pdfExtractStatusEl) pdfExtractStatusEl.textContent = `Processing text... (Task ID: ${data.task_id})`;
-                        pollTaskStatus(data.task_id, 'extract_text');
-                    } else {
-                        throw new Error(data.error || 'Failed to start text extraction task.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error starting text extraction:', error);
-                    if(pdfExtractStatusEl) {
-                        pdfExtractStatusEl.textContent = `Error: ${error.message}`;
-                        pdfExtractStatusEl.className = 'status-text error'; // Use new class for error
-                    }
-                    quill.setText(`Error during text extraction: ${error.message}\n`);
-                    textExtractBtn.disabled = false;
-                    pdfAnalysisBtn.disabled = false;
-                });
-            } else {
-                alert('Please select a PDF file first.');
-            }
-        });
-
-        pdfAnalysisBtn.addEventListener('click', () => {
-            // if (pdfUploadInput.files && pdfUploadInput.files[0]) { // Check currentPdfFile directly now
-            if (currentPdfFile) {
-                // const pdfFile = pdfUploadInput.files[0]; // Redundant, use currentPdfFile
-                console.log('"Analyze PDF & Highlight" clicked for:', currentPdfFile.name);
-
-                // FormData creation and initial appends are now handled in handlePdfProcessing
-                // const formData = new FormData();
-                // formData.append('file', currentPdfFile);
-                // formData.append('action', 'full_analysis'); 
-
-                // --- Get selected PDF target audience (still needed here to pass to handlePdfProcessing if it were separate) ---
-                // This logic is now inside handlePdfProcessing
-                // let selectedPdfAudience = 'Standard'; 
-
-                // Show loading state for analysis
-                if(pdfAnalysisStatusEl) {
-                    pdfAnalysisStatusEl.textContent = 'Uploading and analyzing PDF...';
-                    pdfAnalysisStatusEl.className = 'status-text loading'; // Use new class for loading
-                }
-                quill.setText('Analyzing PDF, please wait...\nThis might take a few moments.\n');
-                textExtractBtn.disabled = true;
-                pdfAnalysisBtn.disabled = true;
-                pdfDownloadCard.classList.add('card-inactive');
-                pdfDownloadCard.classList.remove('card-active');
-                // pdfDownloadContainer.classList.add('hidden'); // This is inside pdfDownloadCard now
-
-                fetch('/upload_pdf', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        // Check content type before trying to parse as JSON
-                        const contentType = response.headers.get("content-type");
-                        if (contentType && contentType.indexOf("application/json") !== -1) {
-                            return response.json().then(errData => {
-                                // If it is JSON, try to get a specific error message
-                                const message = errData.error || 'Upload for analysis failed (server error).';
-                                throw new Error(message);
-                            });
-                        } else {
-                            // If not JSON, throw a generic error based on status
-                            throw new Error(`Server error: ${response.status} ${response.statusText}. Upload for analysis failed.`);
-                        }
-                    }
-                    return response.json(); // If response.ok, proceed to parse as JSON
-                })
-                .then(data => {
-                    if (data.task_id) {
-                        currentPdfTaskId = data.task_id; // Store task_id for this operation
-                        if(pdfAnalysisStatusEl) pdfAnalysisStatusEl.textContent = `Processing PDF... (Task ID: ${data.task_id})`;
-                        pollTaskStatus(data.task_id, 'full_analysis');
-                    } else {
-                        throw new Error(data.error || 'Failed to start PDF analysis task.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error starting PDF analysis:', error);
-                    if(pdfAnalysisStatusEl) {
-                        pdfAnalysisStatusEl.textContent = `Error: ${error.message}`;
-                        pdfAnalysisStatusEl.className = 'status-text error'; // Use new class for error
-                    }
-                    quill.setText(`Error during PDF analysis: ${error.message}\n`);
-                    textExtractBtn.disabled = false;
-                    pdfAnalysisBtn.disabled = false;
-                });
-            } else {
-                alert('Please select a PDF file first.');
-            }
-        });
-
         downloadPdfBtn.addEventListener('click', () => {
             if (currentPdfTaskId) { // Use the stored task ID from the completed analysis task
-                // The actual filename might be part of the task result, but /download_highlighted_pdf/<task_id> handles it
                 console.log('"Download Analyzed PDF" clicked for task ID:', currentPdfTaskId);
                 window.open(`/download_highlighted_pdf/${currentPdfTaskId}`, '_blank');
             } else {
@@ -2573,18 +2547,16 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     function setAnalysisLoading(isLoading, type = 'editor') { // type can be 'editor' or 'pdf'
         const editorIndicator = document.getElementById('analysis-loading-indicator');
-        const pdfStatusElement = document.getElementById('pdf-analysis-status'); // Use this for PDF loading text
+        const pdfStatusElement = document.getElementById('pdf-action-status'); // Use this for PDF loading text
         const complexityLoadingBar = document.getElementById('complexity-loading'); // General loading bar in sidebar
 
-        // NEW: Get reference to PDF target audience button for disabling
+        // Get reference to PDF target audience button for disabling
         const pdfAudienceButton = document.getElementById('pdf-target-audience-button');
 
         if (type === 'editor' && editorIndicator) {
             editorIndicator.classList.toggle('hidden', !isLoading);
         } else if (type === 'pdf' && pdfStatusElement) {
-            // For PDF, we use the status text element. The showTemporaryStatus handles 'loading...'
-            // but we might want a more persistent indicator if the main analysis button also reflects PDF state.
-            // For now, showTemporaryStatus is primary for PDF.
+            // For PDF, we use the status text element.
         }
 
         if (complexityLoadingBar) {
@@ -2598,7 +2570,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // PDF buttons
         if (textExtractBtn) textExtractBtn.disabled = isLoading;
         if (pdfAnalysisBtn) pdfAnalysisBtn.disabled = isLoading;
-        if (pdfAudienceButton) pdfAudienceButton.disabled = isLoading; // Disable PDF audience button during any analysis
+        
+        // Extra handling for PDF audience button - ensure it gets proper styling when disabled
+        if (pdfAudienceButton) {
+            pdfAudienceButton.disabled = isLoading;
+            // We don't need additional inline styles since we've fixed the CSS
+        }
     }
 
     // --- Function to update all UI elements based on analysis data (Modified) ---
@@ -2704,7 +2681,31 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             overviewOptionsDetailsDiv.classList.toggle('opacity-50', !isEnabled);
             overviewOptionsDetailsDiv.classList.toggle('pointer-events-none', !isEnabled);
             overviewInputsToToggle.forEach(input => {
-                if (input) input.disabled = !isEnabled;
+                if (input) {
+                    input.disabled = !isEnabled;
+                    
+                    // Handle our hidden select + custom dropdown button
+                    if (input.id === 'overview-top-x-type') {
+                        // Also update the custom button
+                        const customButton = document.getElementById('overview-top-x-type-button');
+                        
+                        if (customButton) {
+                            customButton.disabled = !isEnabled;
+                            
+                            if (!isEnabled) {
+                                customButton.classList.add('opacity-70', 'cursor-not-allowed');
+                                customButton.style.backgroundColor = 'var(--input-bg)';
+                                customButton.style.color = 'var(--text-secondary)';
+                                customButton.style.border = '1px solid var(--border-color)';
+                            } else {
+                                customButton.classList.remove('opacity-70', 'cursor-not-allowed');
+                                customButton.style.backgroundColor = '';
+                                customButton.style.color = '';
+                                customButton.style.border = '';
+                            }
+                        }
+                    }
+                }
             });
         }
         // Initial call to set state based on default checkbox state
@@ -2715,6 +2716,53 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     function updatePdfStatus(message, type = 'info', actionType = 'general') { // type: info, error, success, loading
         // ... existing code ...
+    }
+
+    // Function to clear all PDF related state
+    function clearPdfFileState() {
+        console.log('Clearing PDF file state...');
+        if(currentPdfFile) {
+            console.log('Clearing current PDF file for a new upload.');
+            currentPdfFile = null;
+        }
+        pdfFilenameEl.textContent = 'No file selected.';
+        if(pdfUploadInput) pdfUploadInput.value = ''; // Clear file input
+        if(pdfActionStatusEl) pdfActionStatusEl.textContent = '';
+        currentPdfTaskId = null;
+        textExtractBtn.disabled = false;
+        pdfAnalysisBtn.disabled = false;
+        pdfDownloadCard.classList.add('card-inactive');
+        pdfDownloadCard.classList.remove('card-active');
+        updatePdfActionButtonsState(false); // Re-enable buttons
+    }
+
+    // Event listener for PDF file selection
+    if (pdfUploadInput) {
+        pdfUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                currentPdfFile = file; // Store the selected file
+                console.log('PDF Selected:', file.name);
+                currentPdfTaskId = null; // Reset task ID for the new file
+                // Clear any previous status messages from the shared status element
+                if (pdfActionStatusEl) {
+                    pdfActionStatusEl.textContent = '';
+                    pdfActionStatusEl.className = 'status-text'; // Reset status style
+                }
+                textExtractBtn.disabled = false;
+                pdfAnalysisBtn.disabled = false;
+                pdfDownloadCard.classList.add('card-inactive');
+                pdfDownloadCard.classList.remove('card-active');
+                pdfFilenameEl.textContent = file.name;
+                pdfUploadCard.classList.remove('card-active');
+                pdfUploadCard.classList.add('card-inactive');
+                pdfFileActionsCard.classList.remove('hidden');
+                pdfFileActionsCard.classList.add('card-active');
+                updatePdfActionButtonsState(false); // Ensure buttons are enabled for the new file
+            } else {
+                clearPdfFileState(); // If no file (e.g., dialog cancelled), clear state
+            }
+        });
     }
 
 }); // End DOMContentLoaded
