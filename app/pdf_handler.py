@@ -5,6 +5,7 @@ import re # Added import
 import urllib.error # Added for more specific exception handling
 import unicodedata # For aggressive normalization
 from thefuzz import fuzz # For fuzzy matching
+import difflib # Added for word-sequence matching fallback
 
 # Configure logging
 # logging.basicConfig(level=logging.INFO)
@@ -82,11 +83,68 @@ ensure_nltk_resource('corpora/wordnet', 'wordnet') # Needed for some tokenizers/
 
 # --- Constants ---
 # TEXT_EXTRACTION_FLAGS = fitz.TEXT_PRESERVE_LIGATURES | fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_INHIBIT_SPACES
-TEXT_EXTRACTION_FLAGS = fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_INHIBIT_SPACES # Removed TEXT_PRESERVE_LIGATURES
+TEXT_EXTRACTION_FLAGS = fitz.TEXT_PRESERVE_WHITESPACE # Removed TEXT_PRESERVE_LIGATURES and TEXT_INHIBIT_SPACES
 
 # Define a threshold for what constitutes a significant vertical gap (e.g., as a factor of line height)
 # This will require testing and tuning. Let's start with a basic idea.
 MIN_VERTICAL_GAP_FACTOR = 0.3 # e.g., if gap is > 0.3 * typical_line_height
+
+# Helper function to group individual word bounding boxes into line segments
+def group_word_bboxes_into_lines(matched_word_data_tuples: list, page_width: float, page_height: float) -> list[tuple[float, float, float, float]]:
+    """
+    Groups a list of word data tuples (from page.get_text("words")) into line segments.
+    Each word_data_tuple is expected to be [x0, y0, x1, y1, text, block_no, line_no, word_no].
+    Line segments are formed by merging bboxes of words on the same original line_no.
+    """
+    if not matched_word_data_tuples:
+        return []
+
+    lines_dict = {}  # key: line_no, value: list of fitz.Rect for words on that line
+    for word_data in matched_word_data_tuples:
+        try:
+            line_no = word_data[6]  # line_no from get_text("words")
+            word_rect = fitz.Rect(word_data[0], word_data[1], word_data[2], word_data[3])
+            if line_no not in lines_dict:
+                lines_dict[line_no] = []
+            lines_dict[line_no].append(word_rect)
+        except IndexError:
+            logger.warning(f"Word data tuple has unexpected format: {word_data}")
+            continue
+        except Exception as e_word_proc:
+            logger.warning(f"Error processing word_data {word_data}: {e_word_proc}")
+            continue
+
+
+    final_line_segment_coords = []
+    if not lines_dict: # if, for some reason, lines_dict ended up empty
+        return []
+        
+    sorted_line_nos = sorted(lines_dict.keys())
+
+    for line_no in sorted_line_nos:
+        rects_on_line = lines_dict[line_no]
+        if not rects_on_line:
+            continue
+        
+        # Merge bboxes for the current line segment
+        min_x0 = min(r.x0 for r in rects_on_line)
+        # Use the y0 of the first word on the line as the line's y0. Could also average or take min.
+        min_y0 = min(r.y0 for r in rects_on_line) 
+        max_x1 = max(r.x1 for r in rects_on_line)
+        # Use the y1 of the last word on the line (or max y1 on line).
+        max_y1 = max(r.y1 for r in rects_on_line)
+
+        # Ensure coordinates are within page boundaries (safety check)
+        min_x0 = max(0, min_x0)
+        min_y0 = max(0, min_y0)
+        max_x1 = min(page_width, max_x1)
+        max_y1 = min(page_height, max_y1)
+        
+        # Ensure the rectangle has positive width and height
+        if min_x0 < max_x1 and min_y0 < max_y1:
+            final_line_segment_coords.append((min_x0, min_y0, max_x1, max_y1))
+            
+    return final_line_segment_coords
 
 def get_base_font_name(font_name_str: str) -> str:
     """Extracts a base font name by stripping common style suffixes."""
@@ -212,233 +270,149 @@ def extract_text_and_sentence_coordinates(pdf_path):
         page_height = page.rect.height
         
         try:
-            # Get all words with detailed info to better infer sentence structure
-            # Using get_text("words") gives more granular control than "dict" for this approach.
-            # Format: [x0, y0, x1, y1, "word", block_no, line_no, word_no]
-            # We'll process block by block.
-            blocks = page.get_text("blocks", flags=TEXT_EXTRACTION_FLAGS) # Get blocks first
+            # Get text blocks. Each block_data_tuple is (x0, y0, x1, y1, text_content, block_no, block_type)
+            # text_content has lines separated by literal \n.
+            blocks = page.get_text("blocks", flags=TEXT_EXTRACTION_FLAGS)
 
-            for block_idx, block_dict_raw in enumerate(blocks):
-                # block_dict_raw: (x0, y0, x1, y1, text_content, block_no, block_type)
-                if block_dict_raw[6] != 0: # block_type, 0 for text
+            for block_data_tuple in blocks:
+                if block_data_tuple[6] != 0: # block_type, 0 for text block
                     continue
 
-                block_bbox = block_dict_raw[:4]
-                block_no = block_dict_raw[5] # PyMuPDF block number for reference
+                block_bbox_tuple = block_data_tuple[0:4]
+                block_text_from_pymupdf = block_data_tuple[4]
+                block_no_for_map = block_data_tuple[5]
 
-                # Get spans (words) within this block
-                # We need to iterate through lines and spans to get font info, which "words" doesn't directly give easily per span.
-                # So, let's use "dict" for this block.
-                # To get block specific dict, we can clip the page to block_bbox and get dict
-                # This is complex. Alternative: use page.get_text("dict") and filter by block_no.
-                
-                # Reverting to page.get_text("dict") and filtering by block seems easier to manage span details
-                page_dict = page.get_text("dict", flags=TEXT_EXTRACTION_FLAGS)
-                
-                current_block_spans_with_context = []
-                for block_from_dict in page_dict.get("blocks", []):
-                    if block_from_dict.get("number") == block_no and block_from_dict.get("type") == 0:
-                        for line_dict in block_from_dict.get("lines", []):
-                            line_bbox_tuple = tuple(line_dict.get("bbox", (0,0,0,0)))
-                            for span_dict in line_dict.get("spans", []):
-                                current_block_spans_with_context.append({
-                                    'text': span_dict.get("text", ""),
-                                    'bbox': tuple(span_dict.get("bbox", (0,0,0,0))),
-                                    'font': span_dict.get("font", "Unknown"),
-                                    'size': span_dict.get("size", 0.0),
-                                    'flags': span_dict.get("flags", 0),
-                                    'line_bbox': line_bbox_tuple,
-                                    'block_no': block_no,
-                                    'page_num': page_num
-                                })
-                        break
+                # Process block_text_from_pymupdf for NLTK:
+                # Replace literal '\n' newlines (that PyMuPDF uses to separate lines within a block) with spaces.
+                processed_block_text_for_nltk = block_text_from_pymupdf.replace('\n', ' ').strip()
+                # Consolidate multiple spaces that might have resulted from the replacement or original text.
+                processed_block_text_for_nltk = re.sub(r'\s+', ' ', processed_block_text_for_nltk)
 
-                if not current_block_spans_with_context:
+                if not processed_block_text_for_nltk:
+                    logger.debug(f"Skipping empty block after processing. Page {page_num}, Block {block_no_for_map}")
                     continue
 
-                # --- Refined NLTK Integration & Heuristic Application ---
-                spans_for_subsequent_heuristic_processing = []
-                for original_span_info in current_block_spans_with_context:
-                    original_text = original_span_info.get('text', "")
-                    if not isinstance(original_text, str):
-                        original_text = str(original_text)
+                try:
+                    nltk_sentences_in_block = nltk.sent_tokenize(processed_block_text_for_nltk)
+                except Exception as e_nltk:
+                    logger.warning(f"NLTK sent_tokenize failed for block. Page {page_num}, Block {block_no_for_map}. Text: '{processed_block_text_for_nltk[:100]}...'. Error: {e_nltk}")
+                    nltk_sentences_in_block = [processed_block_text_for_nltk] # Fallback: treat whole block as one sentence
 
-                    nltk_segments = []
-                    if original_text.strip():
-                        try:
-                            nltk_segments = nltk.sent_tokenize(original_text)
-                        except Exception as e_nltk:
-                            logger.warning(f"NLTK sent_tokenize failed for span text '{original_text[:100]}...': {e_nltk}")
-                            nltk_segments = [original_text] # Fallback
-                    elif original_text: 
-                        nltk_segments = [original_text]
+                for sentence_text_raw_from_nltk in nltk_sentences_in_block:
+                    sentence_for_search = sentence_text_raw_from_nltk.strip() # Keep original NLTK output
                     
-                    if len(nltk_segments) > 1:
-                        # NLTK found multiple sentences within this single original span.
-                        for segment_text in nltk_segments:
-                            segment_text_stripped = segment_text.strip()
-                            if not segment_text_stripped:
-                                continue
+                    if not sentence_for_search: # Skip empty strings that NLTK might produce
+                        continue
 
-                            highlight_coords = []
-                            try:
-                                # Search for this specific NLTK segment text on the page, clipped to the original span's bbox
-                                clip_rect = fitz.Rect(original_span_info['bbox'])
-                                # Using default flags for search_for, which include TEXT_NORMALIZE_WHITESPACE
-                                segment_actual_rects = page.search_for(segment_text_stripped, clip=clip_rect)
-                                
-                                if not segment_actual_rects:
-                                    logger.warning(f"NLTK segment '{segment_text_stripped[:50]}...' not found by search_for. Using original span bbox as fallback.")
-                                    highlight_coords = [original_span_info['bbox']] # Fallback to original full span bbox
-                                else:
-                                    highlight_coords = [tuple(r) for r in segment_actual_rects]
+                    # normalized_sentence_for_storage = normalize_sentence_text(sentence_for_search_and_storage)
+                    # Normalize for storage (used in sentence_map and full_text_for_analysis)
+                    normalized_sentence_for_storage = normalize_sentence_text(sentence_for_search)
 
-                            except Exception as e_search:
-                                logger.error(f"Error during page.search_for for NLTK segment '{segment_text_stripped[:50]}...': {e_search}. Using original span bbox.")
-                                highlight_coords = [original_span_info['bbox']] # Fallback
-                            
-                            normalized_nltk_sentence = normalize_sentence_text(segment_text_stripped)
-                            non_punc_chars = [char for char in normalized_nltk_sentence if char.isalnum()]
-
-                            if len(non_punc_chars) > 1 and highlight_coords: # Junk filter and ensure coords exist
-                                sentence_map.append({
-                                    'text': normalized_nltk_sentence,
-                                    'line_segment_coords': highlight_coords, # Directly use precise coordinates
-                                    'page_num': page_num,
-                                    'block_no': block_no,
-                                })
-                                if full_text_for_analysis and normalized_nltk_sentence:
-                                    full_text_for_analysis += "\n\n"
-                                full_text_for_analysis += normalized_nltk_sentence
-                                logger.info(f"  SUCCESS (NLTK-searched): Sentence: '{normalized_nltk_sentence[:70]}...' Coords: {len(highlight_coords)} segments.")
+                    # Create a version of the sentence string specifically for PyMuPDF search_for:
+                    # 1. Replace various hyphens/dashes with a standard hyphen-minus.
+                    # 2. Normalize all whitespace to single spaces.
+                    # This makes the search string more tolerant to variations in the PDF.
+                    search_string_variant = re.sub(r'[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]', '-', sentence_for_search) # Normalize hyphens
+                    search_string_variant = re.sub(r'\s+', ' ', search_string_variant).strip() # Normalize whitespace
                     
-                    elif nltk_segments: # NLTK returned one segment (or fallback to original text)
-                        # This original span (or its single NLTK equivalent) goes to the main heuristic loop
-                        updated_span_info = original_span_info.copy()
-                        updated_span_info['text'] = nltk_segments[0] # Use NLTK's version (e.g. stripped)
-                        spans_for_subsequent_heuristic_processing.append(updated_span_info)
-                
-                # --- Existing Span-First Sentence Segmentation Logic (now operates on spans_for_subsequent_heuristic_processing) ---
-                current_sentence_accumulated_spans = []
-                last_span_info = None
-                prev_span_info = None  # Track previous span for layout heuristics
-
-                for i, span_info in enumerate(spans_for_subsequent_heuristic_processing):
-                    current_sentence_accumulated_spans.append(span_info)
-                    
-                    sentence_boundary_detected = False
-                    current_span_text_stripped = span_info['text'].strip()
-                    is_last_span_in_block = (i == len(spans_for_subsequent_heuristic_processing) - 1)
-
-                    # 1. Punctuation at the end of the current span's text
-                    if current_span_text_stripped.endswith(('.', '!', '?')):
-                        is_potential_abbreviation = False
-                        if current_span_text_stripped.endswith('.'):
-                            abbrev_pattern = r"""(^([A-Z][a-z]{0,3}|[A-Z])\.$|
-                                                   ^(e\.g\.|i\.e\.|etc\.|vs\.|Fig\.|Figs\.|No\.|Nos\.|et al\.)|
-                                                   \b[A-Z]\.(?:[A-Z]\.)*$)|\[\d+\]\.$""" 
-                            if re.match(abbrev_pattern, current_span_text_stripped, re.IGNORECASE):
-                                is_potential_abbreviation = True
-                            elif len(current_span_text_stripped) <= 2 and current_span_text_stripped != '.': 
-                                is_potential_abbreviation = True
+                    highlight_coords_for_sentence = []
+                    try:
+                        search_clip_rect = fitz.Rect(block_bbox_tuple)
+                        # Use the search_string_variant for searching first
+                        found_rects = page.search_for(search_string_variant, clip=search_clip_rect)
                         
-                        if not is_potential_abbreviation:
-                            if is_last_span_in_block:
-                                sentence_boundary_detected = True
-                            elif i + 1 < len(spans_for_subsequent_heuristic_processing):
-                                next_span_info = spans_for_subsequent_heuristic_processing[i+1]
-                                next_span_text_stripped = next_span_info['text'].strip()
-                                
-                                if next_span_text_stripped and next_span_text_stripped[0].isupper():
-                                    sentence_boundary_detected = True
-                                elif not next_span_text_stripped: 
-                                    sentence_boundary_detected = True
+                        # If the variant search failed and the variant was different from the original NLTK sentence,
+                        # try searching with the original NLTK sentence text as a fallback.
+                        if not found_rects and search_string_variant != sentence_for_search:
+                            logger.debug(f"Search variant '{search_string_variant[:60]}...' failed or returned no rects. Trying original NLTK sentence '{sentence_for_search[:60]}...' for P{page_num} B{block_no_for_map}")
+                            found_rects = page.search_for(sentence_for_search, clip=search_clip_rect)
 
-                    # 2. Layout heuristics: vertical gap, font-size/style, indent, hyphenation
-                    if prev_span_info is not None and not sentence_boundary_detected:
-                        prev_bbox = prev_span_info['bbox']
-                        curr_bbox = span_info['bbox']
-                        # Vertical gap detection
-                        line_height = prev_bbox[3] - prev_bbox[1]
-                        gap = curr_bbox[1] - prev_bbox[3]
-                        if gap > MIN_VERTICAL_GAP_FACTOR * line_height:
-                            sentence_boundary_detected = True
-                            logger.debug(f"  BOUNDARY (Gap): gap={gap:.2f} > threshold")
-                        # Font size change
-                        prev_size = prev_span_info.get('size', 0)
-                        curr_size = span_info.get('size', 0)
-                        if not sentence_boundary_detected and abs(curr_size - prev_size) >= 1.0:
-                            sentence_boundary_detected = True
-                            logger.debug(f"  BOUNDARY (FontSize): {prev_size}->{curr_size}")
-                        # Font style change
-                        if not sentence_boundary_detected and prev_span_info.get('font') != span_info.get('font'):
-                            sentence_boundary_detected = True
-                            logger.debug(f"  BOUNDARY (FontStyle): '{prev_span_info.get('font')}'->'{span_info.get('font')}'")
-                        # Indentation change detection
-                        if not sentence_boundary_detected:
-                            prev_x0 = prev_bbox[0]
-                            curr_x0 = curr_bbox[0]
-                            if abs(curr_x0 - prev_x0) > (0.5 * prev_size):
-                                sentence_boundary_detected = True
-                                logger.debug(f"  BOUNDARY (Indent): x0 {prev_x0:.1f}->{curr_x0:.1f}")
-                        # Hyphenation merge
-                        if not sentence_boundary_detected and prev_span_info['text'].strip().endswith('-') and current_span_text_stripped and current_span_text_stripped[0].islower():
-                            # Merge hyphenated words (remove trailing hyphen)
-                            current_sentence_accumulated_spans[-2]['text'] = current_sentence_accumulated_spans[-2]['text'].rstrip('-')
-                            logger.debug("  CONTINUE (Hyphenation): merging hyphenated word")
-                            sentence_boundary_detected = False
-                    # After layout heuristics, skip split if next span starts lowercase (line wrap)
-                    if sentence_boundary_detected and current_span_text_stripped and current_span_text_stripped[0].islower():
-                        sentence_boundary_detected = False
-                        logger.debug("  SKIP (Lowercase start): continuing sentence across wrap")
-                    # 3. Mid-block sentence split
-                    if sentence_boundary_detected and not is_last_span_in_block:
-                        sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
-                        sentence_for_storage = normalize_sentence_text(sentence_text_raw)
-                        non_punc_chars = [c for c in sentence_for_storage if c.isalnum()]
-                        if sentence_for_storage and len(non_punc_chars) > 1:
-                            coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width)
-                            if coords:
-                                sentence_map.append({
-                                    'text': sentence_for_storage,
-                                    'line_segment_coords': coords,
-                                    'page_num': page_num,
-                                    'block_no': block_no,
-                                })
-                                if full_text_for_analysis:
-                                    full_text_for_analysis += "\n\n"
-                                full_text_for_analysis += sentence_for_storage
-                                logger.info(f"  SUCCESS (Span-First-Heuristic): '{sentence_for_storage[:70]}...' Coords: {len(coords)}")
-                        current_sentence_accumulated_spans = []
-                    # Update prev_span_info
-                    prev_span_info = span_info
-                
-                # After iterating all spans in a block, if there are leftovers in current_sentence_accumulated_spans
-                if current_sentence_accumulated_spans:
-                    sentence_text_raw = "".join(s['text'] for s in current_sentence_accumulated_spans)
-                    sentence_for_storage = normalize_sentence_text(sentence_text_raw)
-
-                    is_junk_sentence = True
-                    if sentence_for_storage:
-                        non_punc_chars = [char for char in sentence_for_storage if char.isalnum()]
-                        if len(non_punc_chars) > 1:
-                            is_junk_sentence = False
-
-                    if sentence_for_storage and not is_junk_sentence:
-                        coords = derive_coords_from_spans(current_sentence_accumulated_spans, page_height, page_width) # Pass page_height & page_width
-                        if coords:
-                            sentence_map.append({
-                                'text': sentence_for_storage,
-                                'line_segment_coords': coords,
-                                'page_num': page_num,
-                                'block_no': block_no,
-                            })
-                            if full_text_for_analysis and sentence_for_storage:
-                                full_text_for_analysis += "\n\n" 
-                            full_text_for_analysis += sentence_for_storage
-                            logger.info(f"  SUCCESS (Span-First EOF Block): Sentence: '{sentence_for_storage[:70]}...' Coords: {len(coords)} segments.")
+                        if found_rects:
+                            highlight_coords_for_sentence = [tuple(r) for r in found_rects]
                         else:
-                            logger.warning(f"  EMPTY COORDS (Span-First EOF Block): Sentence: '{sentence_for_storage[:70]}...' but no coords derived.")
+                            # --- Word-level fallback using difflib ---
+                            logger.warning(f"Block-Search: Sentence '{sentence_for_search[:60]}...' NOT FOUND by page.search_for(). Attempting word-level fallback. P{page_num} B{block_no_for_map}.")
+                            
+                            try:
+                                block_words_data = page.get_text("words", clip=search_clip_rect, sort=True)
+                                # Prepare word lists for matching (lowercase, ignore empty)
+                                page_word_texts_for_match = [w[4].lower() for w in block_words_data if w[4] and w[4].strip()]
+                                nltk_sentence_words_for_match = [word.lower() for word in sentence_for_search.split() if word and word.strip()]
+
+                                if page_word_texts_for_match and nltk_sentence_words_for_match:
+                                    matcher = difflib.SequenceMatcher(None, page_word_texts_for_match, nltk_sentence_words_for_match, autojunk=False)
+                                    match = matcher.find_longest_match(0, len(page_word_texts_for_match), 0, len(nltk_sentence_words_for_match))
+
+                                    # Check if the longest match covers all words of the NLTK sentence
+                                    is_full_nltk_sentence_match = (match.size > 0 and \
+                                                                   match.size == len(nltk_sentence_words_for_match) and \
+                                                                   match.b == 0) # Match starts at the beginning of nltk_sentence_words
+
+                                    if is_full_nltk_sentence_match:
+                                        # Get the corresponding original word data (with coordinates)
+                                        matched_page_word_data_tuples = block_words_data[match.a : match.a + match.size]
+                                        
+                                        derived_coords = group_word_bboxes_into_lines(matched_page_word_data_tuples, page_width, page_height)
+                                        
+                                        if derived_coords:
+                                            highlight_coords_for_sentence = derived_coords
+                                            logger.info(f"  SUCCESS (Word-Fallback): Found coords for '{sentence_for_search[:60]}...'. P{page_num} B{block_no_for_map}. Coords: {len(derived_coords)}")
+                                        else:
+                                            logger.warning(f"  FAILURE (Word-Fallback): group_word_bboxes_into_lines returned no coords for '{sentence_for_search[:60]}...'. P{page_num} B{block_no_for_map}.")
+                                    else:
+                                        logger.warning(f"  FAILURE (Word-Fallback): No sufficient word sequence match for '{sentence_for_search[:60]}...'. Match size: {match.size}/{len(nltk_sentence_words_for_match)}. P{page_num} B{block_no_for_map}.")
+                                else:
+                                    logger.warning(f"  SKIPPED (Word-Fallback): Empty word list from page or NLTK sentence for '{sentence_for_search[:60]}...'. P{page_num} B{block_no_for_map}.")
+                            except Exception as e_fallback:
+                                logger.error(f"Error during word-level fallback for '{sentence_for_search[:60]}...': {e_fallback}", exc_info=True)
+                            
+                            # If fallback also failed, original warning about not found / stored w/o coords applies implicitly by highlight_coords_for_sentence remaining empty.
+                            # The primary "NOT FOUND" log is now before this block. We only log fallback success/specific failure here.
+                            # If highlight_coords_for_sentence is still empty, the later logs (STORED W/O COORDS) will indicate this.
+                            # Re-evaluate: The original "NOT FOUND by search_for" is above.
+                            # If we reach here and highlight_coords_for_sentence is STILL empty, then the original log stands.
+                            # We should only log a "final" failure if the fallback also failed.
+
+                            if not highlight_coords_for_sentence:
+                                # This log is now somewhat redundant if STORED W/O COORDS is still active later.
+                                # Let's rely on the subsequent checks and logs for "STORED W/O COORDS".
+                                pass # logger.warning(f"Block-Search & Word-Fallback: Sentence '{sentence_for_search[:60]}...': STILL NOT FOUND. P{page_num} B{block_no_for_map}.")
+
+
+                            # Fallback: if it's the only sentence NLTK found in this block (and block wasn't just whitespace originally)
+                            # This original fallback should only apply if page.search_for AND word-level fallback failed.
+                            if not highlight_coords_for_sentence and len(nltk_sentences_in_block) == 1 and block_text_from_pymupdf.strip():
+                                logger.info(f"Using block bbox as FINAL fallback for single sentence not found by any method: '{sentence_for_search[:60]}...':")
+                                highlight_coords_for_sentence = [block_bbox_tuple]
+                            # Otherwise, highlight_coords_for_sentence remains empty.
+                                            
+                    except Exception as e_search:
+                        logger.error(f"Error during page.search_for() for block-level sentence '{sentence_for_search[:60]}...': {e_search}. P{page_num} B{block_no_for_map}", exc_info=True)
+
+                    # Add to sentence_map if text is valid (non-junk)
+                    # Store sentence text even if coordinates were not found, so it can be analyzed.
+                    non_punc_chars = [char for char in normalized_sentence_for_storage if char.isalnum()]
+                    if len(non_punc_chars) > 1: # Basic junk filter
+                        sentence_map.append({
+                            'text': normalized_sentence_for_storage,
+                            'line_segment_coords': highlight_coords_for_sentence, # Will be empty if not found
+                            'page_num': page_num,
+                            'block_no': block_no_for_map,
+                        })
+                        
+                        # Build full_text_for_analysis (used by analysis.py)
+                        if full_text_for_analysis and normalized_sentence_for_storage: # Check if not empty
+                            full_text_for_analysis += "\n\n" # Standard separator for analysis
+                        full_text_for_analysis += normalized_sentence_for_storage
+
+                        if highlight_coords_for_sentence:
+                            logger.info(f"  SUCCESS (Block-NLTK): '{normalized_sentence_for_storage[:70]}...' Coords: {len(highlight_coords_for_sentence)}. P{page_num} B{block_no_for_map}")
+                        else:
+                            logger.warning(f"  STORED W/O COORDS (Block-NLTK): '{normalized_sentence_for_storage[:70]}...'. P{page_num} B{block_no_for_map}")
+                    else:
+                        logger.debug(f"Skipping junk sentence: '{normalized_sentence_for_storage[:70]}...' P{page_num} B{block_no_for_map}")
+            # End of loop for sentences within a block
+        # End of loop for blocks within a page
             
         except Exception as e_page:
             logger.error(f"Error processing page {page_num} of {pdf_path}: {e_page}", exc_info=True)
@@ -448,18 +422,19 @@ def extract_text_and_sentence_coordinates(pdf_path):
     if doc:
         doc.close()
     
-    logger.info(f"Span-First Extraction Complete for {pdf_path}. Total sentences mapped: {len(sentence_map)}")
+    logger.info(f"Block-Level NLTK Extraction Complete for {pdf_path}. Total sentences mapped: {len(sentence_map)}")
     return full_text_for_analysis, sentence_map
 
 # Define complexity colors (RGB tuples, 0-1 range)
+# Keys are now Tailwind CSS class names to match analysis.py output
 COMPLEXITY_COLORS = {
-    # Matches Tailwind bg-green-500, bg-lime-500, bg-yellow-500, bg-orange-500, bg-red-500, bg-gray-500
-    "Very Simple": (0.133, 0.773, 0.369),  # rgb(34,197,94)
-    "Simple": (0.518, 0.800, 0.086),       # rgb(132,204,22)
-    "Moderate": (0.918, 0.702, 0.031),     # rgb(234,179,8)
-    "Complex": (0.976, 0.451, 0.086),      # rgb(249,115,22)
-    "Very Complex": (0.937, 0.267, 0.267), # rgb(239,68,68)
-    "unknown": (0.424, 0.459, 0.490)       # rgb(108,117,125)
+    "bg-green-500": (0.133, 0.773, 0.369),  # Tailwind green-500 (Very Simple)
+    "bg-lime-500": (0.518, 0.800, 0.086),   # Tailwind lime-500 (Simple)
+    "bg-yellow-500": (0.918, 0.702, 0.031), # Tailwind yellow-500 (Moderate)
+    "bg-orange-500": (0.976, 0.451, 0.086), # Tailwind orange-500 (Complex)
+    "bg-red-500": (0.937, 0.267, 0.267),   # Tailwind red-500 (Very Complex)
+    "bg-gray-500": (0.424, 0.459, 0.490),   # Tailwind gray-500 (Unknown/Default)
+    "bg-gray-600": (0.325, 0.361, 0.408)    # Tailwind gray-600 (e.g. for "No sentences found" or "Analysis cancelled") - Added for completeness
 }
 
 def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coordinates_map, output_pdf_path):
@@ -527,25 +502,71 @@ def generate_highlighted_pdf(original_pdf_path, analysis_results, sentence_coord
             logger.error(f"Invalid page number {page_num} for highlighting.")
             continue
 
-        # color_class = analysis_detail_for_this_sentence.get('color_class', 'bg-gray-300') # Default color
-        
-        # # Determine PyMuPDF color from color_class string (e.g., 'bg-red-500')
-        # highlight_color_rgb = None # PyMuPDF expects (r, g, b) tuple, values 0-1
-        # if 'bg-red-500' in color_class: highlight_color_rgb = (1.0, 0.7, 0.7)  # Light Red
-        # elif 'bg-yellow-500' in color_class: highlight_color_rgb = (1.0, 1.0, 0.7) # Light Yellow
-        # elif 'bg-lime-500' in color_class: highlight_color_rgb = (0.7, 1.0, 0.7)  # Light Lime (used for simple)
-        # elif 'bg-green-500' in color_class: highlight_color_rgb = (0.6, 0.9, 0.6) # Light Green (very simple)
-        # elif 'bg-sky-500' in color_class: highlight_color_rgb = (0.7, 0.9, 1.0) # Light Blue (Moderate)
-        # else: highlight_color_rgb = (0.9, 0.9, 0.9) # Light Gray for default/unknown
-
-        sentence_level = analysis_detail_for_this_sentence.get('level', 'unknown') # Get the textual level
-        highlight_color_rgb = COMPLEXITY_COLORS.get(sentence_level, COMPLEXITY_COLORS['unknown'])
+        # Use the color_class directly from analysis results
+        color_class_from_analysis = analysis_detail_for_this_sentence.get('color_class', 'bg-gray-500') # Default to gray
+        highlight_color_rgb = COMPLEXITY_COLORS.get(color_class_from_analysis, COMPLEXITY_COLORS.get('bg-gray-500')) # Fallback to gray key if class not found
 
         if not highlight_color_rgb:
             # logger.debug(f"No color determined for class '{color_class}' on sentence '{sentence_text_from_map[:50]}...'" )
             # The above log used color_class, changing to sentence_level for consistency
-            logger.debug(f"No color determined for level '{sentence_level}' on sentence '{sentence_text_from_map[:50]}...'" )
-            continue
+            # logger.debug(f"No color determined for level '{sentence_level}' on sentence '{sentence_text_from_map[:50]}...'" )
+            # Corrected log to use color_class_from_analysis
+            logger.debug(f"No PyMuPDF RGB color determined for color_class '{color_class_from_analysis}' on sentence '{sentence_text_from_map[:50]}...'. Using default.")
+            # If COMPLEXITY_COLORS.get('bg-gray-500') also somehow failed, though it shouldn't:
+            highlight_color_rgb = (0.424, 0.459, 0.490) # Explicit default gray
+            # continue # Original code would continue; let's ensure it highlights with a default gray instead.
+
+        # Add sentence start/end markers
+        if line_segments:
+            # Define marker properties
+            marker_radius = 1.5  # Radius in points
+            start_marker_color = (0.0, 0.0, 1.0)  # Blue for start (RGB 0-1 range)
+            end_marker_color = (1.0, 0.0, 0.0)    # Red for end (RGB 0-1 range)
+            marker_opacity = 0.7
+
+            # Start marker: at the top-left of the first segment
+            first_segment_bbox = line_segments[0]
+            if all(isinstance(val, (int, float)) for val in first_segment_bbox) and len(first_segment_bbox) == 4:
+                start_marker_cx = first_segment_bbox[0]
+                start_marker_cy = first_segment_bbox[1]
+                # Create a small square for the circle's bounding box
+                start_marker_rect = fitz.Rect(
+                    start_marker_cx - marker_radius,
+                    start_marker_cy - marker_radius,
+                    start_marker_cx + marker_radius,
+                    start_marker_cy + marker_radius
+                )
+                if start_marker_rect.is_valid and not start_marker_rect.is_empty:
+                    try:
+                        start_annot = page.add_circle_annot(start_marker_rect)
+                        start_annot.set_colors(stroke=start_marker_color, fill=start_marker_color)
+                        start_annot.update(opacity=marker_opacity)
+                    except Exception as e_marker:
+                        logger.warning(f"Could not add start marker for sentence '{sentence_text_from_map[:30]}...': {e_marker}")
+            else:
+                logger.warning(f"Invalid first_segment_bbox for start marker: {first_segment_bbox} for sentence '{sentence_text_from_map[:30]}...'")
+
+            # End marker: at the bottom-right of the last segment
+            last_segment_bbox = line_segments[-1]
+            if all(isinstance(val, (int, float)) for val in last_segment_bbox) and len(last_segment_bbox) == 4:
+                end_marker_cx = last_segment_bbox[2]
+                end_marker_cy = last_segment_bbox[3]
+                # Create a small square for the circle's bounding box
+                end_marker_rect = fitz.Rect(
+                    end_marker_cx - marker_radius,
+                    end_marker_cy - marker_radius,
+                    end_marker_cx + marker_radius,
+                    end_marker_cy + marker_radius
+                )
+                if end_marker_rect.is_valid and not end_marker_rect.is_empty:
+                    try:
+                        end_annot = page.add_circle_annot(end_marker_rect)
+                        end_annot.set_colors(stroke=end_marker_color, fill=end_marker_color)
+                        end_annot.update(opacity=marker_opacity)
+                    except Exception as e_marker:
+                        logger.warning(f"Could not add end marker for sentence '{sentence_text_from_map[:30]}...': {e_marker}")
+            else:
+                logger.warning(f"Invalid last_segment_bbox for end marker: {last_segment_bbox} for sentence '{sentence_text_from_map[:30]}...'")
             
         for segment_bbox in line_segments:
             if not all(isinstance(val, (int, float)) for val in segment_bbox) or len(segment_bbox) != 4:
