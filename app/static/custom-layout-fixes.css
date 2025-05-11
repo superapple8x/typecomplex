@@ -10,12 +10,15 @@
   min-width: 18.4rem !important;
   padding: 3.5rem 1.5rem 1.5rem 1rem !important;
   transition: all var(--transition-speed) ease !important;
+  flex: 0 0 18.4rem !important;
+  margin-right: 1rem !important;
 }
 
 /* Position the collapse button more clearly in the corner */
 #toggle-left-sidebar-btn {
-  top: 0.5rem !important;
-  right: 0.5rem !important;
+  position: absolute !important;
+  top: 1.75rem !important;
+  right: -0.75rem !important;
   z-index: 50 !important;
   background-color: rgba(49, 50, 68, 0.5) !important;
   backdrop-filter: blur(10px) !important;
@@ -24,11 +27,51 @@
   border-radius: 0.375rem !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
   transition: all var(--transition-speed) ease !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 #toggle-left-sidebar-btn:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+#toggle-left-sidebar-btn svg {
+  width: 1rem !important;
+  height: 1rem !important;
+}
+
+/* Position the right sidebar collapse button more clearly in the corner */
+#toggle-sidebar-btn {
+  position: absolute !important;
+  top: 1.75rem !important;
+  left: -0.75rem !important;
+  z-index: 50 !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  padding: 0.35rem !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  transition: all var(--transition-speed) ease !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#toggle-sidebar-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+#toggle-sidebar-btn svg {
+  width: 1rem !important;
+  height: 1rem !important;
 }
 
 /* Improved sidebar header spacing */
@@ -427,22 +470,47 @@ label[for="pdf-upload-input"]:hover {
   transition: opacity 0.3s ease !important;
 }
 
-/* Improved spacing for main content area */
+/* Main content wrapper adjustments */
 main {
-  padding: 1rem !important;
+  padding: 1.5rem 0 !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  transition: margin var(--transition-speed) ease !important;
 }
 
-/* Ensure proper editor container spacing */
+/* Editor container adjustments */
 #editor-container {
-  margin-top: 1rem !important;
-  margin-bottom: 1rem !important;
+  margin: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transition: all var(--transition-speed) ease !important;
 }
 
 /* Right sidebar adjustment to match left sidebar */
 #complexity-sidebar {
-  padding: 1.5rem 1.5rem 1.5rem 1rem !important;
+  padding: 3.5rem 1.5rem 1.5rem 1rem !important;
   backdrop-filter: blur(10px) !important;
   border-left: 1px solid var(--border-color-muted) !important;
+  transition: all var(--transition-speed) ease !important;
+  flex: 0 0 18.4rem !important;
+  margin-left: 1rem !important;
+}
+
+/* Adjust the title and analysis button positioning */
+#complexity-sidebar > div:first-child {
+  margin-top: 3.5rem !important;
+}
+
+/* Adjust the content area inside the right sidebar */
+#complexity-sidebar > div:not(:first-child) {
+  padding-right: 0.5rem !important;
+  margin-top: 1rem !important;
+}
+
+/* Ensure the overflow container doesn't extend too far */
+#complexity-sidebar .flex-grow.overflow-y-auto {
+  padding-right: 0.25rem !important;
 }
 
 /* Make sidebar toggle buttons consistent */
@@ -453,11 +521,24 @@ main {
   padding: 0.35rem !important;
   border-radius: 0.375rem !important;
   transition: all var(--transition-speed) ease !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  z-index: 50 !important;
 }
 
 #open-left-sidebar-btn:hover, #open-sidebar-btn:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Position buttons at the same height */
+#open-left-sidebar-btn {
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+}
+
+#open-sidebar-btn {
+  top: 0.5rem !important;
+  right: 0.5rem !important;
 }
 
 /* Fix for Firefox select dropdown styling */

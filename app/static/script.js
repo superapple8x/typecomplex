@@ -2352,26 +2352,35 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
 
     // --- Sidebar Toggle Logic ---
+    function closeSidebar() {
+        if (sidebar && openSidebarBtn) {
+            sidebar.classList.remove('right-sidebar-state-open');
+            sidebar.classList.add('right-sidebar-state-closed');
+            openSidebarBtn.classList.remove('hidden');
+        }
+    }
+
     function openSidebar() {
         if (sidebar && openSidebarBtn) {
-            // Use classes for state management and transitions
-            sidebar.classList.remove('w-0', 'p-0', 'opacity-0', 'hidden');
-            sidebar.classList.add('w-64', 'p-4', 'opacity-100');
+            sidebar.classList.remove('right-sidebar-state-closed');
+            sidebar.classList.add('right-sidebar-state-open');
             openSidebarBtn.classList.add('hidden');
         }
     }
 
-    function closeSidebar() {
-        if (sidebar && openSidebarBtn) {
-            // Apply classes to hide and shrink
-            sidebar.classList.remove('w-64', 'p-4', 'opacity-100');
-            sidebar.classList.add('w-0', 'p-0', 'opacity-0');
-            // Use a timeout matching the transition duration before setting hidden
-            // This allows the transition to complete visually. Adjust 300ms if transition duration changes.
-            setTimeout(() => {
-                sidebar.classList.add('hidden');
-                openSidebarBtn.classList.remove('hidden');
-            }, 300); // Match transition duration in index.html (duration-300)
+    function closeLeftSidebar() {
+        if (leftSidebar && openLeftSidebarBtn) {
+            leftSidebar.classList.remove('left-sidebar-state-open');
+            leftSidebar.classList.add('left-sidebar-state-closed');
+            openLeftSidebarBtn.classList.remove('hidden');
+        }
+    }
+
+    function openLeftSidebar() {
+        if (leftSidebar && openLeftSidebarBtn) {
+            leftSidebar.classList.remove('left-sidebar-state-closed');
+            leftSidebar.classList.add('left-sidebar-state-open');
+            openLeftSidebarBtn.classList.add('hidden');
         }
     }
 
@@ -2383,10 +2392,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         openSidebarBtn.addEventListener('click', openSidebar);
     }
 
-    // Ensure sidebar is open by default on load (or closed if you prefer)
-    // openSidebar(); // Uncomment if you want it open by default
-    // If you want it closed by default, you might need to adjust initial classes in index.html
-    // For now, assuming it starts open as per index.html structure.
+    // Ensure sidebar is open by default
+    if (sidebar) {
+        sidebar.classList.add('right-sidebar-state-open');
+        if (openSidebarBtn) openSidebarBtn.classList.add('hidden');
+    }
 
 
     // --- Visual Map Hover Listeners ---
@@ -2766,4 +2776,5 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
 
 }); // End DOMContentLoaded
+
 

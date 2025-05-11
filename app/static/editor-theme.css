@@ -220,6 +220,27 @@ body {
   overflow: hidden !important;
 }
 
+/* Right sidebar state classes */
+.right-sidebar-state-open {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+  width: 18.4rem !important; /* Ensure width is set exactly */
+  min-width: 18.4rem !important;
+  max-width: 18.4rem !important;
+  padding: 1.5rem 1.5rem 1.5rem 1rem !important;
+}
+
+/* Closed right sidebar state class */
+.right-sidebar-state-closed {
+  transform: translateX(100%) !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 /* Sidebar cards and UI elements consistency */
 .sidebar-card {
   background-color: rgba(49, 50, 68, 0.5) !important; 
