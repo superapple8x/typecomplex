@@ -580,20 +580,41 @@ def _draw_overview_page_content(page, analysis_results, overview_top_x_count, ov
             for i, sentence_data in enumerate(top_sentences_list):
                 logger.info(f"Overview: Drawing sentence {i+1}")
 
-                # Prepare display text and color indicator
+                # Prepare display text
                 score_val = sentence_data.get('score')
                 score_str = f"{score_val:.2f}" if isinstance(score_val, (int, float)) else "N/A"
                 display_text = f"{i+1}. {sentence_data.get('sentence', 'N/A')} (Score: {score_str})"
-                color_class = sentence_data.get('color_class', 'bg-gray-500')
-                item_color_rgb = COMPLEXITY_COLORS.get(color_class, COMPLEXITY_COLORS['bg-gray-500'])
+                # item_color_rgb will be determined just before drawing the indicator
 
-                # Check for page overflow before drawing
-                # Estimate height needed: worst-case (one line) to decide
-                if current_y + line_height_body > page_rect.height - margin:
+                # Manual text wrapping by measuring widths to estimate full item height
+                words = display_text.split()
+                lines = [] # This will store the wrapped lines for the current sentence
+                cur_line = ''
+                for w in words:
+                    test_line = f"{cur_line} {w}".strip() if cur_line else w
+                    if fitz.get_text_length(test_line, font_body, fontsize_body) <= sentence_area_width:
+                        cur_line = test_line
+                    else:
+                        if cur_line: # Add the completed line
+                            lines.append(cur_line)
+                        cur_line = w # Start a new line with the current word
+                if cur_line: # Add the last line
+                    lines.append(cur_line)
+
+                estimated_item_height = len(lines) * line_height_body
+
+                # Check for page overflow BEFORE drawing anything for this item
+                if current_y + estimated_item_height + item_spacing > page_rect.height - margin:
                     page = page.parent.new_page(-1, width=page_rect.width, height=page_rect.height)
                     current_y = margin
-                    page_rect = page.rect
+                    page_rect = page.rect # IMPORTANT: Update page_rect for the new page
+                    # Redraw section title on new page
                     draw_text(f"(Continued) {section_title}", margin, current_y, font_heading, fontsize_heading)
+                    current_y += section_spacing # Add spacing consistent with the first title
+
+                # Determine color for indicator (done here as item_color_rgb is needed for drawing)
+                color_class = sentence_data.get('color_class', 'bg-gray-500')
+                item_color_rgb = COMPLEXITY_COLORS.get(color_class, COMPLEXITY_COLORS['bg-gray-500'])
 
                 # Draw color indicator
                 indicator_y_pos = current_y + (line_height_body - indicator_size) / 2
@@ -601,25 +622,10 @@ def _draw_overview_page_content(page, analysis_results, overview_top_x_count, ov
                                            margin + 15 + indicator_size, indicator_y_pos + indicator_size)
                 page.draw_rect(indicator_rect, color=item_color_rgb, fill=item_color_rgb)
 
-                # Manual text wrapping by measuring widths
-                words = display_text.split()
-                lines = []
-                cur_line = ''
-                for w in words:
-                    test_line = f"{cur_line} {w}".strip() if cur_line else w
-                    if fitz.get_text_length(test_line, font_body, fontsize_body) <= sentence_area_width:
-                        cur_line = test_line
-                    else:
-                        if cur_line:
-                            lines.append(cur_line)
-                        cur_line = w
-                if cur_line:
-                    lines.append(cur_line)
-
-                # Draw each wrapped line
-                for line in lines:
+                # Draw each wrapped line (using the pre-calculated `lines` list)
+                for line_text in lines:
                     page.insert_text(fitz.Point(text_start_x, current_y),
-                                     line,
+                                     line_text,
                                      fontname=font_body,
                                      fontsize=fontsize_body)
                     current_y += line_height_body
