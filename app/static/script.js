@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const analysisOptionsMenu = document.getElementById('analysis-options-menu'); // NEW: Dropdown menu
     const playIcon = document.getElementById('play-icon'); // Existing icon
     const pauseIcon = document.getElementById('pause-icon'); // Existing icon
+    const analysisModeOptions = document.querySelectorAll('.analysis-mode-option'); // <<< NEW: Get all mode options
 
     // --- NEW: Left Sidebar PDF Tool DOM References (Updated for Card Layout) ---
     const pdfUploadInput = document.getElementById('pdf-upload-input');
@@ -354,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTargetAudience = 'Standard'; // Default audience, updated from select element
     let showHighlighting = true; // Default state for toggle, updated from checkbox
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
+    let currentAnalysisMode = 'better'; // <<< UPDATED: Default analysis mode to 'better'
     let isOverallScoreOutOfBounds = false; // Track if overall score is outside target
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
@@ -760,7 +762,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
  
     // --- Analysis & Highlighting (Modified for Phase Indicator & Mode) ---
     async function analyzeAndHighlight(forceHighlightUpdate = false, mode = 'full') { // Added mode parameter
-        console.log(`%c[analyzeAndHighlight] Called with mode: ${mode}`, 'color: blue'); // DEBUG
+        // Override default mode with the current global mode if not forcing highlight update
+        // When forceHighlightUpdate is true, we are typically just re-rendering with existing data,
+        // so the mode of that existing data should be preserved.
+        const effectiveMode = forceHighlightUpdate ? mode : currentAnalysisMode;
+        console.log(`%c[analyzeAndHighlight] Called. Initial mode: ${mode}, Effective mode: ${effectiveMode}`, 'color: blue'); // DEBUG
         const text = quill.getText();
         const startTime = performance.now();
         const audience = currentTargetAudience; // Use state variable
@@ -790,7 +796,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 text: text,
                 target_audience: audience,
                 context_awareness_enabled: contextAwarenessEnabled,
-                mode: mode
+                mode: effectiveMode // <<< USE effectiveMode
             };
             console.log("[analyzeAndHighlight] Sending analysis request:", requestBody);
 
@@ -875,24 +881,24 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         // --- Normalize the source of sentence-level data for highlighting and map ---
         // This block now runs after currentAnalysisData is settled (either new, existing, or null)
-        if (currentAnalysisData) {
-            const modeInEffect = currentAnalysisData.mode || mode; // Use mode from data if available, else from function arg
-            if (modeInEffect === 'full' && Array.isArray(currentAnalysisData.sentences)) {
-                itemsForHighlightingAndMap = currentAnalysisData.sentences;
-            } else if (Array.isArray(currentAnalysisData.results)) {
-                itemsForHighlightingAndMap = currentAnalysisData.results;
-            } else if (modeInEffect === 'full') {
-                console.warn("[analyzeAndHighlight] Mode is 'full' but 'sentences' array is missing or invalid in currentAnalysisData.");
-            } else {
-                console.warn("[analyzeAndHighlight] 'results' array is missing or invalid for current mode in currentAnalysisData.");
-            }
+        if (currentAnalysisData && Array.isArray(currentAnalysisData.sentences)) {
+            itemsForHighlightingAndMap = currentAnalysisData.sentences;
+        } else if (currentAnalysisData && Array.isArray(currentAnalysisData.results)) {
+            // Fallback for older structures or other potential analysis types that might use a 'results' key.
+            itemsForHighlightingAndMap = currentAnalysisData.results;
+            console.warn("[analyzeAndHighlight] Used 'results' array as fallback. 'sentences' array was missing or invalid in currentAnalysisData.");
+        } else if (currentAnalysisData) {
+            // Data exists, but neither .sentences nor .results is a valid array.
+            console.warn("[analyzeAndHighlight] Neither 'sentences' nor 'results' array is valid in currentAnalysisData. Highlighting may not work as expected.");
+            // itemsForHighlightingAndMap remains empty if initialized as such
         } else {
              console.warn("[analyzeAndHighlight] No currentAnalysisData available to derive itemsForHighlightingAndMap.");
-             // itemsForHighlightingAndMap remains []
+             // itemsForHighlightingAndMap remains empty if initialized as such
         }
-        // --- End normalization ---
 
-        applyStatisticalHighlighting(itemsForHighlightingAndMap); 
+        // Apply highlighting and update the document map using the derived items.
+        applyStatisticalHighlighting(itemsForHighlightingAndMap);
+
         const mapData = currentAnalysisData ? { ...currentAnalysisData, results: itemsForHighlightingAndMap } : { results: [] };
         updateDocumentMap(mapData);
     }
@@ -1473,7 +1479,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
     // --- Event Listeners ---
     // Define debounced function just before use
-    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750); // Used for non-typing triggers
+    const debouncedAnalyzeAndHighlight = debounce(analyzeAndHighlight, 750);
 
     // --- NEW: Helper Function to Cancel Current Analysis ---
     function cancelCurrentAnalysis() {
@@ -1518,7 +1524,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- Sequential Analysis Function (Modified for Mode) ---
     let isSequentialAnalysisRunning = false; // Flag to prevent overlap
     async function analyzeSequentially(text, audience, contextAwarenessEnabled, mode = 'full') { // Added mode parameter
-        console.log(`%c[analyzeSequentially] Called with mode: ${mode}`, 'color: green'); // DEBUG
+        // Always use the currentAnalysisMode if no specific mode is passed,
+        // or if the passed mode is the default 'full', prefer currentAnalysisMode.
+        const effectiveMode = (mode === 'full' && currentAnalysisMode) ? currentAnalysisMode : (mode || currentAnalysisMode || 'best');
+        isSequentialAnalysisRunning = true; // Set flag when starting
+        console.log(`%c[analyzeSequentially] Called. Initial mode: ${mode}, Effective mode: ${effectiveMode}`, 'color: green');
         // --- Abort previous analysis if any ---
         if (currentAbortController) {
             console.log(`[Seq] Aborting previous analysis ID: ${currentAnalysisId} (requested mode: ${mode})`); // DEBUG
@@ -1743,8 +1753,16 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
                 // Call the original /analyze endpoint to get overall scores and readability
                 // Use the *same* analysisId and signal, AND the mode *originally passed to analyzeSequentially*
-                const finalRequestBody = { ...requestBody, mode: mode }; // Use the 'mode' parameter of analyzeSequentially
-                console.log(`[Seq] Sending final /analyze request (ID: ${analysisId}, mode: ${mode}):`, finalRequestBody);
+                // Correction: Use the effectiveMode that was determined at the start of analyzeSequentially for consistency
+                // Construct a clean request body for the final analysis call
+                const finalRequestBody = {
+                    text: text, // The full original text
+                    target_audience: audience, // The original target audience
+                    context_awareness_enabled: contextAwarenessEnabled, // Original context setting
+                    analysisId: analysisId, // The ongoing analysis ID
+                    mode: effectiveMode // The effective mode for this analysis run
+                };
+                console.log(`[Seq] Sending final /analyze request (ID: ${analysisId}, mode: ${effectiveMode}):`, finalRequestBody);
                 const finalAnalysisResponse = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1885,41 +1903,48 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // --- Text Change Listener ---
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
-            updateStats();
+            updateStats(); // Update word/sentence/char counts on any user change
 
+            const ops = delta.ops;
+            let isSignificantChange = false;
             let isPaste = false;
-            let isSignificantDelete = false;
+            let insertedText = '';
             let deleteLength = 0;
-            let insertLength = 0; // Track insert length for paste detection
 
-            // --- Detect Paste / Delete ---
-            delta.ops.forEach(op => {
-                if (op.insert && typeof op.insert === 'string') {
-                    insertLength += op.insert.length; // Accumulate insert length
-                } else if (op.delete) {
-                    isSignificantDelete = true; // Mark that a delete happened
-                    deleteLength = op.delete; // Record delete length (assumes one delete op per change)
+            // Check for significant changes (more than just one char add/delete or formatting)
+            if (ops && ops.length === 1) {
+                if (ops[0].insert && ops[0].insert.length > 1) {
+                    isSignificantChange = true;
+                    insertedText = ops[0].insert;
+                    if (ops[0].insert.length >= PASTE_LENGTH_THRESHOLD) {
+                        isPaste = true;
+                        lastPasteInfo = { timestamp: Date.now(), length: ops[0].insert.length };
+                        console.log(`Paste detected: length ${lastPasteInfo.length}`);
+                    }
+                } else if (ops[0].delete && ops[0].delete > 1) {
+                    isSignificantChange = true;
+                    deleteLength = ops[0].delete;
+                } else if (ops[0].insert) { // Single character insert
+                    isSignificantChange = false; 
+                } else if (ops[0].delete) { // Single character delete
+                    isSignificantChange = false;
                 }
-            });
-
-            // Check if the total insertion meets the paste threshold
-            if (insertLength >= PASTE_LENGTH_THRESHOLD) {
-                 isPaste = true;
-                 lastPasteInfo = { timestamp: Date.now(), length: insertLength };
-                 console.log(`Paste detected: length ${insertLength}`);
+            } else if (ops && ops.length > 1) { // Multiple operations often mean significant change
+                isSignificantChange = true;
+                ops.forEach(op => {
+                    if (op.insert) insertedText += op.insert;
+                    if (op.delete) deleteLength += op.delete;
+                });
+                if (insertedText.length >= PASTE_LENGTH_THRESHOLD) {
+                    isPaste = true;
+                    lastPasteInfo = { timestamp: Date.now(), length: insertedText.length };
+                    console.log(`Multi-op paste detected: length ${lastPasteInfo.length}`);
+                }
             }
 
-            // Reset paste info if the change wasn't a paste
-            if (!isPaste) {
-                // Don't reset immediately on delete, check for paste-delete first
-                if (!isSignificantDelete) {
-                     lastPasteInfo = null;
-                }
-            }
+            let cancelled = false; // Flag to check if paste-delete cancelled analysis
 
-            // --- Check for Paste-Delete Cancellation ---
-            let cancelled = false;
-            if (isSignificantDelete && lastPasteInfo) {
+            if (isSignificantChange && lastPasteInfo && deleteLength > 0) { // Potential delete after paste
                 const timeDiff = Date.now() - lastPasteInfo.timestamp;
                 const lengthRatio = deleteLength / lastPasteInfo.length;
                 console.log(`Delete detected: length ${deleteLength}, time since paste: ${timeDiff}ms, paste length: ${lastPasteInfo.length}, ratio: ${lengthRatio.toFixed(2)}`);
@@ -1927,61 +1952,27 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 if (timeDiff < PASTE_DELETE_THRESHOLD_MS && lengthRatio >= DELETE_MATCH_RATIO) {
                     console.log(`%cPaste-delete detected! Cancelling analysis ID: ${currentAnalysisId}`, 'color: orange; font-weight: bold;');
                     cancelled = true;
-
-                    // 1. Cancel pending debounced call
-                    debouncedAnalyzeSequentially.cancel();
-
-                    // 2. Abort ongoing fetch requests
-                    if (currentAbortController) {
-                        currentAbortController.abort();
-                        currentAbortController = null; // Clear controller after aborting
-                    }
-
-                    // 3. Notify backend to cancel
-                    if (currentAnalysisId) {
-                        const idToCancel = currentAnalysisId; // Capture ID before clearing
-                        currentAnalysisId = null; // Clear ID immediately
-                        fetch('/cancel_analysis', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ analysisId: idToCancel }),
-                            // Keepalive might help ensure this request is sent even if page navigation happens soon after
-                            // keepalive: true
-                        })
-                        .then(response => response.json())
-                        .then(data => console.log('Backend cancellation requested:', data))
-                        .catch(err => console.error('Error sending backend cancellation:', err));
-
-                    }
-
-                    // 4. Reset paste tracking state
-                    lastPasteInfo = null;
-
-                    // 5. Optionally update UI immediately (e.g., set phase to idle)
-                    updatePhaseIndicator('idle');
-                } else {
-                    // If it was a delete but didn't meet paste-delete criteria, clear paste info
-                    lastPasteInfo = null;
+                    cancelCurrentAnalysis(); // Use the consolidated cancel function
                 }
             }
+            lastPasteInfo = isPaste ? lastPasteInfo : null; // Reset if not a paste or if paste-delete handled
 
-            // --- Trigger Analysis (if not cancelled AND not paused) ---
-            if (!cancelled && !isAnalysisPaused) { // <<< ADDED PAUSE CHECK
-                // If a sequential analysis is already running (e.g., from a manual trigger like "Fast Analysis Only"),
-                // don't let the text-change listener also try to start one via debounce.
-                if (!isSequentialAnalysisRunning) {
-                    const currentText = quill.getText();
-                    const audience = currentTargetAudience; 
-                    const contextAwarenessEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                    // The default mode ('full') will be used by analyzeSequentially unless overridden
-                    debouncedAnalyzeSequentially(currentText, audience, contextAwarenessEnabled);
-                } else {
-                    console.log("Text change: Sequential analysis already running (likely from manual trigger), skipping auto-trigger by text-change.");
+
+            // Trigger analysis on significant change if not paused and not cancelled by paste-delete
+            if (isSignificantChange && !isAnalysisPaused && !cancelled) {
+                console.log(`%cSignificant text change detected (source: ${source}). Triggering analysis with mode: ${currentAnalysisMode}.`, 'color: orange');
+                const currentText = quill.getText(); // Get current text for analysis
+                const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+
+                if (currentAnalysisMode === 'fast') {
+                    debouncedAnalyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
+                } else { // 'better' or 'best'
+                    // analyzeAndHighlight gets its text, audience, context internally.
+                    // Pass false for forceHighlightUpdate, and currentAnalysisMode for the mode.
+                    debouncedAnalyzeAndHighlight(false, currentAnalysisMode);
                 }
-            } else if (cancelled) {
-                 console.log("Text change: Analysis cancelled (paste-delete).");
-            } else if (isAnalysisPaused) {
-                 console.log("Text change: Analysis paused, skipping trigger.");
+            } else if (source === 'user' && !isSignificantChange && !isAnalysisPaused && !cancelled) {
+                // console.log("Minor text change, only updating stats.");
             }
         }
     });
@@ -2292,12 +2283,14 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 console.log("Analysis Paused (via main button).");
                 cancelCurrentAnalysis(); // Cancel any ongoing analysis
             } else {
-                console.log("Analysis Resumed (via main button - default mode).");
-                // Trigger default analysis (sequential + full)
+                console.log(`Analysis Resumed (via main button - mode: ${currentAnalysisMode}).`);
                 const currentText = quill.getText();
-                // Use currentTargetAudience state variable
                 const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-                analyzeSequentially(currentText, currentTargetAudience, contextEnabled);
+                if (currentAnalysisMode === 'fast') {
+                    analyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
+                } else { // 'better' or 'best'
+                    analyzeAndHighlight(false, currentAnalysisMode);
+                }
             }
         });
     } else {
@@ -2774,6 +2767,47 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             }
         });
     }
+
+    // --- NEW: Event Listeners for Analysis Mode Selection ---
+    if (analysisModeOptions && analysisOptionsMenu && analysisExpandBtn) {
+        analysisModeOptions.forEach(option => {
+            option.addEventListener('click', (event) => {
+                event.preventDefault();
+                const selectedMode = option.getAttribute('data-mode');
+                if (selectedMode) {
+                    currentAnalysisMode = selectedMode;
+                    console.log(`Analysis mode changed to: ${currentAnalysisMode}`);
+                    analysisOptionsMenu.classList.add('hidden');
+                    analysisControlsContainer.classList.remove('options-visible');
+
+                    if (!isAnalysisPaused) {
+                        console.log("Re-triggering analysis due to mode change.");
+                        const currentText = quill.getText();
+                        const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                        if (currentAnalysisMode === 'fast') {
+                            analyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
+                        } else { // 'better' or 'best'
+                            analyzeAndHighlight(false, currentAnalysisMode);
+                        }
+                    }
+                }
+            });
+        });
+
+        // Close menu if clicking outside
+        document.addEventListener('click', (event) => {
+            if (analysisOptionsMenu && !analysisOptionsMenu.classList.contains('hidden') && !analysisControlsContainer.contains(event.target)) {
+                analysisOptionsMenu.classList.add('hidden');
+                analysisControlsContainer.classList.remove('options-visible');
+            }
+        });
+
+    } else {
+        console.warn("Analysis mode options or menu/button not found.");
+    }
+
+    // Function to update the main analysis button based on selected mode (optional enhancement)
+    // function updateAnalysisButtonAppearance() { ... }
 
 }); // End DOMContentLoaded
 

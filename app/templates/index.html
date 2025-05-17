@@ -213,21 +213,30 @@
                         <div id="analysis-options-menu" class="absolute top-full left-0 mt-1 w-48 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded shadow-lg hidden z-20">
                             <ul class="py-1 text-sm text-[var(--text-primary)]">
                                 <li>
-                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="fast-only">
+                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="fast">
                                         <!-- Lightning Bolt Icon -->
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                                         </svg>
-                                        Fast analysis only
+                                        Fast Analysis
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-action="full-only">
-                                        <!-- Magnifying Glass Icon -->
+                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="better">
+                                        <!-- Sparkles Icon (representing 'Better') -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.25 12L17.437 9.154a4.5 4.5 0 00-3.09-3.09L11.5 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L18.25 12zm0 0L21 9.154a4.5 4.5 0 00-3.09-3.09L15.187 5.25l-.813 2.846a4.5 4.5 0 00-3.09 3.09L8.5 9.154 11.346 12l-2.847.813a4.5 4.5 0 00-3.09 3.09L5.25 18.75l2.846-.813a4.5 4.5 0 003.09-3.09L14.063 12l-2.847-.813a4.5 4.5 0 00-3.09-3.09L5.25 5.25 8.096 12l-2.847.813a4.5 4.5 0 00-3.09 3.09L-.75 18.75l2.846-.813a4.5 4.5 0 003.09-3.09L8.063 12z" />
+                                        </svg>
+                                        Better Analysis
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="best">
+                                        <!-- Magnifying Glass Icon (representing 'Best' / 'Full') -->
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                                         </svg>
-                                        Full analysis only
+                                        Best Analysis
                                     </a>
                                 </li>
                             </ul>

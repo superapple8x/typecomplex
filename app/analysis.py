@@ -877,13 +877,13 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         num_tokens = len(spacy_sentence)   # Exact for spaCy object
 
 
-    if mode == 'full':
+    if mode == 'full' or mode == 'better': # Modified condition to include 'better'
         # --- Check for cancellation before expensive calculations ---
         if analysis_id and task_manager.is_cancelled(analysis_id):
             logging.info(f"Task {analysis_id}: Cancelled before expensive calculations for sentence: '{spacy_sentence_text[:50]}...'")
             return 0.0 # Return neutral score if cancelled here
 
-        # For string input in full mode, we need spaCy processing for advanced metrics
+        # For string input in full/better mode, we need spaCy processing for advanced metrics
         # If spacy_sentence is a string and nlp is available, process it
         if isinstance(spacy_sentence, str) and nlp:
             spacy_sentence = nlp(sentence_text)  # Convert to spaCy Doc
@@ -893,10 +893,16 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         # Skip advanced metrics if we don't have a spaCy object at this point
         if not isinstance(spacy_sentence, str):
             # --- 1. Contextual Embedding Factor (Variance) & Get Embeddings ---
-            embedding_result = _get_contextual_embedding_complexity(sentence_text, words_for_stats)
-            embedding_factor = embedding_result.get('factor', 0.0) if embedding_result else 0.0
-            embeddings_matrix = embedding_result.get('embeddings')
-            token_map = embedding_result.get('token_map')
+            # Only calculate for 'full' mode
+            if mode == 'full':
+                embedding_result = _get_contextual_embedding_complexity(sentence_text, words_for_stats)
+                embedding_factor = embedding_result.get('factor', 0.0) if embedding_result else 0.0
+                embeddings_matrix = embedding_result.get('embeddings')
+                token_map = embedding_result.get('token_map')
+            else: # For 'better' mode, initialize to 0 or None
+                embedding_factor = 0.0
+                embeddings_matrix = None
+                token_map = None
 
             # --- 2. Original Syntactic Features ---
             syntactic_features = _get_syntactic_features(spacy_sentence)
@@ -961,12 +967,20 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
 
             # --- 5. Semantic Coherence Factor ---
             # Requires embeddings_matrix and token_map from step 1
+            # For 'better' mode, embeddings_matrix might be None. _get_semantic_coherence should handle this.
             raw_coherence_score = _get_semantic_coherence(spacy_sentence, embeddings_matrix, token_map, words_for_stats)
+            
             # Normalize coherence: Lower score = higher complexity factor
             min_coherence = norm.get('min_semantic_coherence', 0.5)
-            # Factor = how much the score is *below* the minimum threshold
-            # Scale it to 0-1 range. If score > min_coherence, factor is 0.
-            semantic_coherence_factor = max(0.0, (min_coherence - raw_coherence_score)) / min_coherence if min_coherence > 0 else 0.0
+            
+            # If embeddings were not available (e.g., 'better' mode), coherence factor should be neutral (0)
+            if embeddings_matrix is None:
+                semantic_coherence_factor = 0.0
+            else:
+                # Factor = how much the score is *below* the minimum threshold
+                # Scale it to 0-1 range. If score > min_coherence, factor is 0.
+                semantic_coherence_factor = max(0.0, (min_coherence - raw_coherence_score)) / min_coherence if min_coherence > 0 else 0.0
+            
             semantic_coherence_factor = max(0.0, min(1.0, semantic_coherence_factor)) # Clamp 0-1
             logging.debug(f"Task {analysis_id}: Semantic Coherence Score: {raw_coherence_score:.3f}, Factor: {semantic_coherence_factor:.3f}")
 
@@ -1006,6 +1020,31 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         }
         # Use info level for easier visibility during debugging
         logging.info(f"Task {analysis_id}: DEBUG FACTORS (Full Mode): {factors_log}")
+        # --- End Logging ---
+
+    elif mode == 'better':
+        # Use profile weights from AUDIENCE_PROFILES, excluding embedding_complexity
+        score = (length_factor * weights.get('sentence_length', 0)) + \
+                (word_len_factor * weights.get('avg_word_length', 0)) + \
+                (frequency_factor * weights.get('avg_word_frequency', 0)) + \
+                (syntactic_factor * weights.get('syntactic_complexity', 0)) + \
+                (dependency_factor * weights.get('dependency_complexity', 0)) + \
+                (lexical_factor * weights.get('lexical_complexity', 0)) + \
+                (semantic_coherence_factor * weights.get('semantic_coherence', 0))
+        logging.debug(f"Task {analysis_id}: Calculated Score (better mode using profile weights, no BERT): {score:.3f} for sentence: '{spacy_sentence_text[:50]}...'")
+
+        # --- Log individual normalized factors for debugging (similar to full, but no embedding) ---
+        factors_log = {
+            "sentence_start": spacy_sentence_text[:30],
+            "length_factor": length_factor,
+            "word_len_factor": word_len_factor,
+            "frequency_factor": frequency_factor,
+            "syntactic_factor": syntactic_factor,
+            "dependency_factor": dependency_factor,
+            "lexical_factor": lexical_factor,
+            "semantic_coherence_factor": semantic_coherence_factor
+        }
+        logging.info(f"Task {analysis_id}: DEBUG FACTORS (Better Mode): {factors_log}")
         # --- End Logging ---
 
     else:
@@ -1300,14 +1339,24 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
             cancelled_mid_loop = True
             break # Exit the loop
 
-        # Determine the mode to be passed to analyze_single_spacy_sentence, which in turn passes it to calculate_complexity.
-        # This mode must be either 'full' or 'fast' for calculate_complexity.
-        mode_for_sentence_calculation = 'fast' # Default to 'fast' for safety
-        if mode == 'full' or mode == 'fast_final_detailed': # These parent modes require full calculation for sentences
-            mode_for_sentence_calculation = 'full'
-        elif mode == 'fast': # This parent mode requires fast calculation for sentences
+        # Determine the mode to be passed to analyze_single_spacy_sentence.
+        # This mode ('fast', 'better', 'full') controls which calculations are done in calculate_complexity.
+        # `mode` here is the overall analysis mode requested (e.g., 'fast', 'better', 'best', 'full', 'fast_final_detailed')
+        
+        if mode == 'best' or mode == 'full' or mode == 'fast_final_detailed': 
+            # 'best' (new UI term for what was 'full'), 
+            # 'full' (old UI term/internal default from routes.py if mode not specified, or passed by other internal calls),
+            # 'fast_final_detailed' (another internal mode that implies full sentence processing)
+            # all imply that individual sentences should use all available metrics.
+            mode_for_sentence_calculation = 'full' # This is the mode for calculate_complexity
+        elif mode == 'better':
+            mode_for_sentence_calculation = 'better' # This is the mode for calculate_complexity
+        elif mode == 'fast':
+            mode_for_sentence_calculation = 'fast' # This is the mode for calculate_complexity
+        else:
+            # Fallback for any other unknown mode string from the parent call
+            logging.warning(f"analyze_text_complexity (ID: {analysis_id}): Unrecognized overall mode '{mode}'. Defaulting per-sentence calculation to 'fast'.")
             mode_for_sentence_calculation = 'fast'
-        # Any other 'mode' value for analyze_text_complexity will result in 'fast' calculation for sentences.
 
         # Call analyze_single_spacy_sentence.
         # It will internally handle if sentence_obj_or_str is a Span or string for metric calculation.
