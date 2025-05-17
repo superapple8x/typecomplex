@@ -81,14 +81,55 @@ tokenizer, model = load_transformer_assets()
 
 
 # --- Load spaCy Model ---
-# Load spaCy English model once globally for parsing
-SPACY_MODEL_NAME = 'en_core_web_sm'
-try:
-    nlp = spacy.load(SPACY_MODEL_NAME)
-    print(f"Successfully loaded spaCy model '{SPACY_MODEL_NAME}'.")
-except Exception as e:
-    print(f"ERROR loading spaCy model '{SPACY_MODEL_NAME}': {e}")
-    nlp = None # Indicate failure
+# Define model names
+SPACY_MODEL_NAME_SM = 'en_core_web_sm'
+SPACY_MODEL_NAME_LG = 'en_core_web_lg' # For 'best' analysis
+
+# Global variables for spaCy models
+nlp_sm = None
+nlp_lg = None
+
+def _load_spacy_model_with_fallback(model_name):
+    """Attempts to load a spaCy model, falling back to download if not found."""
+    try:
+        loaded_model = spacy.load(model_name)
+        print(f"Successfully loaded spaCy model '{model_name}'.")
+        return loaded_model
+    except OSError:
+        print(f"spaCy model '{model_name}' not found. Attempting to download...")
+        try:
+            spacy.cli.download(model_name)
+            # Re-attempt loading after download
+            loaded_model = spacy.load(model_name)
+            print(f"Successfully downloaded and loaded spaCy model '{model_name}'.")
+            return loaded_model
+        except Exception as e_download:
+            print(f"ERROR: Failed to download or load spaCy model '{model_name}' after download attempt: {e_download}")
+            return None
+    except Exception as e_load:
+        print(f"ERROR: An unexpected error occurred loading spaCy model '{model_name}': {e_load}")
+        return None
+
+# Load the small model at startup
+nlp_sm = _load_spacy_model_with_fallback(SPACY_MODEL_NAME_SM)
+
+def get_active_spacy_model(mode='better'): # Default to 'better' which uses small model
+    """Returns the appropriate spaCy model based on the analysis mode."""
+    global nlp_sm, nlp_lg # Allow modification of global vars for on-demand loading
+
+    if mode == 'best' or mode == 'full': # 'full' is often an internal or default representation of 'best'
+        if nlp_lg is None:
+            print(f"Attempting to load large spaCy model ('{SPACY_MODEL_NAME_LG}') for mode: {mode}")
+            nlp_lg = _load_spacy_model_with_fallback(SPACY_MODEL_NAME_LG)
+        if nlp_lg is not None:
+            return nlp_lg
+        else:
+            print(f"WARN: Large spaCy model ('{SPACY_MODEL_NAME_LG}') failed to load. Falling back to small model for mode '{mode}'.")
+            # Fallback to small model if large one fails but small one is available
+            return nlp_sm # nlp_sm might also be None if it failed at startup
+    else: # For 'better', 'fast', or any other mode, use the small model.
+        return nlp_sm
+
 
 # --- Audience Profiles ---
 # Define weights, normalization constants, thresholds, and target scores per audience.
@@ -802,6 +843,18 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         # We'll need this for logging output
         if not hasattr(spacy_sentence, 'text'):
             spacy_sentence_text = sentence_text
+        
+        # If mode requires spaCy and input is string, process it with the active model
+        if mode == 'full' or mode == 'better':
+            active_nlp = get_active_spacy_model(mode)
+            if active_nlp:
+                # This spacy_sentence will be a Doc, used for spaCy-dependent metrics later
+                spacy_sentence = active_nlp(sentence_text) 
+            else:
+                # If NLP model failed to load, we can't process string to spaCy doc for advanced metrics.
+                # spacy_sentence remains a string. Downstream logic needs to handle this.
+                logging.warning(f"Task {analysis_id}: spaCy model not available for mode '{mode}'. Advanced metrics on string sentence will be skipped.")
+
     else:
         # Original behavior for spaCy objects
         sentence_text = spacy_sentence.text
@@ -1098,17 +1151,19 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
     # This will be the object used for actual complexity calculation (Span, Doc, or str)
     spacy_object_for_calculation = spacy_sentence_arg
 
+    active_nlp_for_single = get_active_spacy_model(mode) # Get model based on current mode
+
     if isinstance(spacy_sentence_arg, str):
         text_to_analyze_and_return = spacy_sentence_arg
         char_end = len(text_to_analyze_and_return) # char_start remains 0
-        if nlp and mode != 'fast':
-            # Process the string. The result is a Doc object.
-            doc_from_string = nlp(text_to_analyze_and_return)
+        
+        # If mode requires spaCy (not 'fast') and we have an NLP model, process the string.
+        if mode != 'fast' and active_nlp_for_single:
+            doc_from_string = active_nlp_for_single(text_to_analyze_and_return)
             spacy_object_for_calculation = doc_from_string
-            # If doc_arg (context) was None, use this new Doc as the context.
-            if doc_arg is None:
+            if doc_arg is None: # If original doc_arg was None, use this new Doc.
                 doc_arg = doc_from_string
-        # Else (not nlp or fast mode), spacy_object_for_calculation remains the string.
+        # Else (fast mode or no NLP model), spacy_object_for_calculation remains the string.
         
     elif hasattr(spacy_sentence_arg, 'text'): # Covers both spacy.tokens.Doc and spacy.tokens.Span
         text_to_analyze_and_return = spacy_sentence_arg.text
@@ -1228,11 +1283,16 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
             "target_readability_scores": profile['target_readability']
         }
 
-    if not plain_text_for_doc_stats or not sentences_list or not target_audience or not mode or not nlp: # Check if spaCy model loaded
-        print("WARN: spaCy model not loaded or text is empty. Returning basic analysis.")
+    active_nlp = get_active_spacy_model(mode) # Get current NLP model based on mode
+
+    if not plain_text_for_doc_stats or not sentences_list or not target_audience or not mode or not active_nlp: # Check if active_nlp model loaded
+        print(f"WARN: SpaCy model for mode '{mode}' not loaded or text is empty. Returning basic analysis.")
+        # Add the active_nlp check to the log message
+        if not active_nlp:
+            print(f"Reason: Active spaCy model for mode '{mode}' is None.")
         return {
             "results": [],
-            "overall_level": {"level": 0, "description": "Enter text to analyze (spaCy unavailable)", "color_class": "bg-gray-600"},
+            "overall_level": {"level": 0, "description": f"Enter text to analyze (spaCy model for '{mode}' unavailable)", "color_class": "bg-gray-600"},
             "readability_scores": {"flesch_kincaid_grade": None, "gunning_fog": None, "smog_index": None},
             "target_readability_scores": profile['target_readability']
         }
@@ -1250,8 +1310,8 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
 
     # Process the entire text with spaCy once to get the document and sentences
     try:
-        logging.debug(f"Task {analysis_id}: Starting spaCy processing in analyze_text_complexity.")
-        doc = nlp(plain_text_for_doc_stats)
+        logging.debug(f"Task {analysis_id}: Starting spaCy processing in analyze_text_complexity with model for mode '{mode}'.")
+        doc = active_nlp(plain_text_for_doc_stats) # Use the active_nlp model
         logging.debug(f"Task {analysis_id}: Finished spaCy processing in analyze_text_complexity.")
         if not doc.has_annotation("SENT_START"):
               print("WARN: spaCy sentence segmentation failed. Cannot perform analysis.")

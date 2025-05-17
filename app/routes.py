@@ -2,7 +2,7 @@ import logging # Add logging
 from flask import render_template, request, jsonify, Response, send_from_directory, current_app # Import Response, send_from_directory, current_app
 from app import app, celery # Import celery
 # Import the analysis and synonym functions
-from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, nlp, AUDIENCE_PROFILES # Import nlp, the new function, and AUDIENCE_PROFILES
+from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model # UPDATED: Removed nlp, Added get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
 # Import the DeepSeek synonym function (complexity enhancement was unused)
 from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion # Import new function
@@ -80,9 +80,17 @@ def analyze_text():
     try:
         # Split the input text into sentences for per-sentence analysis
         try:
-            doc_for_sentences = nlp(text_to_analyze)
+            # Get the spaCy model appropriate for the current analysis mode
+            active_nlp = get_active_spacy_model(mode)
+            if not active_nlp:
+                logging.error(f"spaCy model for mode '{mode}' not loaded. Cannot perform analysis for ID: {analysis_id}.")
+                # task_manager.remove_task should be handled by finally block
+                return jsonify({"error": f"Analysis service not available (spaCy model for mode '{mode}' not loaded)."}), 500
+            
+            doc_for_sentences = active_nlp(text_to_analyze)
             sentences_list = [sent.text for sent in doc_for_sentences.sents]
-        except Exception:
+        except Exception as e_segment: # More specific exception catch for segmentation
+            logging.warning(f"spaCy segmentation failed for mode '{mode}' (ID: {analysis_id}): {e_segment}. Falling back to NLTK.")
             # Fallback: use NLTK if spaCy segmentation fails
             from nltk import sent_tokenize
             sentences_list = sent_tokenize(text_to_analyze)
@@ -134,9 +142,13 @@ def analyze_text_sequential():
 
     logging.info(f"Received sequential analysis request (ID: {analysis_id}). Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
-    if not nlp:
-         logging.error("spaCy model not loaded. Cannot perform sequential analysis.")
-         return jsonify({"error": "Analysis service not available (spaCy model not loaded)."}), 500
+    # For sequential analysis, we typically use the 'fast' mode's spaCy model for quick sentence splitting.
+    # The actual per-sentence complexity in analyze_single_spacy_sentence is hardcoded to 'fast' for this endpoint.
+    active_nlp_for_sequential = get_active_spacy_model('fast') 
+
+    if not active_nlp_for_sequential:
+         logging.error(f"spaCy model for 'fast' mode not loaded. Cannot perform sequential analysis (ID: {analysis_id}).")
+         return jsonify({"error": "Analysis service not available (spaCy model for 'fast' mode not loaded)."}), 500
 
     if not analysis_id:
         logging.error("'/analyze_sequential' request received without analysisId.")
@@ -154,9 +166,9 @@ def analyze_text_sequential():
                 return
 
             # --- Check cancellation before potentially long spaCy processing ---
-            logging.debug(f"Task {analysis_id}: Starting spaCy processing.")
-            doc = nlp(text_to_analyze)
-            logging.debug(f"Task {analysis_id}: Finished spaCy processing.")
+            logging.debug(f"Task {analysis_id}: Starting spaCy processing for sequential.")
+            doc = active_nlp_for_sequential(text_to_analyze) # Use the fetched 'fast' model
+            logging.debug(f"Task {analysis_id}: Finished spaCy processing for sequential.")
 
             if task_manager.is_cancelled(analysis_id):
                 logging.info(f"Sequential analysis (ID: {analysis_id}) cancelled after spaCy processing, before sentence iteration.")
