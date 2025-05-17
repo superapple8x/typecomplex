@@ -126,3 +126,4 @@ PyMuPDF>=1.23.0
 celery
 redis
 thefuzz
+requests

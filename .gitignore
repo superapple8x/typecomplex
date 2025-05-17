@@ -16,3 +16,5 @@ celery_worker.log
 celery_worker.log
 dump.rdb
 dump.rdb
+.parcel-cache
+dist/

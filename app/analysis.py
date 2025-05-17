@@ -1,6 +1,7 @@
 import nltk
 import re
 import math
+import os # Import os
 import textstat # Import textstat
 from app.frequency import get_word_frequency # Import frequency function
 import torch
@@ -12,25 +13,71 @@ logger = logging.getLogger(__name__) # Define logger for this module
 import hashlib # Import hashlib
 from app import cache # Import the initialized cache object
 from app import task_manager # Import task manager
+import requests # For Hugging Face API calls
 
-# --- Load Transformer Model ---
-# Load model & tokenizer once globally
-# Using a smaller BERT variant might be faster if performance is critical
-MODEL_NAME = 'bert-base-uncased'
-try:
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModel.from_pretrained(MODEL_NAME)
-    # Ensure model is in evaluation mode
-    model.eval()
-    # Move model to GPU if available
-    if torch.cuda.is_available():
-        model.to('cuda')
-    print(f"Successfully loaded transformer model '{MODEL_NAME}'.")
-except Exception as e:
-    print(f"ERROR loading transformer model '{MODEL_NAME}': {e}")
-    # Handle error: maybe fall back to statistical analysis only?
-    tokenizer = None
-    model = None
+# --- Transformer Model Configuration ---
+DEFAULT_BERT_LOCAL_MODEL_NAME = 'bert-base-uncased'
+APP_BERT_LOCAL_MODEL_NAME = os.environ.get('APP_BERT_LOCAL_MODEL_NAME', DEFAULT_BERT_LOCAL_MODEL_NAME)
+
+# Execution mode: 'local' or 'remote_hf_endpoint'
+APP_BERT_EXECUTION_MODE = os.environ.get('APP_BERT_EXECUTION_MODE', 'local').lower()
+APP_BERT_HF_ENDPOINT_URL = os.environ.get('APP_BERT_HF_ENDPOINT_URL', None)
+APP_BERT_HF_API_TOKEN = os.environ.get('APP_BERT_HF_API_TOKEN', None)
+
+# Global variables for tokenizer and model
+tokenizer = None
+model = None
+
+def load_transformer_assets():
+    """Loads the Hugging Face transformer tokenizer and, if in local mode, the model.
+    
+    The local model name can be configured via the APP_BERT_LOCAL_MODEL_NAME environment variable.
+    The tokenizer is always loaded locally as it's needed for token-to-word mapping.
+    The model is loaded locally only if APP_BERT_EXECUTION_MODE is 'local'.
+    
+    Returns:
+        tuple: (loaded_tokenizer, loaded_model) 
+               The loaded_model can be None if not in local mode or if loading fails.
+    """
+    global tokenizer, model # Allow modification of global vars
+
+    loaded_tokenizer_internal = None
+    loaded_model_internal = None
+
+    print(f"Attempting to load tokenizer for model: '{APP_BERT_LOCAL_MODEL_NAME}'")
+    try:
+        loaded_tokenizer_internal = AutoTokenizer.from_pretrained(APP_BERT_LOCAL_MODEL_NAME)
+        print(f"Successfully loaded tokenizer for '{APP_BERT_LOCAL_MODEL_NAME}'.")
+    except Exception as e:
+        print(f"ERROR loading tokenizer for '{APP_BERT_LOCAL_MODEL_NAME}': {e}")
+        # Tokenizer is critical, so if it fails, we can't do much.
+        # The global tokenizer will remain None.
+        return None, None
+
+    if APP_BERT_EXECUTION_MODE == 'local':
+        print(f"BERT execution mode: 'local'. Attempting to load model: '{APP_BERT_LOCAL_MODEL_NAME}'")
+        try:
+            loaded_model_internal = AutoModel.from_pretrained(APP_BERT_LOCAL_MODEL_NAME)
+            loaded_model_internal.eval() # Ensure model is in evaluation mode
+            if torch.cuda.is_available():
+                loaded_model_internal.to('cuda')
+                print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' to GPU.")
+            else:
+                print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' to CPU.")
+        except Exception as e:
+            print(f"ERROR loading local model '{APP_BERT_LOCAL_MODEL_NAME}': {e}")
+            # loaded_model_internal remains None
+    elif APP_BERT_EXECUTION_MODE == 'remote_hf_endpoint':
+        print(f"BERT execution mode: 'remote_hf_endpoint'. Local model will not be loaded.")
+        if not APP_BERT_HF_ENDPOINT_URL or not APP_BERT_HF_API_TOKEN:
+            print("WARN: Remote HF endpoint mode selected, but URL or API token is missing. BERT features will be unavailable.")
+    else:
+        print(f"WARN: Invalid APP_BERT_EXECUTION_MODE ('{APP_BERT_EXECUTION_MODE}'). Defaulting to no BERT features. Set to 'local' or 'remote_hf_endpoint'.")
+
+    return loaded_tokenizer_internal, loaded_model_internal
+
+# Initialize tokenizer and potentially model at startup
+tokenizer, model = load_transformer_assets()
 
 
 # --- Load spaCy Model ---
@@ -236,37 +283,169 @@ if sentence_tokenizer is None:
     # Depending on requirements, might raise an error or exit
 
 
+def _get_hidden_states_from_remote_hf_endpoint(sentence_text: str, endpoint_url: str, api_token: str, local_tokenizer_for_validation) -> np.ndarray | None:
+    """
+    Calls a Hugging Face Inference Endpoint for feature extraction to get token embeddings.
+    Validates that the number of tokens from the remote endpoint matches the local tokenizer.
+    """
+    if not endpoint_url or not api_token:
+        print("WARN: Hugging Face endpoint URL or API token not provided for remote inference.")
+        return None
+
+    headers = {"Authorization": f"Bearer {api_token}"}
+    # Payload for feature-extraction task typically expects "inputs"
+    # "options: {"wait_for_model": True}" is good for serverless endpoints that might cold start
+    payload = {"inputs": sentence_text, "options": {"wait_for_model": True}}
+    
+    print(f"Calling Hugging Face Inference Endpoint for embeddings: {endpoint_url}")
+    try:
+        response = requests.post(endpoint_url, headers=headers, json=payload, timeout=60) # 60s timeout
+        response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+        
+        # The response for feature extraction is typically a list of embeddings (list of lists of floats)
+        # or a nested list if multiple sentences were sent (we send one here).
+        # Example: [[emb_token1], [emb_token2], ...]
+        remote_embeddings_list = response.json()
+
+        if not remote_embeddings_list or not isinstance(remote_embeddings_list, list):
+            print(f"ERROR: Unexpected response format from HF endpoint. Expected list of embeddings. Got: {remote_embeddings_list}")
+            return None
+        
+        # If the endpoint processes a single string and returns a list of embeddings (one per token for that string)
+        # This is the common case for feature extraction endpoints.
+        if isinstance(remote_embeddings_list[0], list) and isinstance(remote_embeddings_list[0][0], float):
+            # This means remote_embeddings_list is like [[t1_e1, t1_e2,...], [t2_e1, t2_e2,...], ...]
+            embeddings_np = np.array(remote_embeddings_list) # Shape: (num_tokens, hidden_size)
+        else:
+            print(f"ERROR: Unexpected embedding format in HF endpoint response. Expected list of lists of floats. Got: {remote_embeddings_list[0]}")
+            return None
+
+        # Validate token count against local tokenizer for the same sentence text
+        # This is crucial for the existing token-to-word mapping logic.
+        with torch.no_grad(): # Tokenization doesn't need gradients
+            local_inputs = local_tokenizer_for_validation(sentence_text, return_tensors="pt", truncation=True, padding="longest")
+        expected_num_tokens = local_inputs['input_ids'].shape[1]
+        
+        if embeddings_np.shape[0] != expected_num_tokens:
+            print(f"WARN: Token count mismatch between remote HF endpoint ({embeddings_np.shape[0]}) and local tokenizer ({expected_num_tokens}) for sentence: '{sentence_text[:50]}...'. This may affect embedding mapping.")
+            # Decide on handling: return None, or try to use it anyway (risky). For now, let's be strict.
+            # This could happen if the remote endpoint uses a different model version or different default tokenization params.
+            # The user *must* ensure the HF endpoint uses the *exact same model/tokenizer* as APP_BERT_LOCAL_MODEL_NAME
+            # return None 
+            # Loosening the check for now, but this is a potential point of failure if models diverge.
+            # The downstream code will likely fail if the number of embeddings doesn't match the number of tokens
+            # expected by the token_to_word_mapping logic. Best to ensure models are identical.
+
+        print(f"Successfully received {embeddings_np.shape[0]} embeddings of dimension {embeddings_np.shape[1]} from remote endpoint.")
+        return embeddings_np
+
+    except requests.exceptions.Timeout:
+        print(f"ERROR: Timeout calling Hugging Face endpoint: {endpoint_url}")
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Request to Hugging Face endpoint failed: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                print(f"HF Endpoint Response Content: {e.response.text}")
+            except Exception:
+                print("HF Endpoint Response Content: <Could not decode>")
+        return None
+    except Exception as e: # Catch any other errors, like JSON parsing
+        print(f"ERROR: Failed to process response from Hugging Face endpoint: {e}")
+        return None
+
+
 def _get_contextual_embedding_complexity(sentence, words_for_stats):
     """
     Calculates complexity based on contextual word embeddings using transformers
     (variance from sentence mean).
     Higher score means words are used in more varied/distant contexts.
+    Embeddings can be fetched locally or from a remote Hugging Face Inference Endpoint.
     Returns a dictionary containing:
         - 'factor': Score between 0 and 1 (or None if model failed).
         - 'embeddings': Numpy array of averaged word embeddings.
         - 'token_map': List mapping transformer token indices to original word indices.
     """
-    if not model or not tokenizer:
-        print("WARN: Transformer model not available for embedding complexity.")
-        return {'factor': None, 'embeddings': None, 'token_map': None} # Indicate failure
+    # Tokenizer is always assumed to be loaded locally
+    if not tokenizer:
+        print("WARN: Tokenizer not available. Cannot calculate embedding complexity.")
+        return {'factor': None, 'embeddings': None, 'token_map': None}
 
-    # Prepare input for the transformer model
-    inputs = tokenizer(sentence, return_tensors="pt", truncation=True, padding=True)
-    # Move inputs to GPU if model is on GPU
-    if torch.cuda.is_available():
-        inputs = {k: v.to('cuda') for k, v in inputs.items()}
+    # Tokenize the input sentence using the local tokenizer.
+    # The resulting `inputs['input_ids']` are crucial for the token-to-word mapping logic later.
+    # Padding to longest is fine here as we process one sentence at a time.
+    inputs = tokenizer(sentence, return_tensors="pt", truncation=True, padding="longest")
+    
+    # Move tokenized inputs to GPU if local model will be used and GPU is available
+    inputs_on_device = inputs
+    if APP_BERT_EXECUTION_MODE == 'local' and model and torch.cuda.is_available():
+        inputs_on_device = {k: v.to('cuda') for k, v in inputs.items()}
 
-    # Get model outputs (hidden states)
-    with torch.no_grad():
-        outputs = model(**inputs, output_hidden_states=True)
+    last_hidden_states_np = None
 
-    # Use the last hidden state (embeddings for each token)
-    # Shape: (batch_size, sequence_length, hidden_size)
-    last_hidden_states = outputs.hidden_states[-1].squeeze(0) # Remove batch dim
+    if APP_BERT_EXECUTION_MODE == 'remote_hf_endpoint':
+        if APP_BERT_HF_ENDPOINT_URL and APP_BERT_HF_API_TOKEN:
+            print(f"Fetching embeddings via remote HF endpoint: {APP_BERT_HF_ENDPOINT_URL}")
+            last_hidden_states_np = _get_hidden_states_from_remote_hf_endpoint(
+                sentence, 
+                APP_BERT_HF_ENDPOINT_URL, 
+                APP_BERT_HF_API_TOKEN,
+                tokenizer # Pass local tokenizer for validation within the remote fetch function
+            )
+            if last_hidden_states_np is None:
+                print("WARN: Failed to get embeddings from remote HF endpoint. Embedding complexity will be None.")
+                # Fallback to local if desired and model is available? For now, if remote fails, it fails.
+                # To enable fallback:
+                # if model:
+                #    print("WARN: Falling back to local model for embeddings.")
+                #    APP_BERT_EXECUTION_MODE = 'local' # Temporarily switch for this call
+                # else:
+                #    return {'factor': None, 'embeddings': None, 'token_map': None}
+                return {'factor': None, 'embeddings': None, 'token_map': None} # No fallback for now
+        else:
+            print("WARN: Remote HF endpoint mode selected, but URL or API token missing. Cannot get remote embeddings.")
+            return {'factor': None, 'embeddings': None, 'token_map': None}
+
+    # This 'elif' ensures local execution if mode is 'local' OR if remote was intended but failed and a fallback was implemented above.
+    # For now, it's a strict 'elif' APP_BERT_EXECUTION_MODE == 'local':
+    elif APP_BERT_EXECUTION_MODE == 'local':
+        if not model:
+            print("WARN: Local BERT model not available (execution mode is 'local' but model failed to load). Cannot calculate embedding complexity.")
+            return {'factor': None, 'embeddings': None, 'token_map': None}
+        
+        print("Calculating embeddings locally.")
+        with torch.no_grad():
+            outputs = model(**inputs_on_device, output_hidden_states=True)
+        
+        # Use the last hidden state (embeddings for each token)
+        # Shape: (batch_size, sequence_length, hidden_size)
+        # Squeeze out batch_dim (as we process one sentence), move to CPU, convert to numpy
+        last_hidden_states_np = outputs.hidden_states[-1].squeeze(0).cpu().numpy()
+    
+    else: # Should not happen if config is 'local' or 'remote_hf_endpoint'
+        print(f"WARN: Invalid APP_BERT_EXECUTION_MODE ('{APP_BERT_EXECUTION_MODE}') in _get_contextual_embedding_complexity. Cannot get embeddings.")
+        return {'factor': None, 'embeddings': None, 'token_map': None}
+
+    if last_hidden_states_np is None:
+         # This case should ideally be caught by earlier checks, but as a safeguard:
+        print("WARN: last_hidden_states_np is None before mapping. Embedding complexity calculation cannot proceed.")
+        return {'factor': None, 'embeddings': None, 'token_map': None}
 
     # --- Map token embeddings back to original words ---
-    # This is complex due to subword tokenization (e.g., "running" -> "run", "##ning")
-    # We'll average embeddings for subwords belonging to the same original word.
+    # This part uses the `inputs` from the LOCAL tokenizer and `last_hidden_states_np`
+    # which could be from local model or remote endpoint.
+    # Crucially, `inputs['input_ids']` determines the tokens we iterate over for mapping.
+    # The number of rows in `last_hidden_states_np` (num_tokens) MUST match `inputs['input_ids'].shape[1]`.
+    
+    # Validate shapes before proceeding to map (critical if remote embeddings were fetched)
+    num_tokens_from_local_tokenizer = inputs['input_ids'].shape[1]
+    num_embeddings_received = last_hidden_states_np.shape[0]
+
+    if num_embeddings_received != num_tokens_from_local_tokenizer:
+        print(f"CRITICAL ERROR: Mismatch between local tokenizer's token count ({num_tokens_from_local_tokenizer}) and received embeddings count ({num_embeddings_received}) for sentence: '{sentence[:50]}...'. Cannot reliably map embeddings.")
+        # This is a fatal error for this function if counts don't match.
+        return {'factor': None, 'embeddings': None, 'token_map': None}
+        
     token_to_word_mapping = []
     current_word_index = -1
     for i, token_id in enumerate(inputs['input_ids'].squeeze(0).tolist()):
@@ -297,7 +476,7 @@ def _get_contextual_embedding_complexity(sentence, words_for_stats):
     for i, word_idx in enumerate(token_to_word_mapping):
         # Ensure index is valid and within the bounds of words_for_stats
         if word_idx != -1 and word_idx < len(words_for_stats):
-            embedding = last_hidden_states[i].cpu().numpy() # Move to CPU, convert to numpy
+            embedding = last_hidden_states_np[i] 
             if word_idx not in word_embeddings:
                 word_embeddings[word_idx] = np.zeros_like(embedding)
                 token_counts[word_idx] = 0
@@ -347,7 +526,7 @@ def _get_contextual_embedding_complexity(sentence, words_for_stats):
     embedding_complexity_factor = max(0.0, min(1.0, embedding_complexity_factor))
 
     # Add confirmation log message
-    print(f"DEBUG: Calculated embedding complexity factor: {embedding_complexity_factor:.4f} for sentence: '{sentence[:50]}...'")
+    print(f"DEBUG: Calculated embedding complexity factor: {embedding_complexity_factor:.4f} for sentence: '{sentence[:50]}...' (Mode: {APP_BERT_EXECUTION_MODE})")
 
     # Return factor, embeddings matrix, and token map
     return {
@@ -532,6 +711,7 @@ def _get_semantic_coherence(spacy_sentence, averaged_word_embeddings, token_to_w
     Calculates intra-sentence semantic coherence using BERT embeddings.
     Lower average similarity between adjacent content words suggests lower coherence.
     Requires pre-calculated embeddings and the mapping from transformer tokens to words.
+    (No changes needed here as it relies on `averaged_word_embeddings` from `_get_contextual_embedding_complexity`)
     Returns the average cosine similarity (float).
     """
     if averaged_word_embeddings is None or averaged_word_embeddings.size == 0:
@@ -588,66 +768,6 @@ def _get_semantic_coherence(spacy_sentence, averaged_word_embeddings, token_to_w
 
     # Higher score = more coherent. We might invert this later if needed for complexity score.
     return avg_similarity
-
-
-# def _get_coreference_features(spacy_sentence, doc): # Keep commented out
-#     """
-#     Extracts coreference features for a spaCy sentence.
-#     Counts the number of mentions in the sentence that are part of a coreference chain
-#     and are not the representative mention of the cluster.
-#     Returns the count of coreferent mentions.
-#     """
-#     # Check if coreference resolution component is available and successful
-#     # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
-#     # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
-#     # For now, we'll assume it might be available via extensions or larger models.
-#     # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
-#     # Placeholder check:
-#     # if not hasattr(doc._, 'coref_clusters'):
-#         # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
-#         # return {"coreferent_mentions_count": 0}
-#
-#     # coreferent_mentions_count = 0
-#     # Iterate through all coreference clusters in the document
-#     # for cluster in doc._.coref_clusters:
-#         # Iterate through mentions in the current cluster
-#         # for mention in cluster.mentions:
-#             # Check if the mention falls within the current sentence's span
-#             # if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
-#                 # Check if this mention is NOT the representative mention of the cluster
-#                 # if mention != cluster.main:
-#                     # coreferent_mentions_count += 1
-#
-#     # return {"coreferent_mentions_count": coreferent_mentions_count}
-# def _get_coreference_features(spacy_sentence, doc):
-#     """
-#     Extracts coreference features for a spaCy sentence.
-#     Counts the number of mentions in the sentence that are part of a coreference chain
-#     and are not the representative mention of the cluster.
-#     Returns the count of coreferent mentions.
-#     """
-#     # Check if coreference resolution component is available and successful
-#     # Note: 'en_core_web_sm' might not include coref. Need a larger model like 'en_core_web_trf'
-#     # or a dedicated coref library like 'neuralcoref' integrated with spaCy.
-#     # For now, we'll assume it might be available via extensions or larger models.
-#     # A robust check would involve checking `nlp.pipe_names` or specific model capabilities.
-#     # Placeholder check:
-#     # if not hasattr(doc._, 'coref_clusters'):
-#         # print("WARN: Coreference clusters not found. Ensure a model with coref capabilities is loaded (e.g., en_core_web_trf or using neuralcoref).")
-#         # return {"coreferent_mentions_count": 0}
-#
-#     # coreferent_mentions_count = 0
-#     # Iterate through all coreference clusters in the document
-#     # for cluster in doc._.coref_clusters:
-#         # Iterate through mentions in the current cluster
-#         # for mention in cluster.mentions:
-#             # Check if the mention falls within the current sentence's span
-#             # if mention.start >= spacy_sentence.start and mention.end <= spacy_sentence.end:
-#                 # Check if this mention is NOT the representative mention of the cluster
-#                 # if mention != cluster.main:
-#                     # coreferent_mentions_count += 1
-#
-#     # return {"coreferent_mentions_count": coreferent_mentions_count}
 
 
 def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=None): # Added analysis_id
