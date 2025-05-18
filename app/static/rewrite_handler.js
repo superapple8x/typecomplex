@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Base structure for the tooltip container with max height and scrolling
         let baseHtml = `<div class='rewrite-tooltip-content text-sm text-[var(--text-primary)] bg-[var(--sidebar-bg)] max-w-md
                            border border-[rgba(108,111,147,0.2)] rounded-[var(--border-radius)]
-                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px] overflow-hidden
+                           shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-[10px] overflow-y-auto
                            flex flex-col max-h-[70vh]'>`; // Set max height to 70% of viewport
 
         if (!data) {

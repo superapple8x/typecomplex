@@ -12,23 +12,26 @@
   transition: all var(--transition-speed) ease !important;
   flex: 0 0 18.4rem !important;
   margin-right: 1rem !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
 }
 
 /* Position the collapse button more clearly in the corner */
 #toggle-left-sidebar-btn {
   position: absolute !important;
-  top: 1.75rem !important;
-  right: -0.75rem !important;
-  z-index: 50 !important;
-  background-color: rgba(49, 50, 68, 0.5) !important;
-  backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(108, 111, 147, 0.2) !important;
-  padding: 0.35rem !important;
-  border-radius: 0.375rem !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  top: 0.75rem !important; /* Position from the top of the sidebar */
+  right: 0.75rem !important; /* Position from the right of the sidebar */
+  z-index: 1050 !important; /* Keep high z-index */
+  background-color: rgba(49, 50, 68, 0.7) !important; /* Adjusted background */
+  backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  padding: 0.3rem !important;
+  border-radius: 0.3rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
   transition: all var(--transition-speed) ease !important;
-  width: 28px !important;
-  height: 28px !important;
+  width: 26px !important; /* Adjusted size */
+  height: 26px !important; /* Adjusted size */
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -47,18 +50,18 @@
 /* Position the right sidebar collapse button more clearly in the corner */
 #toggle-sidebar-btn {
   position: absolute !important;
-  top: 1.75rem !important;
-  left: -0.75rem !important;
-  z-index: 50 !important;
-  background-color: rgba(49, 50, 68, 0.5) !important;
-  backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(108, 111, 147, 0.2) !important;
-  padding: 0.35rem !important;
-  border-radius: 0.375rem !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  top: 0.75rem !important; /* Position from the top of the sidebar */
+  left: 0.75rem !important; /* Position from the left of the sidebar */
+  z-index: 1050 !important; /* Keep high z-index */
+  background-color: rgba(49, 50, 68, 0.7) !important; /* Adjusted background */
+  backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  padding: 0.3rem !important;
+  border-radius: 0.3rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
   transition: all var(--transition-speed) ease !important;
-  width: 28px !important;
-  height: 28px !important;
+  width: 26px !important; /* Adjusted size */
+  height: 26px !important; /* Adjusted size */
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -76,11 +79,12 @@
 
 /* Improved sidebar header spacing */
 #left-sidebar .pt-4 {
-  padding-top: 0 !important;
+  padding-top: 1.25rem !important; /* Increased padding to avoid button overlap */
 }
 
 /* Ensure the sidebar header is well-positioned */
 #left-sidebar h2 {
+  margin-top: 1rem !important;
   margin-bottom: 1rem !important;
   color: var(--text-primary) !important;
 }
@@ -470,20 +474,28 @@ label[for="pdf-upload-input"]:hover {
   transition: opacity 0.3s ease !important;
 }
 
-/* Main content wrapper adjustments */
+/* NEW: Main content row height definition */
+.main-content-row {
+  height: calc(100vh - 7rem) !important; /* Header (est. 4.5rem) + Footer (est. 2.5rem) */
+  overflow: hidden !important; 
+}
+
+/* Main content wrapper (middle column for editor) */
 main {
   padding: 1.5rem 0 !important;
   flex: 1 1 auto !important;
   min-width: 0 !important;
   width: 100% !important;
   transition: margin var(--transition-speed) ease !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
 }
 
 /* Editor container adjustments */
 #editor-container {
   margin: 0 !important;
   width: 100% !important;
-  height: 100% !important;
   transition: all var(--transition-speed) ease !important;
 }
 
@@ -495,11 +507,15 @@ main {
   transition: all var(--transition-speed) ease !important;
   flex: 0 0 18.4rem !important;
   margin-left: 1rem !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
 }
 
 /* Adjust the title and analysis button positioning */
 #complexity-sidebar > div:first-child {
-  margin-top: 3.5rem !important;
+  margin-top: 1rem !important;
+  padding-top: 1rem !important;
 }
 
 /* Adjust the content area inside the right sidebar */
@@ -567,4 +583,46 @@ main {
 /* Position fix specifically for the overview top-x-type dropdown in left sidebar */
 #overview-options-details {
   position: relative !important;
+}
+
+/* Ensure dropdowns don't exceed screen height */
+#target-audience-options,
+#pdf-target-audience-options,
+#pdf-analysis-mode-options,
+#overview-top-x-type-options,
+#analysis-options-menu {
+  max-height: 50vh !important;
+  overflow-y: auto !important;
+}
+
+/* REMOVE OLD RESPONSIVE RULES */
+/* 
+@media (max-height: 768px) {
+  #left-sidebar, 
+  #complexity-sidebar {
+    max-height: calc(100vh - 3rem) !important; 
+  }
+  
+  #editor-container {
+    max-height: calc(100vh - 5rem) !important; 
+  }
+  
+  #complexity-sidebar .flex-grow.overflow-y-auto {
+    max-height: calc(100vh - 12rem) !important; 
+  }
+  
+  #document-map {
+    max-height: 150px !important; 
+  }
+  
+  .map-segment {
+    max-height: 130px !important; 
+  }
+}
+
+@media (max-height: 600px) {
+  .max-h-\[70vh\] {
+    max-height: 80vh !important; 
+  }
 } 
+*/ 

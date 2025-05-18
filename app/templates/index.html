@@ -27,17 +27,17 @@
     </header>
 
     <!-- Flex container for main content and sidebars -->
-    <div class="flex flex-grow overflow-hidden">
+    <div class="flex flex-grow overflow-hidden main-content-row">
         <!-- Left Sidebar -->
         <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-6 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md relative">
             <!-- Collapse button -->
-            <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
+            <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="bg-[var(--sidebar-bg)] hover:bg-[var(--input-bg)] rounded-md text-[var(--text-primary)] hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
             </button>
             <!-- Content Container for better organization -->
-            <div class="flex flex-col space-y-6">
+            <div class="flex flex-col space-y-6 pt-4">
                 <!-- Upload Card with better styling -->
                 <div id="pdf-upload-card" class="sidebar-card bg-[var(--input-bg)] rounded-lg border border-[var(--border-color)] p-2">
                 <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
@@ -216,12 +216,12 @@
         <!-- Collapsible Sidebar -->
         <aside id="complexity-sidebar" class="w-[18.4rem] min-w-[18.4rem] bg-[var(--sidebar-bg)] p-4 border-l border-[var(--border-color)] flex flex-col shrink-0 right-sidebar-state-open transition-all duration-300 ease-in-out relative">
             <!-- Collapse button -->
-            <button id="toggle-sidebar-btn" title="Collapse Analysis" class="bg-gray-800 hover:bg-gray-700 rounded-md text-gray-400 hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
+            <button id="toggle-sidebar-btn" title="Collapse Analysis" class="bg-[var(--sidebar-bg)] hover:bg-[var(--input-bg)] rounded-md text-[var(--text-primary)] hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
             </button>
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-6 pt-4">
                 <h2 class="text-lg font-semibold text-[var(--text-primary)] flex items-center">
                     <span class="text-lg font-semibold">Analysis</span>
                     <!-- NEW Analysis Controls Container -->
@@ -414,7 +414,7 @@
                 <!-- Visual Sentence Map Section (Add this inside the sidebar) -->
                 <div class="mt-6">
                     <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Visual Sentence Map</h3>
-                    <div id="document-map-container" class="rounded p-3 h-24 overflow-x-auto">
+                    <div id="document-map-container" class="rounded p-3 h-24 max-h-[200px] overflow-x-auto overflow-y-hidden">
                         <div id="document-map" class="flex items-end gap-px">
                         </div>
                     </div>

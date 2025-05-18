@@ -826,6 +826,7 @@ button:hover {
   height: 100%;
   padding: 0.5rem;
   min-width: min-content;
+  max-height: 200px; /* Limit maximum height */
 }
 
 .map-segment {
@@ -833,6 +834,7 @@ button:hover {
   min-width: 2px;
   transition: all var(--transition-speed) ease;
   border-radius: 2px;
+  max-height: 180px; /* Limit maximum segment height */
 }
 
 .map-segment:hover {
@@ -920,13 +922,28 @@ h1, h2, h3 {
     transform: scale(1.1);
 }
 
-/* Make sidebar collapse button rounded */
-#toggle-sidebar-btn {
+/* Make sidebar collapse button rounded and fix positioning */
+#toggle-sidebar-btn, #toggle-left-sidebar-btn {
     border-radius: 6px !important;
     padding: 0.25rem 0.4rem !important;
+    position: absolute !important;
+    z-index: 100 !important; /* Increase z-index to prevent overlapping */
+    background-color: var(--sidebar-bg) !important; /* More solid background */
+    border: 1px solid rgba(108, 111, 147, 0.4) !important; /* More visible border */
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3) !important; /* More pronounced shadow */
 }
 
-#toggle-sidebar-btn svg {
+#toggle-left-sidebar-btn {
+    top: 0.75rem !important;
+    right: -1rem !important;
+}
+
+#toggle-sidebar-btn {
+    top: 0.75rem !important; 
+    left: -1rem !important;
+}
+
+#toggle-sidebar-btn svg, #toggle-left-sidebar-btn svg {
     width: 1rem !important;
     height: 1rem !important;
 }

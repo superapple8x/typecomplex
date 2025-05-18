@@ -6,6 +6,8 @@
 .tippy-box[data-theme~='tippy-dark'] {
     @apply bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-2 text-sm shadow-lg;
     font-family: inherit; /* Use the body font */
+    max-height: 70vh; /* Limit tooltip height to 70% of viewport height */
+    overflow-y: auto; /* Add scrolling if content exceeds height */
 }
 
 .tippy-box[data-theme~='tippy-dark'][data-placement^='top'] > .tippy-arrow {
