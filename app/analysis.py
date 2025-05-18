@@ -868,7 +868,19 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
     norm = profile['normalization']
 
     if not words_for_stats:
-        return 0.0 # Handle empty sentences
+        # return 0.0 # Handle empty sentences
+        # Handle empty sentences by returning a default factor dictionary
+        return {
+            "score": 0.0,
+            "length_factor": 0.0,
+            "word_len_factor": 0.0,
+            "frequency_factor": 0.0,
+            "embedding_factor": 0.0,
+            "syntactic_factor": 0.0,
+            "dependency_factor": 0.0,
+            "lexical_factor": 0.0,
+            "semantic_coherence_factor": 0.0
+        }
 
     # --- Statistical Factors (Always calculated) ---
     sentence_length = len(words_for_stats)
@@ -934,7 +946,19 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         # --- Check for cancellation before expensive calculations ---
         if analysis_id and task_manager.is_cancelled(analysis_id):
             logging.info(f"Task {analysis_id}: Cancelled before expensive calculations for sentence: '{spacy_sentence_text[:50]}...'")
-            return 0.0 # Return neutral score if cancelled here
+            # return 0.0 # Return neutral score if cancelled here
+            # Return default factor dictionary if cancelled
+            return {
+                "score": 0.0,
+                "length_factor": 0.0,
+                "word_len_factor": 0.0,
+                "frequency_factor": 0.0, # Assuming base factors might have been calculated, but we return all zeros for consistency
+                "embedding_factor": 0.0,
+                "syntactic_factor": 0.0,
+                "dependency_factor": 0.0,
+                "lexical_factor": 0.0,
+                "semantic_coherence_factor": 0.0
+            }
 
         # For string input in full/better mode, we need spaCy processing for advanced metrics
         # If spacy_sentence is a string and nlp is available, process it
@@ -1084,7 +1108,7 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
                 (dependency_factor * weights.get('dependency_complexity', 0)) + \
                 (lexical_factor * weights.get('lexical_complexity', 0)) + \
                 (semantic_coherence_factor * weights.get('semantic_coherence', 0))
-        logging.debug(f"Task {analysis_id}: Calculated Score (better mode using profile weights, no BERT): {score:.3f} for sentence: '{spacy_sentence_text[:50]}...'")
+        logging.debug(f"Task {analysis_id}: Calculated Score (better mode using profile weights, no BERT): {score:.3f} for sentence: '{spacy_sentence_text[:50]}...'" )
 
         # --- Log individual normalized factors for debugging (similar to full, but no embedding) ---
         factors_log = {
@@ -1101,14 +1125,36 @@ def calculate_complexity(spacy_sentence, doc, profile, mode='full', analysis_id=
         # --- End Logging ---
 
     else:
-        # Fallback or error handling if mode is invalid
+        # Fallback or error handling if mode is invalid for calculate_complexity
         logging.warning(f"Task {analysis_id}: Invalid mode '{mode}' provided to calculate_complexity. Defaulting score to 0.0.")
         score = 0.0
+        # Ensure all factor variables are initialized if mode was invalid, to prevent errors in final_factors creation
+        length_factor = 0.0
+        word_len_factor = 0.0
+        frequency_factor = 0.0
+        embedding_factor = 0.0
+        syntactic_factor = 0.0
+        dependency_factor = 0.0
+        lexical_factor = 0.0
+        semantic_coherence_factor = 0.0
 
     # The max possible score will need re-evaluation with new factors, especially for 'full' mode.
     # The thresholds in AUDIENCE_PROFILES might need adjustment based on observed score ranges from 'full' mode.
 
-    return round(score, 3) # Ensure calculate_complexity returns only the float score
+    # return round(score, 3) # Ensure calculate_complexity returns only the float score
+    final_factors = {
+        "score": round(score, 3),
+        "length_factor": round(length_factor, 3) if 'length_factor' in locals() else 0.0,
+        "word_len_factor": round(word_len_factor, 3) if 'word_len_factor' in locals() else 0.0,
+        "frequency_factor": round(frequency_factor, 3) if 'frequency_factor' in locals() else 0.0,
+        "embedding_factor": round(embedding_factor, 3) if 'embedding_factor' in locals() else 0.0,
+        "syntactic_factor": round(syntactic_factor, 3) if 'syntactic_factor' in locals() else 0.0,
+        "dependency_factor": round(dependency_factor, 3) if 'dependency_factor' in locals() else 0.0,
+        "lexical_factor": round(lexical_factor, 3) if 'lexical_factor' in locals() else 0.0,
+        "semantic_coherence_factor": round(semantic_coherence_factor, 3) if 'semantic_coherence_factor' in locals() else 0.0
+        # Add other relevant raw scores or sub-factors if needed for LLM prompt later
+    }
+    return final_factors
 
 def get_overall_complexity_level(score, profile):
     """Maps an overall score to a level, description, and color class based on the profile."""
@@ -1217,8 +1263,14 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
             "start": char_start,
             "end": char_end,
             "index": sentence_index,
-            "syntactic_features": {},
-            "mode": mode
+            # "syntactic_features": {}, # Old placeholder
+            "mode": mode,
+            "complexity_factors": { # Add factors placeholder for empty sentences
+                "score": 0.0, "length_factor": 0.0, "word_len_factor": 0.0, 
+                "frequency_factor": 0.0, "embedding_factor": 0.0, 
+                "syntactic_factor": 0.0, "dependency_factor": 0.0, 
+                "lexical_factor": 0.0, "semantic_coherence_factor": 0.0
+            }
         }
          # --- Cache Set (even for empty/basic) ---
          cache.set(cache_key, result)
@@ -1228,7 +1280,10 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
 
 
     # Calculate complexity using the potentially processed spaCy object or string
-    final_complexity_score = calculate_complexity(spacy_object_for_calculation, doc_arg, profile, mode=mode, analysis_id=analysis_id)
+    # final_complexity_score = calculate_complexity(spacy_object_for_calculation, doc_arg, profile, mode=mode, analysis_id=analysis_id)
+    complexity_data = calculate_complexity(spacy_object_for_calculation, doc_arg, profile, mode=mode, analysis_id=analysis_id)
+    final_complexity_score = complexity_data.get('score', 0.0)
+
 
     # Get the descriptive level for this specific sentence using its score
     level_info = get_overall_complexity_level(final_complexity_score, profile)
@@ -1241,8 +1296,9 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
         "start": char_start,
         "end": char_end,
         "index": sentence_index,
-        "syntactic_features": {}, # Placeholder, actual features might be added if mode=='full' logic existed here
-        "mode": mode
+        # "syntactic_features": {}, # Placeholder, actual features might be added if mode=='full' logic existed here - REMOVE
+        "mode": mode,
+        "complexity_factors": complexity_data # Store the whole dictionary of factors
     }
 
     # --- Cache Set --- 
@@ -1503,9 +1559,38 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         num_sentences = len(all_sentence_results)
         overall_score = round(total_score / num_sentences, 3) if num_sentences > 0 else 0.0
         overall_level_details = get_overall_complexity_level(overall_score, profile)
+        
+        # Aggregate individual factors - Simple Averaging for now
+        # Initialize a dictionary to sum up all factors
+        aggregated_factors_sum = {
+            "length_factor": 0.0, "word_len_factor": 0.0, "frequency_factor": 0.0,
+            "embedding_factor": 0.0, "syntactic_factor": 0.0, "dependency_factor": 0.0,
+            "lexical_factor": 0.0, "semantic_coherence_factor": 0.0
+        }
+        valid_factor_counts = {key: 0 for key in aggregated_factors_sum}
+
+        for r in all_sentence_results:
+            factors = r.get("complexity_factors", {})
+            for key in aggregated_factors_sum:
+                if isinstance(factors.get(key), (int, float)): # Check if factor is a number
+                    aggregated_factors_sum[key] += factors.get(key, 0.0)
+                    valid_factor_counts[key] += 1
+        
+        overall_complexity_factors_avg = {}
+        for key in aggregated_factors_sum:
+            if valid_factor_counts[key] > 0:
+                overall_complexity_factors_avg[key] = round(aggregated_factors_sum[key] / valid_factor_counts[key], 3)
+            else:
+                overall_complexity_factors_avg[key] = 0.0 # Default if no valid factors found for a key
+                
     else: # Handle case where text had no valid sentences after processing
          overall_score = 0.0
          overall_level_details = {"level": 0, "description": "No sentences found", "color_class": "bg-gray-600"}
+         overall_complexity_factors_avg = { # Default empty factors
+            "length_factor": 0.0, "word_len_factor": 0.0, "frequency_factor": 0.0,
+            "embedding_factor": 0.0, "syntactic_factor": 0.0, "dependency_factor": 0.0,
+            "lexical_factor": 0.0, "semantic_coherence_factor": 0.0
+        }
 
     # --- Calculate Standard Readability Scores ---
     try:
@@ -1537,6 +1622,7 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         "overall_score_avg": overall_score, # overall_score is calculated above
         "overall_score_median": overall_score, # Using avg for median for now, can be refined if needed
         "overall_level": overall_level_details, # overall_level_details is calculated above
+        "overall_complexity_factors_avg": overall_complexity_factors_avg, # Add aggregated factors
         "readability_scores": {
             "flesch_kincaid_grade": flesch_kincaid_grade,
             "gunning_fog": gunning_fog,
@@ -1555,7 +1641,7 @@ def analyze_text_complexity(plain_text_for_doc_stats: str, sentences_list: list[
         "total_sentences_analyzed": len(all_sentence_results)
     }
     # task_manager.update_progress(analysis_id, "Complexity analysis complete.") # Final update REMOVED
-    # logger.debug(f"Analysis results for audience \'{target_audience}\': {final_result}")
+    # logger.debug(f"Analysis results for audience '{target_audience}': {final_result}")
     return final_result
 
 # Example usage (for testing purposes)
@@ -1589,10 +1675,12 @@ if __name__ == '__main__':
             target = analysis_results_gp_simple['target_readability_scores'].get(name)
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
+    print(f"Overall Avg Factors: {analysis_results_gp_simple.get('overall_complexity_factors_avg')}")
     print("\nSentence Analysis:")
     for result in analysis_results_gp_simple['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
-        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        # print(f"  Syntactic Features: {result.get('syntactic_features', {})}") # Removed
+        print(f"  Complexity Factors: {result.get('complexity_factors', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
 
 
@@ -1605,10 +1693,12 @@ if __name__ == '__main__':
             target = analysis_results_acad_complex['target_readability_scores'].get(name)
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
+    print(f"Overall Avg Factors: {analysis_results_acad_complex.get('overall_complexity_factors_avg')}")
     print("\nSentence Analysis:")
     for result in analysis_results_acad_complex['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
-        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        # print(f"  Syntactic Features: {result.get('syntactic_features', {})}") # Removed
+        print(f"  Complexity Factors: {result.get('complexity_factors', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled
 
     print("\n--- Analysis (Coref) for Standard ---")
@@ -1620,8 +1710,10 @@ if __name__ == '__main__':
             target = analysis_results_std_coref['target_readability_scores'].get(name)
             target_str = f"(Target: {target[0]}-{target[1]})" if target and target[1] else f"(Target: {target[0]}+)" if target else ""
             print(f"  {name}: {score} {target_str}")
+    print(f"Overall Avg Factors: {analysis_results_std_coref.get('overall_complexity_factors_avg')}")
     print("\nSentence Analysis:")
     for result in analysis_results_std_coref['sentences']:
         print(f"Score: {result['score']:.3f} | Indices: {result['start']}-{result['end']} | Sentence: {result['sentence']}")
-        print(f"  Syntactic Features: {result.get('syntactic_features', {})}")
+        # print(f"  Syntactic Features: {result.get('syntactic_features', {})}") # Removed
+        print(f"  Complexity Factors: {result.get('complexity_factors', {})}")
         # print(f"  Coreference Features: {result.get('coreference_features', {})}") # Disabled

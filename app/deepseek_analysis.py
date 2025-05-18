@@ -152,7 +152,7 @@ Output only the JSON object.
     return _call_deepseek_api(prompt)
 
 # --- NEW: Function to Get Rewrite Suggestions ---
-def get_rewrite_suggestion(sentence_text: str, surrounding_context: str, target_audience_profile: str, complexity_score: float):
+def get_rewrite_suggestion(sentence_text: str, surrounding_context: str, target_audience_profile: str, complexity_analysis_details: dict):
     """
     Uses DeepSeek to provide feedback and optionally a rewrite suggestion for a sentence,
     considering its context, complexity score, and the target audience.
@@ -161,12 +161,12 @@ def get_rewrite_suggestion(sentence_text: str, surrounding_context: str, target_
         sentence_text: The specific sentence to analyze.
         surrounding_context: The text surrounding the sentence (can be partial or full document).
         target_audience_profile: Name of the target audience profile.
-        complexity_score: The calculated complexity score for the sentence (e.g., 0.0 to 1.0+).
+        complexity_analysis_details: Dictionary containing the sentence's complexity score and contributing factors.
 
     Returns:
         A dictionary with feedback, suggestion, reasoning, and sufficiency flag, or an error dictionary.
     """
-    if not sentence_text or not surrounding_context or not target_audience_profile or complexity_score is None:
+    if not sentence_text or not surrounding_context or not target_audience_profile or not complexity_analysis_details:
         return {"error": "Missing required input for rewrite suggestion"}
 
     # Fetch profile details for the prompt (reuse logic from recommend_synonym)
@@ -194,8 +194,6 @@ The user wants feedback and potentially a rewrite suggestion for the following s
 {sentence_text}
 --- END SENTENCE ---
 
-This sentence has an estimated complexity score of {complexity_score:.2f} (where higher means more complex).
-
 The target audience is {profile_description}.
 
 Here is the surrounding context ({context_type}):
@@ -203,14 +201,26 @@ Here is the surrounding context ({context_type}):
 {surrounding_context}
 --- END CONTEXT ---
 
-Analyze the provided sentence based on its complexity score, the surrounding context, and the target audience ({profile_description}).
+Our system calculated the following complexity metrics for this sentence:
+- Overall Complexity Score: {complexity_analysis_details.get('score', 'N/A'):.2f} (Higher means more complex)
+- Sentence Length Factor: {complexity_analysis_details.get('length_factor', 'N/A'):.2f}
+- Average Word Length Factor: {complexity_analysis_details.get('word_len_factor', 'N/A'):.2f}
+- Word Rarity (Frequency) Factor: {complexity_analysis_details.get('frequency_factor', 'N/A'):.2f} (Higher values indicate rarer words)
+- Contextual Word Usage (Embedding Variance): {complexity_analysis_details.get('embedding_factor', 'N/A'):.2f} (If applicable; higher = more varied/uncommon semantic contexts)
+- Syntactic Structure Complexity Factor: {complexity_analysis_details.get('syntactic_factor', 'N/A'):.2f} (Reflects parse tree depth, clauses, etc.)
+- Grammatical Dependency Complexity Factor: {complexity_analysis_details.get('dependency_factor', 'N/A'):.2f} (Measures complexity of word relationships)
+- Lexical Choice Complexity Factor: {complexity_analysis_details.get('lexical_factor', 'N/A'):.2f} (Considers nominalizations, content word ratio)
+- Semantic Coherence Factor: {complexity_analysis_details.get('semantic_coherence_factor', 'N/A'):.2f} (Higher values indicate lower coherence, contributing to complexity)
+(Note: 'N/A' or 0.0 for a factor may mean it wasn't computed or didn't contribute significantly in the current analysis mode.)
+
+Analyze the provided sentence based on its detailed complexity metrics, the surrounding context, and the target audience ({profile_description}).
 Provide constructive feedback. If the sentence could be improved for the target audience (e.g., clarity, engagement, tone, simplicity/sophistication), suggest a rewritten version. If the original sentence is already sufficient and well-suited, acknowledge that.
 
 Provide the analysis in JSON format with the following keys:
 1.  "status": (string) The overall assessment status. Must be one of: "Good", "Consider changing", or "Needs improvement". Base this on whether the sentence is suitable ("Good"), could be slightly improved ("Consider changing"), or needs rewriting for clarity/audience fit ("Needs improvement").
-2.  "feedback": (string) Constructive feedback on the original sentence's suitability for the audience and context, explaining the status.
+2.  "feedback": (string) Constructive feedback on the original sentence's suitability for the audience and context, explaining the status, referencing specific complexity factors where relevant.
 3.  "suggestion": (string or null) The rewritten sentence suggestion, or null if the original is sufficient or no improvement is suggested (status "Good"). A suggestion should usually be provided if status is "Consider changing" or "Needs improvement".
-4.  "reasoning": (string) A brief explanation for the feedback and suggestion (or lack thereof), linking it to the audience, context, complexity score, and the assigned status.
+4.  "reasoning": (string) A brief explanation for the feedback and suggestion (or lack thereof), linking it to the audience, context, complexity metrics, and the assigned status.
 
 Output only the JSON object.
 """
@@ -227,10 +237,33 @@ if __name__ == '__main__':
     test_orig_word = "effectuates"
     test_context = "Subsequently, the system effectuates data assimilation."
     test_syn_list = [{"word": "performs", "rank": 1}, {"word": "executes", "rank": 2}, {"word": "implements", "rank": 3}, {"word": "accomplishes", "rank": 4}]
+    # test_profile needs to be defined, e.g., "Standard" for testing
+    test_profile = "Standard" 
     if client:
         synonym_rec = recommend_synonym(test_orig_word, test_context, test_syn_list, test_profile)
         print(f"Recommendation for '{test_orig_word}' in context (Profile: {test_profile}):")
         print(f"Options: {test_syn_list}")
         print(json.dumps(synonym_rec, indent=2))
+
+        print("\n--- Testing Rewrite Suggestion (DeepSeek) ---")
+        test_sentence = "The aforementioned conglomeration of disparate entities effectuated a paradigm shift."
+        test_surrounding_context = "Initial reports were divergent. The aforementioned conglomeration of disparate entities effectuated a paradigm shift. Subsequent analyses concurred."
+        # Example complexity_analysis_details (ensure all keys from the prompt are present)
+        test_complexity_details = {
+            'score': 0.85,
+            'length_factor': 0.7,
+            'word_len_factor': 0.9,
+            'frequency_factor': 0.8,
+            'embedding_factor': 0.6, # Example, might be 0.0 if not in full mode
+            'syntactic_factor': 0.75,
+            'dependency_factor': 0.65,
+            'lexical_factor': 0.9,
+            'semantic_coherence_factor': 0.3 # Example, lower is more coherent
+        }
+        rewrite_sugg = get_rewrite_suggestion(test_sentence, test_surrounding_context, test_profile, test_complexity_details)
+        print(f"Rewrite suggestion for sentence (Profile: {test_profile}):")
+        print(f"Original: {test_sentence}")
+        print(f"Complexity Details: {test_complexity_details}")
+        print(json.dumps(rewrite_sugg, indent=2))
     else:
-         print("Skipping synonym test: DeepSeek client not configured (check API key).")
+         print("Skipping DeepSeek tests: DeepSeek client not configured (check API key).")

@@ -296,23 +296,35 @@ def cancel_analysis_task():
 # --- NEW: Rewrite Suggestion Endpoint ---
 @app.route('/rewrite_suggestion', methods=['POST'])
 def rewrite_suggestion():
-    """
-    Provides feedback and rewrite suggestions for a specific sentence using DeepSeek.
-    """
+    """Provides rewrite suggestions for a sentence using DeepSeek."""
     data = request.get_json()
-    if not data or 'sentence_text' not in data or 'target_audience' not in data:
-        return jsonify({"error": "Missing required fields in request body"}), 400
+    if not data or not all(k in data for k in ('sentence_text', 'surrounding_context', 'target_audience', 'complexity_analysis_details')):
+        logging.warning("'/rewrite_suggestion' request missing required fields.")
+        return jsonify({"error": "Missing required fields (sentence_text, surrounding_context, target_audience, complexity_analysis_details)"}), 400
 
-    sentence_text = data.get('sentence_text')
-    target_audience = data.get('target_audience')
-    full_document_context = data.get('full_document_context', '') # Optional
+    sentence_text = data['sentence_text']
+    surrounding_context = data['surrounding_context']
+    target_audience = data['target_audience']
+    complexity_details = data['complexity_analysis_details'] # NEW: Get the dictionary
+
+    logging.info(f"Received rewrite suggestion request for sentence: '{sentence_text[:50]}...', Audience: {target_audience}")
 
     try:
-        suggestion = get_rewrite_suggestion(sentence_text, target_audience, full_document_context)
-        return jsonify({"suggestion": suggestion})
+        # Call the DeepSeek analysis function from deepseek_analysis.py
+        suggestion = get_rewrite_suggestion(
+            sentence_text,
+            surrounding_context, # Pass surrounding_context
+            target_audience,
+            complexity_details # Pass the full dictionary
+        )
+        if 'error' in suggestion:
+            logging.error(f"Error from DeepSeek rewrite: {suggestion['error']}")
+            # Ensure a 500 is returned for internal LLM call errors if not already an API error code
+            return jsonify({"error": suggestion.get('error', "Failed to get rewrite suggestion.")}), 500 
+        return jsonify(suggestion)
     except Exception as e:
-        current_app.logger.error(f"Error in /rewrite_suggestion: {e}", exc_info=True)
-        return jsonify({"error": "Failed to get rewrite suggestion."}), 500
+        logging.error(f"Error in /rewrite_suggestion: {e}", exc_info=True)
+        return jsonify({"error": f"Server error: {e}"}), 500
 
 # --- PDF Processing Routes ---
 
