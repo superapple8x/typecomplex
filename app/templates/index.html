@@ -106,7 +106,7 @@
                                     </li>
                                     <li>
                                         <a href="#" class="flex items-center px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="better">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2 text-[var(--text-secondary)]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.25 12L17.437 9.154a4.5 4.5 0 00-3.09-3.09L11.5 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L18.25 12z" />
                                             </svg>
                                             Better Analysis
@@ -114,7 +114,7 @@
                                     </li>
                                     <li>
                                         <a href="#" class="flex items-center px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="best">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2 text-[var(--text-secondary)]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                                             </svg>
                                             Best Analysis
@@ -492,136 +492,174 @@
                 console.log("Tippy library found. Initializing tooltips...");
 
                 // Initialize Tippy.js for the overall complexity score tooltip
-                    tippy('#overall-complexity-info', {
-                        content: `
-                            <style>
-                                .tooltip-details { transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out; overflow: hidden; }
-                                .tooltip-details.hidden-details { opacity: 0; max-height: 0; }
-                                .tooltip-details.visible-details { opacity: 1; max-height: 500px; /* Adjust as needed */ }
-                                .tooltip-switch-btn { padding: 2px 6px; border: 1px solid var(--border-color); background-color: var(--input-bg); font-size: 0.7rem; cursor: pointer; }
-                                .tooltip-switch-btn.active { background-color: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-                                .tooltip-switch-btn:first-child { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
-                                .tooltip-switch-btn:last-child { border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-left: 0; }
-                            </style>
-                            <div class='text-left p-1 max-w-xs'>
-                                <div class='flex justify-between items-center mb-2'>
-                                    <strong class='text-gray-100'>Sentence Score Factors</strong>
-                                    <div class='inline-flex'>
-                                        <button class='tooltip-switch-btn active' data-target='tooltip-full-details'>Full</button>
-                                        <button class='tooltip-switch-btn' data-target='tooltip-fast-details'>Fast</button>
-                                    </div>
+                tippy('#overall-complexity-info', {
+                    content: `
+                        <style>
+                            .tooltip-details { transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out; overflow: hidden; }
+                            .tooltip-details.hidden-details { opacity: 0; max-height: 0; }
+                            .tooltip-details.visible-details { opacity: 1; max-height: 500px; }
+                            .tooltip-switch-btn { padding: 2px 6px; border: 1px solid var(--border-color); background-color: var(--input-bg); font-size: 0.7rem; cursor: pointer; }
+                            .tooltip-switch-btn.active { background-color: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+                            .tooltip-switch-btn:first-child { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+                            .tooltip-switch-btn:last-child { border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-left: 0; }
+                        </style>
+                        <div class='text-left p-1 max-w-xs'>
+                            <div class='flex justify-between items-center mb-2'>
+                                <strong class='text-gray-100'>Analysis Modes & Metrics</strong>
+                                <div class='inline-flex'>
+                                    <button class='tooltip-switch-btn active' data-target='tooltip-full-details'>Full</button>
+                                    <button class='tooltip-switch-btn' data-target='tooltip-better-details'>Better</button>
+                                    <button class='tooltip-switch-btn' data-target='tooltip-fast-details'>Fast</button>
                                 </div>
-
-                                <!-- Full Analysis Details -->
-                                <div id='tooltip-full-details' class='tooltip-details visible-details'>
-                                    <p class='text-xs text-gray-400 mb-1'>Weighted breakdown used in 'Full' analysis mode (Standard Profile shown):</p>
-                                    <!-- Bar reverted to initial Standard Weights (v0) -->
-                                    <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
-                                        <div style="width:18%; background-color:#60a5fa;" title="Sentence Length (18%)"></div>
-                                        <div style="width:14%; background-color:#34d399;" title="Avg. Word Length (14%)"></div>
-                                        <div style="width:14%; background-color:#facc15;" title="Avg. Word Rarity (14%)"></div>
-                                        <div style="width:12%; background-color:#8b5cf6;" title="Embedding Variance (BERT) (12%)"></div>
-                                        <div style="width:12%; background-color:#ef4444;" title="Syntactic (Original) (12%)"></div>
-                                        <div style="width:10%; background-color:#fb923c;" title="Dependency Complexity (10%)"></div>
-                                        <div style="width:10%; background-color:#a78bfa;" title="Lexical Complexity (10%)"></div>
-                                        <div style="width:10%; background-color:#22d3ee;" title="Semantic Coherence (10%)"></div>
-                                    </div>
-                                    <!-- Legend reverted to initial Standard Weights (v0) -->
-                                    <div class='grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-1 mb-2'>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sent. Length (18%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Word Length (14%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Word Rarity (14%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#8b5cf6;'></span>Embedding Var. (12%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#ef4444;'></span>Syntactic (12%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#fb923c;'></span>Dependency (10%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#a78bfa;'></span>Lexical (10%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#22d3ee;'></span>Coherence (10%)</span>
-                                    </div>
-                                </div>
-
-                                <!-- Fast Analysis Details -->
-                                <div id='tooltip-fast-details' class='tooltip-details hidden-details'>
-                                     <p class='text-xs text-gray-400 mb-1'>Fixed weights used in 'Fast' analysis mode:</p>
-                                     <!-- Stacked Bar for Fast Mode -->
-                                     <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
-                                        <div style="width:40%; background-color:#60a5fa;" title="Sentence Length (40%)"></div>
-                                        <div style="width:30%; background-color:#34d399;" title="Avg. Word Length (30%)"></div>
-                                        <div style="width:30%; background-color:#facc15;" title="Avg. Word Rarity (30%)"></div>
-                                     </div>
-                                     <!-- Legend for Fast Mode -->
-                                     <div class='grid grid-cols-1 gap-y-1 text-xs mt-1 mb-2'>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sentence Length (40%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Avg. Word Length (30%)</span>
-                                        <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Avg. Word Rarity (30%)</span>
-                                    </div>
-                                </div>
-
-                                <hr class='border-gray-500 my-2'>
-                                <p class='text-xs text-gray-400'>The calculated score determines highlighting color & map height. 'Full' mode uses more factors than 'Fast' mode.</p>
                             </div>
-                        `,
-                        allowHTML: true,
-                        placement: 'top',
-                        theme: 'tippy-dark', // Use custom dark theme
-                        interactive: true, // Make tooltip interactive
-                        appendTo: () => document.body, // Ensure it's appended where it can be interacted with
-                        onMount(instance) {
-                            // Add listeners to switch buttons inside the tooltip
-                            const tooltipElement = instance.popper; // Get the tooltip DOM element
-                            const fullBtn = tooltipElement.querySelector("button[data-target='tooltip-full-details']");
-                            const fastBtn = tooltipElement.querySelector("button[data-target='tooltip-fast-details']");
-                            const fullDetails = tooltipElement.querySelector('#tooltip-full-details');
-                            const fastDetails = tooltipElement.querySelector('#tooltip-fast-details');
 
-                            const switchView = (showTargetId) => {
-                                if (showTargetId === 'tooltip-full-details') {
-                                    fullDetails.classList.remove('hidden-details');
-                                    fullDetails.classList.add('visible-details');
-                                    fastDetails.classList.add('hidden-details');
-                                    fastDetails.classList.remove('visible-details');
-                                    fullBtn.classList.add('active');
-                                    fastBtn.classList.remove('active');
-                                } else {
-                                    fastDetails.classList.remove('hidden-details');
-                                    fastDetails.classList.add('visible-details');
-                                    fullDetails.classList.add('hidden-details');
-                                    fullDetails.classList.remove('visible-details');
-                                    fastBtn.classList.add('active');
-                                    fullBtn.classList.remove('active');
-                                }
-                            };
+                            <!-- Full Analysis Details -->
+                            <div id='tooltip-full-details' class='tooltip-details visible-details'>
+                                <p class='text-xs text-gray-400 mb-1'>Comprehensive analysis using all available metrics:</p>
+                                <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
+                                    <div style="width:18%; background-color:#60a5fa;" title="Basic Metrics (18%)"></div>
+                                    <div style="width:14%; background-color:#34d399;" title="Word Length (14%)"></div>
+                                    <div style="width:14%; background-color:#facc15;" title="Word Frequency (14%)"></div>
+                                    <div style="width:12%; background-color:#f87171;" title="Embeddings (12%)"></div>
+                                    <div style="width:12%; background-color:#c084fc;" title="Syntactic (12%)"></div>
+                                    <div style="width:10%; background-color:#818cf8;" title="Dependency (10%)"></div>
+                                    <div style="width:10%; background-color:#fb923c;" title="Lexical (10%)"></div>
+                                    <div style="width:10%; background-color:#a78bfa;" title="Semantic (10%)"></div>
+                                </div>
+                                <div class='grid grid-cols-1 gap-y-1 text-xs mt-1 mb-2'>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Basic Metrics (18%): Length, Word Length, Rarity</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Syntactic Features (12%): Parse Tree, Clauses</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Dependency Analysis (10%): Subordination, Phrases</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#f87171;'></span>Lexical Features (10%): Word Types, Content</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#c084fc;'></span>Semantic Coherence (10%)</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#818cf8;'></span>Contextual Embeddings (12%): BERT</span>
+                                </div>
+                            </div>
 
-                            fullBtn.addEventListener('click', () => switchView('tooltip-full-details'));
-                            fastBtn.addEventListener('click', () => switchView('tooltip-fast-details'));
-                        },
-                    });
+                            <!-- Better Analysis Details -->
+                            <div id='tooltip-better-details' class='tooltip-details hidden-details'>
+                                <p class='text-xs text-gray-400 mb-1'>Balanced analysis without BERT embeddings:</p>
+                                <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
+                                    <div style="width:25%; background-color:#60a5fa;" title="Sentence Length (25%)"></div>
+                                    <div style="width:15%; background-color:#34d399;" title="Word Length (15%)"></div>
+                                    <div style="width:10%; background-color:#facc15;" title="Word Frequency (10%)"></div>
+                                    <div style="width:10%; background-color:#f87171;" title="Syntactic (10%)"></div>
+                                    <div style="width:10%; background-color:#c084fc;" title="Dependency (10%)"></div>
+                                    <div style="width:10%; background-color:#818cf8;" title="Lexical (10%)"></div>
+                                    <div style="width:10%; background-color:#fb923c;" title="Semantic (10%)"></div>
+                                </div>
+                                <div class='grid grid-cols-1 gap-y-1 text-xs mt-1 mb-2'>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Basic Metrics (25%): Length, Word Length, Rarity</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Syntactic Features (15%): Parse Tree, Clauses</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Dependency Analysis (10%): Subordination, Phrases</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#f87171;'></span>Lexical Features (10%): Word Types, Content</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#c084fc;'></span>Semantic Coherence (10%)</span>
+                                </div>
+                            </div>
 
-                    // Initialize Tippy.js for the readability scores tooltip
-                    tippy('#readability-scores-info', {
-                      content: `<div class='text-left p-1'>
-                                    <strong class='block mb-1 text-gray-100'>Standard Readability Metrics (Entire Text):</strong>
-                                    <ul class='list-none text-xs space-y-1 mb-2'>
-                                        <li><strong>FK Grade Level:</strong> Flesch-Kincaid (US school grade)</li>
-                                        <li><strong>Gunning Fog:</strong> Years of formal education needed</li>
-                                    </ul>
-                                    <hr class='border-gray-500 my-2'>
-                                    <p class='text-xs text-gray-400 mb-2'>
-                                      <strong>Goal Indicator:</strong> When the overall score is outside the target range, sentences that most contribute to the deviation (based on the above metrics) are <span style="text-decoration: underline wavy #facc15;">underlined with a yellow wavy line</span>.<br>
-                                      <em>For example, if the Flesch-Kincaid Grade is too high, the most complex sentences are underlined. If it's too low, the simplest sentences are underlined.</em>
-                                    </p>
-                                    <p class='text-xs text-gray-400'>Calculated using the 'textstat' library.</p>
-                                </div>`,
-                      allowHTML: true,
-                      placement: 'top',
-                      theme: 'tippy-dark', // Use custom dark theme
-                    });
+                            <!-- Fast Analysis Details -->
+                            <div id='tooltip-fast-details' class='tooltip-details hidden-details'>
+                                <p class='text-xs text-gray-400 mb-1'>Quick analysis using basic metrics only:</p>
+                                <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
+                                    <div style="width:40%; background-color:#60a5fa;" title="Sentence Length (40%)"></div>
+                                    <div style="width:30%; background-color:#34d399;" title="Avg. Word Length (30%)"></div>
+                                    <div style="width:30%; background-color:#facc15;" title="Word Rarity (30%)"></div>
+                                </div>
+                                <div class='grid grid-cols-1 gap-y-1 text-xs mt-1 mb-2'>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#60a5fa;'></span>Sentence Length (40%)</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#34d399;'></span>Average Word Length (30%)</span>
+                                    <span class='flex items-center'><span class='inline-block w-3 h-3 rounded mr-1' style='background-color:#facc15;'></span>Word Rarity (30%)</span>
+                                </div>
+                            </div>
 
-                    // Re-initialize tooltips on elements with 'has-tooltip' attribute using the dark theme
-                    tippy('.has-tooltip', {
-                        allowHTML: true,
-                        theme: 'tippy-dark', // Use custom dark theme
-                        placement: 'top',
-                    });
+                            <hr class='border-gray-500 my-2'>
+                            <p class='text-xs text-gray-400'>The calculated score determines highlighting color & map height. Higher scores indicate more complex text.</p>
+                        </div>
+                    `,
+                    allowHTML: true,
+                    placement: 'top',
+                    theme: 'tippy-dark',
+                    interactive: true,
+                    appendTo: () => document.body,
+                    onMount(instance) {
+                        const tooltipElement = instance.popper;
+                        const fullBtn = tooltipElement.querySelector("button[data-target='tooltip-full-details']");
+                        const betterBtn = tooltipElement.querySelector("button[data-target='tooltip-better-details']");
+                        const fastBtn = tooltipElement.querySelector("button[data-target='tooltip-fast-details']");
+                        const fullDetails = tooltipElement.querySelector('#tooltip-full-details');
+                        const betterDetails = tooltipElement.querySelector('#tooltip-better-details');
+                        const fastDetails = tooltipElement.querySelector('#tooltip-fast-details');
+
+                        const switchView = (showTargetId) => {
+                            [fullDetails, betterDetails, fastDetails].forEach(el => {
+                                el.classList.remove('visible-details');
+                                el.classList.add('hidden-details');
+                            });
+                            [fullBtn, betterBtn, fastBtn].forEach(btn => btn.classList.remove('active'));
+
+                            const targetEl = tooltipElement.querySelector(`#${showTargetId}`);
+                            const targetBtn = tooltipElement.querySelector(`button[data-target='${showTargetId}']`);
+                            if (targetEl && targetBtn) {
+                                targetEl.classList.remove('hidden-details');
+                                targetEl.classList.add('visible-details');
+                                targetBtn.classList.add('active');
+                            }
+                        };
+
+                        fullBtn.addEventListener('click', () => switchView('tooltip-full-details'));
+                        betterBtn.addEventListener('click', () => switchView('tooltip-better-details'));
+                        fastBtn.addEventListener('click', () => switchView('tooltip-fast-details'));
+                    },
+                });
+
+                // Initialize Tippy.js for the readability scores tooltip
+                tippy('#readability-scores-info', {
+                    content: `<div class='text-left p-1 max-w-xs'>
+                        <strong class='block mb-2 text-gray-100'>Readability Metrics</strong>
+                        <div class='space-y-3'>
+                            <div>
+                                <h4 class='text-sm font-medium text-[var(--accent-blue)] mb-1'>Flesch-Kincaid Grade Level</h4>
+                                <p class='text-xs text-gray-300 mb-1'>Estimates the US grade level needed. Based on:</p>
+                                <ul class='list-disc list-inside text-xs text-gray-400 ml-1 mb-1'>
+                                    <li>Average sentence length</li>
+                                    <li>Average syllables per word</li>
+                                </ul>
+                            </div>
+                            
+                            <div>
+                                <h4 class='text-sm font-medium text-[var(--accent-green)] mb-1'>Gunning Fog Index</h4>
+                                <p class='text-xs text-gray-300 mb-1'>Estimates years of formal education needed. Considers:</p>
+                                <ul class='list-disc list-inside text-xs text-gray-400 ml-1 mb-1'>
+                                    <li>Average sentence length</li>
+                                    <li>Percentage of complex words (3+ syllables)</li>
+                                </ul>
+                            </div>
+
+                            <hr class='border-gray-500 my-2'>
+                            
+                            <div>
+                                <h4 class='text-sm font-medium text-[var(--accent-yellow)] mb-1'>Goal Indicators</h4>
+                                <p class='text-xs text-gray-300 mb-1'>When scores are outside the target range for your selected audience:</p>
+                                <ul class='list-disc list-inside text-xs text-gray-400 ml-1'>
+                                    <li>Contributing sentences are <span style="text-decoration: underline wavy #facc15;">marked with a wavy line</span></li>
+                                    <li>Too complex: Most difficult sentences marked</li>
+                                    <li>Too simple: Simplest sentences marked</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>`,
+                    allowHTML: true,
+                    placement: 'top',
+                    theme: 'tippy-dark',
+                    maxWidth: 320,
+                });
+
+                // Re-initialize tooltips on elements with 'has-tooltip' attribute using the dark theme
+                tippy('.has-tooltip', {
+                    allowHTML: true,
+                    theme: 'tippy-dark', // Use custom dark theme
+                    placement: 'top',
+                });
 
                 console.log("Tippy tooltips initialized.");
 
