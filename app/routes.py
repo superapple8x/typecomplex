@@ -65,7 +65,7 @@ def analyze_text():
     target_audience_profile = data.get('target_audience', 'Standard')
     context_awareness_enabled = data.get('context_awareness_enabled', False) # Keep the toggle state
     analysis_id = data.get('analysisId') # <<< Get analysisId from request
-    mode = data.get('mode', 'full') # <<< NEW: Get mode, default to 'full'
+    mode = data.get('mode', 'better') # <<< NEW: Get mode, default to 'better'
 
     logging.info(f"Received analysis request (ID: {analysis_id}). Mode: {mode}, Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}") # Added mode to log
 
@@ -336,6 +336,7 @@ def upload_pdf_file():
         # Get additional parameters from the form
         target_audience = request.form.get('target_audience', 'Standard')
         action = request.form.get('action', 'full_analysis') # e.g., 'extract_text' or 'full_analysis'
+        analysis_mode = request.form.get('analysis_mode', 'better') # NEW: Get analysis mode, default to 'better'
 
         # Get PDF overview parameters from form data
         include_overview_page_str = request.form.get('include_overview_page', 'true').lower()
@@ -354,7 +355,7 @@ def upload_pdf_file():
         overview_show_visual_map_str = request.form.get('overview_show_visual_map', 'true').lower()
         overview_show_visual_map = overview_show_visual_map_str == 'true'
 
-        app.logger.info(f"Enqueuing PDF processing task for '{original_filename}'. Action: {action}, Target Audience: {target_audience}, Overview Page: {include_overview_page}, Top X: {overview_top_x_count} ({overview_top_x_type}), Show Map: {overview_show_visual_map}")
+        app.logger.info(f"Enqueuing PDF processing task for '{original_filename}'. Action: {action}, Target Audience: {target_audience}, Analysis Mode: {analysis_mode}, Overview Page: {include_overview_page}, Top X: {overview_top_x_count} ({overview_top_x_type}), Show Map: {overview_show_visual_map}")
 
         # Enqueue the Celery task
         task = process_pdf_task.delay(
@@ -362,6 +363,7 @@ def upload_pdf_file():
             original_filename, 
             action=action, 
             target_audience=target_audience,
+            analysis_mode=analysis_mode, # NEW: Pass analysis mode to task
             include_overview_page=include_overview_page,
             overview_top_x_count=overview_top_x_count,
             overview_top_x_type=overview_top_x_type,

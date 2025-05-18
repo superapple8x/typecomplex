@@ -11,7 +11,8 @@ def process_pdf_task(self, file_path, original_filename, action='full_analysis',
                          include_overview_page: bool = True,
                          overview_top_x_count: int = 5,
                          overview_top_x_type: str = "complex", # "complex" or "simple"
-                         overview_show_visual_map: bool = True):
+                         overview_show_visual_map: bool = True,
+                         analysis_mode: str = 'best'):
     """
     Celery task to process a PDF:
     - If action is 'extract_text': Only extracts text and coordinates.
@@ -58,7 +59,7 @@ def process_pdf_task(self, file_path, original_filename, action='full_analysis',
 
         # Step 2: Analyze text complexity
         self.update_state(state='PROGRESS', meta={'current_step': 2, 'total_steps': 3, 'status_message': 'Analyzing text complexity...'})
-        app.logger.info(f"Task {self.request.id}: Analyzing text complexity...")
+        app.logger.info(f"Task {self.request.id}: Analyzing text complexity with mode '{analysis_mode}'...")
         # Extract sentence texts from sentence_coordinates_map for analysis
         sentences_for_analysis = [entry['text'] for entry in sentence_coordinates_map]
         app.logger.info(f"Task {self.request.id}: Extracted {len(sentences_for_analysis)} sentences for analysis.")
@@ -66,7 +67,8 @@ def process_pdf_task(self, file_path, original_filename, action='full_analysis',
         analysis_results = analyze_text_complexity(
             plain_text_for_doc_stats=plain_text,
             sentences_list=sentences_for_analysis,
-            target_audience=target_audience
+            target_audience=target_audience,
+            mode=analysis_mode
         )
         app.logger.info(f"Task {self.request.id}: Text analysis complete. Overall level: {analysis_results.get('overall_level',{}).get('description')}")
         num_sentences_analyzed = len(analysis_results.get('sentences', []))

@@ -92,6 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdfTargetAudienceSelected = document.getElementById('pdf-target-audience-selected');
     // --- END NEW ---
 
+    // --- NEW: PDF Analysis Mode Dropdown Elements ---
+    const pdfAnalysisModeButton = document.getElementById('pdf-analysis-mode-button');
+    const pdfAnalysisModeOptions = document.getElementById('pdf-analysis-mode-options');
+    const pdfAnalysisModeSelected = document.getElementById('pdf-analysis-mode-selected');
+    // --- END NEW ---
+
     // --- NEW: PDF Overview Page Options DOM References ---
     const includeOverviewPageCheckbox = document.getElementById('include-overview-page');
     const overviewOptionsDetailsDiv = document.getElementById('overview-options-details');
@@ -180,6 +186,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const initialText = hiddenSelectElement.options[hiddenSelectElement.selectedIndex].text;
         overviewTopXTypeSelected.textContent = initialText;
         overviewTopXTypeSelected.dataset.value = initialValue;
+    }
+    // --- END NEW ---
+
+    // --- NEW: Initialize PDF Analysis Mode Dropdown ---
+    if (pdfAnalysisModeButton && pdfAnalysisModeOptions && pdfAnalysisModeSelected) {
+        // Set initial value
+        pdfAnalysisModeSelected.dataset.value = 'better';
+        pdfAnalysisModeSelected.textContent = 'Better Analysis';
+
+        // Toggle options display when button is clicked
+        pdfAnalysisModeButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            pdfAnalysisModeOptions.classList.toggle('hidden');
+        });
+
+        // Handle option selection
+        pdfAnalysisModeOptions.addEventListener('click', (event) => {
+            const link = event.target.closest('a');
+            if (link && link.dataset.value) {
+                event.preventDefault();
+                const selectedValue = link.dataset.value;
+                const selectedText = link.textContent.trim();
+                
+                // Update the visible text
+                pdfAnalysisModeSelected.textContent = selectedText;
+                pdfAnalysisModeSelected.dataset.value = selectedValue;
+                
+                pdfAnalysisModeOptions.classList.add('hidden');
+                console.log(`PDF Analysis Mode changed to: ${selectedValue}`);
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!pdfAnalysisModeButton.contains(event.target) && 
+                !pdfAnalysisModeOptions.contains(event.target) && 
+                !pdfAnalysisModeOptions.classList.contains('hidden')) {
+                pdfAnalysisModeOptions.classList.add('hidden');
+            }
+        });
     }
     // --- END NEW ---
 
@@ -355,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTargetAudience = 'Standard'; // Default audience, updated from select element
     let showHighlighting = true; // Default state for toggle, updated from checkbox
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
-    let currentAnalysisMode = 'better'; // <<< UPDATED: Default analysis mode to 'better'
+    let currentAnalysisMode = 'better'; // Default analysis mode
     let isOverallScoreOutOfBounds = false; // Track if overall score is outside target
     let currentSensitivityLevel = 3; // Default to Standard (value 3)
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
@@ -2555,6 +2601,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         // Get reference to PDF target audience button for disabling
         const pdfAudienceButton = document.getElementById('pdf-target-audience-button');
+        const pdfAnalysisModeButton = document.getElementById('pdf-analysis-mode-button'); // NEW: Get analysis mode button
 
         if (type === 'editor' && editorIndicator) {
             editorIndicator.classList.toggle('hidden', !isLoading);
@@ -2577,7 +2624,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // Extra handling for PDF audience button - ensure it gets proper styling when disabled
         if (pdfAudienceButton) {
             pdfAudienceButton.disabled = isLoading;
-            // We don't need additional inline styles since we've fixed the CSS
+        }
+
+        // NEW: Handle PDF analysis mode button state
+        if (pdfAnalysisModeButton) {
+            pdfAnalysisModeButton.disabled = isLoading;
         }
     }
 
@@ -2611,6 +2662,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // Get target audience for PDF from the UI
         const selectedPdfAudience = pdfTargetAudienceSelected.dataset.value || 'Standard';
         formData.append('target_audience', selectedPdfAudience);
+
+        // Get analysis mode from the UI
+        const selectedPdfAnalysisMode = pdfAnalysisModeSelected.dataset.value || 'better';
+        formData.append('analysis_mode', selectedPdfAnalysisMode);
 
         // Append PDF Overview Page Options
         if (includeOverviewPageCheckbox) {
