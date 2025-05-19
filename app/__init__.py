@@ -8,9 +8,40 @@ from celery import Celery, Task # Import Celery and Task
 from app.rate_limiter import RateLimiter # Import RateLimiter
 import os # Added for environment variables
 import sys # Added for stderr warning output
+import sentry_sdk # Add Sentry SDK
+from sentry_sdk.integrations.flask import FlaskIntegration # Add Sentry Flask integration
+from sentry_sdk.integrations.celery import CeleryIntegration # Add Sentry Celery integration
 
 # Initialize the Flask application
 app = Flask(__name__)
+
+# --- Sentry Configuration ---
+SENTRY_DSN = os.environ.get('SENTRY_DSN')
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            FlaskIntegration(),
+            CeleryIntegration()
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        # Adjust as needed for production.
+        traces_sample_rate=1.0,
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        # Adjust as needed for production.
+        profiles_sample_rate=1.0,
+        # Consider sending PII data if appropriate for your application
+        # send_default_pii=True
+    )
+    print("INFO: Sentry initialized.", file=sys.stderr)
+else:
+    if os.environ.get('FLASK_ENV', 'production').lower() == 'production':
+        print("WARNING: SENTRY_DSN is not set in a production-like environment. Sentry will not capture errors.", file=sys.stderr)
+    else:
+        print("INFO: SENTRY_DSN is not set. Sentry will not capture errors. This is acceptable for local development without Sentry.", file=sys.stderr)
+# --- End Sentry Configuration ---
 
 # --- Production/Development Configuration ---
 # For SECRET_KEY, it's crucial to set this in your production environment.
@@ -93,12 +124,24 @@ rate_limiter = RateLimiter()
 # Using SimpleCache: In-memory cache per process. Suitable for development
 # or single-process deployments. For multi-process/multi-server, consider
 # RedisCache, MemcachedCache, or FileSystemCache.
+# Switch to RedisCache for production
+CACHE_TYPE = os.environ.get('CACHE_TYPE', 'RedisCache') # Default to RedisCache for prod
+CACHE_REDIS_URL = os.environ.get('CACHE_REDIS_URL', app.config.get('CELERY_BROKER_URL', 'redis://localhost:6379/1'))
+
+if CACHE_TYPE == 'SimpleCache' and os.environ.get('FLASK_ENV', 'production').lower() == 'production':
+    print("WARNING: CACHE_TYPE is 'SimpleCache' in a production-like environment. Consider using 'RedisCache' or another distributed cache.", file=sys.stderr)
+
 cache_config = {
-    "CACHE_TYPE": "SimpleCache",  # Use SimpleCache for now
-    "CACHE_DEFAULT_TIMEOUT": 300 # Default timeout 5 minutes (adjust as needed)
+    "CACHE_TYPE": CACHE_TYPE,
+    "CACHE_DEFAULT_TIMEOUT": int(os.environ.get('CACHE_DEFAULT_TIMEOUT', 300)), # Default timeout 5 minutes
+    "CACHE_REDIS_URL": CACHE_REDIS_URL
 }
 app.config.from_mapping(cache_config) # This will merge with existing app.config
 cache = Cache(app) # Initialize Cache with the app
+if CACHE_TYPE == 'RedisCache':
+    print(f"INFO: Cache configured with RedisCache at {CACHE_REDIS_URL}", file=sys.stderr)
+else:
+    print(f"INFO: Cache configured with {CACHE_TYPE}", file=sys.stderr)
 
 # Import routes after initializing the app, cache, and celery
 # We will create the routes.py file next
