@@ -2151,7 +2151,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             lastPasteInfo = isPaste ? lastPasteInfo : null;
 
             // --- Optional: Initial analysis on significant paste when PAUSED ---
-            if (isPaste && isAnalysisPaused && insertedText.length > PASTE_LENGTH_THRESHOLD) {
+            if (false && isPaste && isAnalysisPaused && insertedText.length > PASTE_LENGTH_THRESHOLD) {
                 console.log("%cSignificant paste detected while paused. Triggering initial analysis...", 'color: blueviolet');
                 isAnalysisPaused = false; // Temporarily unpause
                 updateAnalysisButtonState(); // Show it's running
