@@ -1,19 +1,19 @@
 1 RLock(s) were not greened, to fix this error make sure you run eventlet.monkey_patch() before importing any other modules.
 /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/spacy/util.py:910: UserWarning: [W095] Model 'en_core_web_sm' (3.8.0) was trained with spaCy v3.8.0 and may not be 100% compatible with the current version (3.7.4). If you see errors or degraded performance, download a newer compatible model or retrain your custom model with the current spaCy version. For more details and available updates, run: python -m spacy validate
   warnings.warn(warn_msg)
-2025-05-19 08:16:29,061 - INFO - DeepSeek client initialized successfully.
-2025-05-19 08:16:29,129 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
+2025-05-19 08:37:10,570 - INFO - DeepSeek client initialized successfully.
+2025-05-19 08:37:10,632 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
 [nltk_data] Downloading package wordnet to /home/pepper/nltk_data...
 [nltk_data]   Package wordnet is already up-to-date!
-2025-05-19 08:16:29,244 - INFO - NLTK resource 'wordnet' downloaded successfully.
-2025-05-19 08:16:29,244 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
-2025-05-19 08:16:29,245 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
-[2025-05-19 08:16:29,274: DEBUG/MainProcess] | Worker: Preparing bootsteps.
-[2025-05-19 08:16:29,275: DEBUG/MainProcess] | Worker: Building graph...
-[2025-05-19 08:16:29,276: DEBUG/MainProcess] | Worker: New boot order: {Beat, StateDB, Timer, Hub, Pool, Autoscaler, Consumer}
-[2025-05-19 08:16:29,282: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
-[2025-05-19 08:16:29,283: DEBUG/MainProcess] | Consumer: Building graph...
-[2025-05-19 08:16:29,303: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Heart, Mingle, Tasks, Control, Agent, DelayedDelivery, Gossip, event loop}
+2025-05-19 08:37:10,758 - INFO - NLTK resource 'wordnet' downloaded successfully.
+2025-05-19 08:37:10,758 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
+2025-05-19 08:37:10,758 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
+[2025-05-19 08:37:10,794: DEBUG/MainProcess] | Worker: Preparing bootsteps.
+[2025-05-19 08:37:10,796: DEBUG/MainProcess] | Worker: Building graph...
+[2025-05-19 08:37:10,796: DEBUG/MainProcess] | Worker: New boot order: {Beat, Timer, Hub, Pool, Autoscaler, StateDB, Consumer}
+[2025-05-19 08:37:10,801: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
+[2025-05-19 08:37:10,802: DEBUG/MainProcess] | Consumer: Building graph...
+[2025-05-19 08:37:10,818: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Agent, Events, Mingle, Gossip, Tasks, DelayedDelivery, Control, Heart, event loop}
 Loading frequency data from: /home/pepper/typecomplex/app/data/ngram_freq.csv
 CSV Columns loaded: ['word', 'count']
 Using existing 'word' and 'count' columns.
@@ -27,10 +27,10 @@ Successfully loaded 'punkt' tokenizer.
  
  -------------- celery@fedora v5.5.2 (immunity)
 --- ***** ----- 
--- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-19 08:16:29
+-- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-19 08:37:10
 - *** --- * --- 
 - ** ---------- [config]
-- ** ---------- .> app:         app:0x7fcc38b97350
+- ** ---------- .> app:         app:0x7fbec69971d0
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/0
 - *** --- * --- .> concurrency: 8 (eventlet)
@@ -53,68 +53,238 @@ Successfully loaded 'punkt' tokenizer.
   . celery.map
   . celery.starmap
 
-[2025-05-19 08:16:29,332: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
+[2025-05-19 08:37:10,844: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
     The 'CELERY_RESULT_BACKEND' setting is deprecated and scheduled for removal in
     version 6.0.0. Use the result_backend instead
 
   deprecated.warn(description=f'The {setting!r} setting',
 
-[2025-05-19 08:16:29,332: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
-[2025-05-19 08:16:29,333: DEBUG/MainProcess] | Worker: Starting Pool
-[2025-05-19 08:16:29,333: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:29,333: DEBUG/MainProcess] | Worker: Starting Consumer
-[2025-05-19 08:16:29,333: DEBUG/MainProcess] | Consumer: Starting Connection
-[2025-05-19 08:16:29,335: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2025-05-19 08:16:29,335: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:29,336: DEBUG/MainProcess] | Consumer: Starting Events
-[2025-05-19 08:16:29,338: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:29,338: DEBUG/MainProcess] | Consumer: Starting Heart
-[2025-05-19 08:16:29,340: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:29,340: DEBUG/MainProcess] | Consumer: Starting Mingle
-[2025-05-19 08:16:29,340: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-19 08:16:30,351: INFO/MainProcess] mingle: all alone
-[2025-05-19 08:16:30,351: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:30,351: DEBUG/MainProcess] | Consumer: Starting Tasks
-[2025-05-19 08:16:30,353: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:30,353: DEBUG/MainProcess] | Consumer: Starting Control
-[2025-05-19 08:16:30,354: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:30,354: DEBUG/MainProcess] | Consumer: Starting Gossip
-[2025-05-19 08:16:30,357: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
-[2025-05-19 08:16:30,362: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 08:16:30,362: DEBUG/MainProcess] | Consumer: Starting event loop
-[2025-05-19 08:16:30,363: INFO/MainProcess] celery@fedora ready.
-[2025-05-19 08:16:30,363: DEBUG/MainProcess] basic.qos: prefetch_count->32
+[2025-05-19 08:37:10,844: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
+[2025-05-19 08:37:10,844: DEBUG/MainProcess] | Worker: Starting Pool
+[2025-05-19 08:37:10,844: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:10,844: DEBUG/MainProcess] | Worker: Starting Consumer
+[2025-05-19 08:37:10,844: DEBUG/MainProcess] | Consumer: Starting Connection
+[2025-05-19 08:37:10,846: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-05-19 08:37:10,847: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:10,847: DEBUG/MainProcess] | Consumer: Starting Events
+[2025-05-19 08:37:10,849: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:10,849: DEBUG/MainProcess] | Consumer: Starting Mingle
+[2025-05-19 08:37:10,849: INFO/MainProcess] mingle: searching for neighbors
+[2025-05-19 08:37:11,860: INFO/MainProcess] mingle: all alone
+[2025-05-19 08:37:11,860: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:11,860: DEBUG/MainProcess] | Consumer: Starting Gossip
+[2025-05-19 08:37:11,864: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:11,864: DEBUG/MainProcess] | Consumer: Starting Tasks
+[2025-05-19 08:37:11,867: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:11,867: DEBUG/MainProcess] | Consumer: Starting Control
+[2025-05-19 08:37:11,868: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:11,868: DEBUG/MainProcess] | Consumer: Starting Heart
+[2025-05-19 08:37:11,872: DEBUG/MainProcess] ^-- substep ok
+[2025-05-19 08:37:11,872: DEBUG/MainProcess] | Consumer: Starting event loop
+[2025-05-19 08:37:11,872: INFO/MainProcess] celery@fedora ready.
+[2025-05-19 08:37:11,872: DEBUG/MainProcess] basic.qos: prefetch_count->32
+[2025-05-19 08:37:11,874: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
+[2025-05-19 08:38:28,924: INFO/MainProcess] Task app.tasks.process_pdf_task[66444b4f-af53-408e-8228-54b893cc1e45] received
+[2025-05-19 08:38:28,924: DEBUG/MainProcess] TaskPool: Apply <function fast_trace_task at 0x7fbec709b560> (args:('app.tasks.process_pdf_task', '66444b4f-af53-408e-8228-54b893cc1e45', {'lang': 'py', 'task': 'app.tasks.process_pdf_task', 'id': '66444b4f-af53-408e-8228-54b893cc1e45', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': '66444b4f-af53-408e-8228-54b893cc1e45', 'parent_id': None, 'argsrepr': '()', 'kwargsrepr': "{'file_path': '/home/pepper/typecomplex/uploads/aa168582-4daa-41b9-8f9d-44e4d4d808bb_1280-1.pdf', 'original_filename': '1280-1.pdf', 'action': 'extract_text', 'target_audience': 'Standard', 'include_overview_page': True, 'overview_top_x_count': 5, 'overview_top_x_type': 'complex', 'overview_show_visual_map': True, 'analysis_mode': 'fast', 'client_ip_address': '127.0.0.1'}", 'origin': 'gen21005@fedora', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}, 'properties': {'correlation_id': '66444b4f-af53-408e-8228-54b893cc1e45', 'reply_to': '3d3ea59d-cc35-301f-8d69-bfcce1dee0d2',... kwargs:{})
+[2025-05-19 08:38:28,925: INFO/MainProcess] Task 66444b4f-af53-408e-8228-54b893cc1e45: PyMuPDF (fitz) version: 1.25.5
+[2025-05-19 08:38:28,925: INFO/MainProcess] Task 66444b4f-af53-408e-8228-54b893cc1e45: PyMuPDF (fitz) path: /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/fitz/__init__.py
+[2025-05-19 08:38:28,926: INFO/MainProcess] Starting PDF processing for: 1280-1.pdf (Task ID: 66444b4f-af53-408e-8228-54b893cc1e45) at path: /home/pepper/typecomplex/uploads/aa168582-4daa-41b9-8f9d-44e4d4d808bb_1280-1.pdf
+[2025-05-19 08:38:28,945: INFO/MainProcess] Task 66444b4f-af53-408e-8228-54b893cc1e45: Extracting text and coordinates from /home/pepper/typecomplex/uploads/aa168582-4daa-41b9-8f9d-44e4d4d808bb_1280-1.pdf...
+[2025-05-19 08:38:28,987: INFO/MainProcess]   SUCCESS (Block-NLTK): 'EPDE2020/1280...' Coords: 1. P1 B0
+[2025-05-19 08:38:28,991: INFO/MainProcess]   SUCCESS (Block-NLTK): 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 1...' Coords: 2. P1 B1
+[2025-05-19 08:38:28,996: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MATERIAL DESIGNERS WHEN...' Coords: 3. P1 B2
+[2025-05-19 08:38:28,999: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School of Art and Communicat...' Coords: 2. P1 B3
+[2025-05-19 08:38:29,006: INFO/MainProcess]   SUCCESS (Block-NLTK): 'ABSTRACT The recent academic literature on material practices within d...' Coords: 8. P1 B4
+[2025-05-19 08:38:29,010: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials and the Material Driven Design met...' Coords: 13. P1 B4
+[2025-05-19 08:38:29,015: INFO/MainProcess]   SUCCESS (Block-NLTK): 'This paper presents a qualitative case study of the challenges faced b...' Coords: 12. P1 B4
+[2025-05-19 08:38:29,020: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A comparative case study of twenty-eight material driven design projec...' Coords: 2. P1 B4
+[2025-05-19 08:38:29,024: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The result suggest: (a) that designers have a tendency to focus more o...' Coords: 6. P1 B4
+[2025-05-19 08:38:29,029: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper we also build on our previous research, regarding the de...' Coords: 2. P1 B4
+[2025-05-19 08:38:29,033: INFO/MainProcess]   SUCCESS (Block-NLTK): 'It is hoped that this research can contribute to the further developme...' Coords: 2. P1 B4
+[2025-05-19 08:38:29,037: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Keywords: DIY-materials, material driven design, experiential knowledg...' Coords: 2. P1 B5
+[2025-05-19 08:38:29,042: INFO/MainProcess]   SUCCESS (Block-NLTK): '1 INTRODUCTION The recent academic literature on material practices wi...' Coords: 4. P1 B6
+[2025-05-19 08:38:29,046: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper, we use the definition of DIY-materials as defined by Ro...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,051: INFO/MainProcess]   SUCCESS (Block-NLTK): '‘ materials which are created through individual or collective self-pr...' Coords: 3. P1 B6
+[2025-05-19 08:38:29,055: INFO/MainProcess]   SUCCESS (Block-NLTK): 'They can be totally new materials, modified, or further developed vers...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,059: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials [5] and the Material Driven Design...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,064: INFO/MainProcess]   SUCCESS (Block-NLTK): 'TU Delft (NL), Politecnico di Milano (IT), Imperial College London (UK...' Coords: 3. P1 B6
+[2025-05-19 08:38:29,068: INFO/MainProcess]   SUCCESS (Block-NLTK): 'However, these designers and students are facing great challenges when...' Coords: 3. P1 B6
+[2025-05-19 08:38:29,073: WARNING/MainProcess] Block-Search: Sentence 'There are numerous examples of DIY- materials that reach the...' NOT FOUND by page.search_for(). Attempting word-level fallback. P1 B6.
+[2025-05-19 08:38:29,082: INFO/MainProcess]   SUCCESS (Word-Fallback): Found coords for 'There are numerous examples of DIY- materials that reach the...'. P1 B6. Coords: 3
+[2025-05-19 08:38:29,082: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are numerous examples of DIY- materials that reach the developme...' Coords: 3. P1 B6
+[2025-05-19 08:38:29,086: INFO/MainProcess]   SUCCESS (Block-NLTK): 'These are often communicated through tempting images and storytelling ...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,091: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Unfortunately, few DIY-materials manage to reach the stage of viable m...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,095: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are however a few examples of successful circular and sustainabl...' Coords: 15. P1 B6
+[2025-05-19 08:38:29,101: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Terroir, Residue and Mestic....' Coords: 1. P1 B6
+[2025-05-19 08:38:29,106: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The Terroir project by the Danish designers Edvard & Steenfatt [7] use...' Coords: 14. P1 B6
+[2025-05-19 08:38:29,110: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The cork like composite is then used in a local craft production of fu...' Coords: 4. P1 B6
+[2025-05-19 08:38:29,116: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Swedish designer Hanna Carlsson developed a wood composite made of res...' Coords: 3. P1 B6
+[2025-05-19 08:38:29,120: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The residue material is moulded into double curved surfaces in furnitu...' Coords: 2. P1 B6
+[2025-05-19 08:38:29,121: INFO/MainProcess] Block-Level NLTK Extraction Complete for /home/pepper/typecomplex/uploads/aa168582-4daa-41b9-8f9d-44e4d4d808bb_1280-1.pdf. Total sentences mapped: 28
+[2025-05-19 08:38:29,121: INFO/MainProcess] Task 66444b4f-af53-408e-8228-54b893cc1e45: Text extraction complete for action 'extract_text'. Extracted 4280 characters. Found 28 potential sentence coordinate entries.
+[2025-05-19 08:38:29,122: INFO/MainProcess] Task 66444b4f-af53-408e-8228-54b893cc1e45: Text extraction action complete. Result: {original_filename: 1280-1.pdf, text_length: 4280, action: extract_text}
+[2025-05-19 08:38:29,123: INFO/MainProcess] Task app.tasks.process_pdf_task[66444b4f-af53-408e-8228-54b893cc1e45] succeeded in 0.198337471999821s: {'original_filename': '1280-1.pdf', 'extracted_text': 'EPDE2020/1280
 
-worker: Hitting Ctrl+C again will initiate cold shutdown, terminating all running tasks!
+INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 10-11 SEPTEMBER 2020, VIA DESIGN, VIA UNIVERSITY COLLEGE, HERNING, DENMARK
 
-worker: Warm shutdown (MainProcess)
-[2025-05-19 08:19:19,503: DEBUG/MainProcess] | Worker: Closing Pool...
-[2025-05-19 08:19:19,503: DEBUG/MainProcess] | Worker: Closing Consumer...
-[2025-05-19 08:19:19,503: DEBUG/MainProcess] | Worker: Stopping Consumer...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Connection...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Events...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Heart...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Mingle...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Tasks...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Control...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing Gossip...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Closing event loop...
-[2025-05-19 08:19:19,504: DEBUG/MainProcess] | Consumer: Stopping event loop...
-[2025-05-19 08:19:19,505: DEBUG/MainProcess] | Consumer: Stopping Gossip...
-[2025-05-19 08:19:19,507: DEBUG/MainProcess] | Consumer: Stopping Control...
-[2025-05-19 08:19:19,507: DEBUG/MainProcess] Waiting for broadcast thread to shutdown...
-[2025-05-19 08:19:19,522: DEBUG/MainProcess] | Consumer: Stopping Tasks...
-[2025-05-19 08:19:19,522: DEBUG/MainProcess] Canceling task consumer...
-[2025-05-19 08:19:19,522: DEBUG/MainProcess] | Consumer: Stopping Mingle...
-[2025-05-19 08:19:19,523: DEBUG/MainProcess] | Consumer: Stopping Heart...
-[2025-05-19 08:19:19,523: DEBUG/MainProcess] | Consumer: Stopping Events...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Consumer: Stopping Connection...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Worker: Stopping Pool...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Consumer: Shutdown Gossip...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Consumer: Shutdown Control...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Consumer: Shutdown Tasks...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] Canceling task consumer...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] Closing consumer channel...
-[2025-05-19 08:19:19,524: DEBUG/MainProcess] | Consumer: Shutdown Heart...
-[2025-05-19 08:19:19,525: DEBUG/MainProcess] | Consumer: Shutdown Events...
-[2025-05-19 08:19:19,525: DEBUG/MainProcess] | Consumer: Shutdown Connection...
+A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MATERIAL DESIGNERS WHEN DEVELOPING DIY-MATERIALS
+
+Charlotte Asbjørn SÖRENSEN and Emma THYNI School of Art and Communication (K3), Malmö University, Malmö, Sweden
+
+ABSTRACT The recent academic literature on material practices within design has revealed the emergence of a new design discipline, DIY-materials or material design.
+
+Designers educated in DIY-materials and the Material Driven Design method, applied in design courses in major European universities are beginning to identify themselves as material designers.
+
+This paper presents a qualitative case study of the challenges faced by material designers and design students developing DIY-materials from the stage of a small sample with promising experiential qualities and technical properties, towards...', ...}
+[2025-05-19 08:38:34,077: INFO/MainProcess] Task app.tasks.process_pdf_task[fb801459-a744-4504-88c3-d2de41bc5de2] received
+[2025-05-19 08:38:34,078: DEBUG/MainProcess] TaskPool: Apply <function fast_trace_task at 0x7fbec709b560> (args:('app.tasks.process_pdf_task', 'fb801459-a744-4504-88c3-d2de41bc5de2', {'lang': 'py', 'task': 'app.tasks.process_pdf_task', 'id': 'fb801459-a744-4504-88c3-d2de41bc5de2', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': 'fb801459-a744-4504-88c3-d2de41bc5de2', 'parent_id': None, 'argsrepr': '()', 'kwargsrepr': "{'file_path': '/home/pepper/typecomplex/uploads/e670df5a-6d6f-4a4f-b046-5f55ec75bcbb_1280-1.pdf', 'original_filename': '1280-1.pdf', 'action': 'full_analysis', 'target_audience': 'Standard', 'include_overview_page': True, 'overview_top_x_count': 5, 'overview_top_x_type': 'complex', 'overview_show_visual_map': True, 'analysis_mode': 'fast', 'client_ip_address': '127.0.0.1'}", 'origin': 'gen21005@fedora', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}, 'properties': {'correlation_id': 'fb801459-a744-4504-88c3-d2de41bc5de2', 'reply_to': '3d3ea59d-cc35-301f-8d69-bfcce1dee0d2',... kwargs:{})
+[2025-05-19 08:38:34,079: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: PyMuPDF (fitz) version: 1.25.5
+[2025-05-19 08:38:34,079: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: PyMuPDF (fitz) path: /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/fitz/__init__.py
+[2025-05-19 08:38:34,079: INFO/MainProcess] Starting PDF processing for: 1280-1.pdf (Task ID: fb801459-a744-4504-88c3-d2de41bc5de2) at path: /home/pepper/typecomplex/uploads/e670df5a-6d6f-4a4f-b046-5f55ec75bcbb_1280-1.pdf
+[2025-05-19 08:38:34,081: INFO/MainProcess] Rate limit check passed for 127.0.0.1 on mode 'fast'. New count: 6, Limit: 10
+[2025-05-19 08:38:34,096: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Extracting text and coordinates from /home/pepper/typecomplex/uploads/e670df5a-6d6f-4a4f-b046-5f55ec75bcbb_1280-1.pdf...
+[2025-05-19 08:38:34,112: INFO/MainProcess]   SUCCESS (Block-NLTK): 'EPDE2020/1280...' Coords: 1. P1 B0
+[2025-05-19 08:38:34,116: INFO/MainProcess]   SUCCESS (Block-NLTK): 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 1...' Coords: 2. P1 B1
+[2025-05-19 08:38:34,120: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MATERIAL DESIGNERS WHEN...' Coords: 3. P1 B2
+[2025-05-19 08:38:34,124: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School of Art and Communicat...' Coords: 2. P1 B3
+[2025-05-19 08:38:34,130: INFO/MainProcess]   SUCCESS (Block-NLTK): 'ABSTRACT The recent academic literature on material practices within d...' Coords: 8. P1 B4
+[2025-05-19 08:38:34,135: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials and the Material Driven Design met...' Coords: 13. P1 B4
+[2025-05-19 08:38:34,140: INFO/MainProcess]   SUCCESS (Block-NLTK): 'This paper presents a qualitative case study of the challenges faced b...' Coords: 12. P1 B4
+[2025-05-19 08:38:34,145: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A comparative case study of twenty-eight material driven design projec...' Coords: 2. P1 B4
+[2025-05-19 08:38:34,150: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The result suggest: (a) that designers have a tendency to focus more o...' Coords: 6. P1 B4
+[2025-05-19 08:38:34,155: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper we also build on our previous research, regarding the de...' Coords: 2. P1 B4
+[2025-05-19 08:38:34,159: INFO/MainProcess]   SUCCESS (Block-NLTK): 'It is hoped that this research can contribute to the further developme...' Coords: 2. P1 B4
+[2025-05-19 08:38:34,163: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Keywords: DIY-materials, material driven design, experiential knowledg...' Coords: 2. P1 B5
+[2025-05-19 08:38:34,170: INFO/MainProcess]   SUCCESS (Block-NLTK): '1 INTRODUCTION The recent academic literature on material practices wi...' Coords: 4. P1 B6
+[2025-05-19 08:38:34,174: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper, we use the definition of DIY-materials as defined by Ro...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,179: INFO/MainProcess]   SUCCESS (Block-NLTK): '‘ materials which are created through individual or collective self-pr...' Coords: 3. P1 B6
+[2025-05-19 08:38:34,185: INFO/MainProcess]   SUCCESS (Block-NLTK): 'They can be totally new materials, modified, or further developed vers...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,190: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials [5] and the Material Driven Design...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,196: INFO/MainProcess]   SUCCESS (Block-NLTK): 'TU Delft (NL), Politecnico di Milano (IT), Imperial College London (UK...' Coords: 3. P1 B6
+[2025-05-19 08:38:34,201: INFO/MainProcess]   SUCCESS (Block-NLTK): 'However, these designers and students are facing great challenges when...' Coords: 3. P1 B6
+[2025-05-19 08:38:34,205: WARNING/MainProcess] Block-Search: Sentence 'There are numerous examples of DIY- materials that reach the...' NOT FOUND by page.search_for(). Attempting word-level fallback. P1 B6.
+[2025-05-19 08:38:34,215: INFO/MainProcess]   SUCCESS (Word-Fallback): Found coords for 'There are numerous examples of DIY- materials that reach the...'. P1 B6. Coords: 3
+[2025-05-19 08:38:34,215: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are numerous examples of DIY- materials that reach the developme...' Coords: 3. P1 B6
+[2025-05-19 08:38:34,220: INFO/MainProcess]   SUCCESS (Block-NLTK): 'These are often communicated through tempting images and storytelling ...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,225: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Unfortunately, few DIY-materials manage to reach the stage of viable m...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,230: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are however a few examples of successful circular and sustainabl...' Coords: 15. P1 B6
+[2025-05-19 08:38:34,234: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Terroir, Residue and Mestic....' Coords: 1. P1 B6
+[2025-05-19 08:38:34,239: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The Terroir project by the Danish designers Edvard & Steenfatt [7] use...' Coords: 14. P1 B6
+[2025-05-19 08:38:34,244: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The cork like composite is then used in a local craft production of fu...' Coords: 4. P1 B6
+[2025-05-19 08:38:34,249: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Swedish designer Hanna Carlsson developed a wood composite made of res...' Coords: 3. P1 B6
+[2025-05-19 08:38:34,253: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The residue material is moulded into double curved surfaces in furnitu...' Coords: 2. P1 B6
+[2025-05-19 08:38:34,254: INFO/MainProcess] Block-Level NLTK Extraction Complete for /home/pepper/typecomplex/uploads/e670df5a-6d6f-4a4f-b046-5f55ec75bcbb_1280-1.pdf. Total sentences mapped: 28
+[2025-05-19 08:38:34,254: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Text extraction complete for action 'full_analysis'. Extracted 4280 characters. Found 28 potential sentence coordinate entries.
+[2025-05-19 08:38:34,254: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: 28 sentences have coordinate data for full analysis.
+[2025-05-19 08:38:34,255: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Analyzing text complexity with mode 'fast'...
+[2025-05-19 08:38:34,255: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Extracted 28 sentences for analysis.
+[2025-05-19 08:38:34,255: DEBUG/MainProcess] Task None: Starting spaCy processing in analyze_text_complexity with model for mode 'fast'.
+[2025-05-19 08:38:34,431: DEBUG/MainProcess] Task None: Finished spaCy processing in analyze_text_complexity.
+[2025-05-19 08:38:34,432: WARNING/MainProcess] Mismatch (ID: None): spaCy found 22 sents from full text, while pre-segmented list had 28. Prioritizing pre-segmented list (28 sentences) to maintain coordinate mapping integrity.
+[2025-05-19 08:38:34,432: DEBUG/MainProcess] Cache MISS for sentence index 0 (Key: 1408087d...)
+[2025-05-19 08:38:34,432: DEBUG/MainProcess] Stored result in cache for sentence index 0 (Key: 1408087d...)
+[2025-05-19 08:38:34,433: DEBUG/MainProcess] Cache MISS for sentence index 1 (Key: 6cae7402...)
+[2025-05-19 08:38:41,690: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.523 for sentence: 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUC...'
+[2025-05-19 08:38:41,690: DEBUG/MainProcess] Stored result in cache for sentence index 1 (Key: 6cae7402...)
+[2025-05-19 08:38:41,690: DEBUG/MainProcess] Cache MISS for sentence index 2 (Key: 006ede93...)
+[2025-05-19 08:38:42,994: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.410 for sentence: 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MAT...'
+[2025-05-19 08:38:42,994: DEBUG/MainProcess] Stored result in cache for sentence index 2 (Key: 006ede93...)
+[2025-05-19 08:38:42,995: DEBUG/MainProcess] Cache MISS for sentence index 3 (Key: 0c2c01db...)
+[2025-05-19 08:38:44,628: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.492 for sentence: 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School o...'
+[2025-05-19 08:38:44,628: DEBUG/MainProcess] Stored result in cache for sentence index 3 (Key: 0c2c01db...)
+[2025-05-19 08:38:44,628: DEBUG/MainProcess] Cache MISS for sentence index 4 (Key: db56de64...)
+[2025-05-19 08:38:47,109: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.541 for sentence: 'ABSTRACT The recent academic literature on materia...'
+[2025-05-19 08:38:47,109: DEBUG/MainProcess] Stored result in cache for sentence index 4 (Key: db56de64...)
+[2025-05-19 08:38:47,109: DEBUG/MainProcess] Cache MISS for sentence index 5 (Key: 686fadcb...)
+[2025-05-19 08:38:49,819: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.592 for sentence: 'Designers educated in DIY-materials and the Materi...'
+[2025-05-19 08:38:49,819: DEBUG/MainProcess] Stored result in cache for sentence index 5 (Key: 686fadcb...)
+[2025-05-19 08:38:49,819: DEBUG/MainProcess] Cache MISS for sentence index 6 (Key: e61e55c4...)
+[2025-05-19 08:38:53,816: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.739 for sentence: 'This paper presents a qualitative case study of th...'
+[2025-05-19 08:38:53,817: DEBUG/MainProcess] Stored result in cache for sentence index 6 (Key: e61e55c4...)
+[2025-05-19 08:38:53,817: DEBUG/MainProcess] Cache MISS for sentence index 7 (Key: 4186d229...)
+[2025-05-19 08:38:55,755: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.496 for sentence: 'A comparative case study of twenty-eight material ...'
+[2025-05-19 08:38:55,755: DEBUG/MainProcess] Stored result in cache for sentence index 7 (Key: 4186d229...)
+[2025-05-19 08:38:55,755: DEBUG/MainProcess] Cache MISS for sentence index 8 (Key: a956a4a9...)
+[2025-05-19 08:39:03,416: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 1.190 for sentence: 'The result suggest: (a) that designers have a tend...'
+[2025-05-19 08:39:03,416: DEBUG/MainProcess] Stored result in cache for sentence index 8 (Key: a956a4a9...)
+[2025-05-19 08:39:03,416: DEBUG/MainProcess] Cache MISS for sentence index 9 (Key: d8af5829...)
+[2025-05-19 08:39:05,968: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.547 for sentence: 'In this paper we also build on our previous resear...'
+[2025-05-19 08:39:05,968: DEBUG/MainProcess] Stored result in cache for sentence index 9 (Key: d8af5829...)
+[2025-05-19 08:39:05,968: DEBUG/MainProcess] Cache MISS for sentence index 10 (Key: 8cccdd2f...)
+[2025-05-19 08:39:08,217: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.479 for sentence: 'It is hoped that this research can contribute to t...'
+[2025-05-19 08:39:08,217: DEBUG/MainProcess] Stored result in cache for sentence index 10 (Key: 8cccdd2f...)
+[2025-05-19 08:39:08,217: DEBUG/MainProcess] Cache MISS for sentence index 11 (Key: f3dc3039...)
+[2025-05-19 08:39:09,523: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.475 for sentence: 'Keywords: DIY-materials, material driven design, e...'
+[2025-05-19 08:39:09,523: DEBUG/MainProcess] Stored result in cache for sentence index 11 (Key: f3dc3039...)
+[2025-05-19 08:39:09,523: DEBUG/MainProcess] Cache MISS for sentence index 12 (Key: 128afc05...)
+[2025-05-19 08:39:12,288: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.578 for sentence: '1 INTRODUCTION The recent academic literature on m...'
+[2025-05-19 08:39:12,288: DEBUG/MainProcess] Stored result in cache for sentence index 12 (Key: 128afc05...)
+[2025-05-19 08:39:12,288: DEBUG/MainProcess] Cache MISS for sentence index 13 (Key: 137f59ea...)
+[2025-05-19 08:39:14,063: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.436 for sentence: 'In this paper, we use the definition of DIY-materi...'
+[2025-05-19 08:39:14,063: DEBUG/MainProcess] Stored result in cache for sentence index 13 (Key: 137f59ea...)
+[2025-05-19 08:39:14,063: DEBUG/MainProcess] Cache MISS for sentence index 14 (Key: c40a17dd...)
+[2025-05-19 08:39:16,261: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.515 for sentence: '‘ materials which are created through individual o...'
+[2025-05-19 08:39:16,261: DEBUG/MainProcess] Stored result in cache for sentence index 14 (Key: c40a17dd...)
+[2025-05-19 08:39:16,262: DEBUG/MainProcess] Cache MISS for sentence index 15 (Key: 03e5068d...)
+[2025-05-19 08:39:17,871: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.435 for sentence: 'They can be totally new materials, modified, or fu...'
+[2025-05-19 08:39:17,872: DEBUG/MainProcess] Stored result in cache for sentence index 15 (Key: 03e5068d...)
+[2025-05-19 08:39:17,872: DEBUG/MainProcess] Cache MISS for sentence index 16 (Key: 0ca7769b...)
+[2025-05-19 08:39:19,599: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.468 for sentence: 'Designers educated in DIY-materials [5] and the Ma...'
+[2025-05-19 08:39:19,599: DEBUG/MainProcess] Stored result in cache for sentence index 16 (Key: 0ca7769b...)
+[2025-05-19 08:39:19,599: DEBUG/MainProcess] Cache MISS for sentence index 17 (Key: 15c5e677...)
+[2025-05-19 08:39:22,261: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.601 for sentence: 'TU Delft (NL), Politecnico di Milano (IT), Imperia...'
+[2025-05-19 08:39:22,261: DEBUG/MainProcess] Stored result in cache for sentence index 17 (Key: 15c5e677...)
+[2025-05-19 08:39:22,262: DEBUG/MainProcess] Cache MISS for sentence index 18 (Key: 3fd22972...)
+[2025-05-19 08:39:24,853: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.587 for sentence: 'However, these designers and students are facing g...'
+[2025-05-19 08:39:24,853: DEBUG/MainProcess] Stored result in cache for sentence index 18 (Key: 3fd22972...)
+[2025-05-19 08:39:24,853: DEBUG/MainProcess] Cache MISS for sentence index 19 (Key: a2a847a9...)
+[2025-05-19 08:39:27,804: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.604 for sentence: 'There are numerous examples of DIY- materials that...'
+[2025-05-19 08:39:27,804: DEBUG/MainProcess] Stored result in cache for sentence index 19 (Key: a2a847a9...)
+[2025-05-19 08:39:27,805: DEBUG/MainProcess] Cache MISS for sentence index 20 (Key: 28cd8bce...)
+[2025-05-19 08:39:29,382: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.449 for sentence: 'These are often communicated through tempting imag...'
+[2025-05-19 08:39:29,382: DEBUG/MainProcess] Stored result in cache for sentence index 20 (Key: 28cd8bce...)
+[2025-05-19 08:39:29,382: DEBUG/MainProcess] Cache MISS for sentence index 21 (Key: ee43eb9e...)
+[2025-05-19 08:39:31,636: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.510 for sentence: 'Unfortunately, few DIY-materials manage to reach t...'
+[2025-05-19 08:39:31,637: DEBUG/MainProcess] Stored result in cache for sentence index 21 (Key: ee43eb9e...)
+[2025-05-19 08:39:31,637: DEBUG/MainProcess] Cache MISS for sentence index 22 (Key: 03dd7127...)
+[2025-05-19 08:39:33,546: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.479 for sentence: 'There are however a few examples of successful cir...'
+[2025-05-19 08:39:33,546: DEBUG/MainProcess] Stored result in cache for sentence index 22 (Key: 03dd7127...)
+[2025-05-19 08:39:33,546: DEBUG/MainProcess] Cache MISS for sentence index 23 (Key: 72f2ec4f...)
+[2025-05-19 08:39:34,035: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.337 for sentence: 'Terroir, Residue and Mestic....'
+[2025-05-19 08:39:34,036: DEBUG/MainProcess] Stored result in cache for sentence index 23 (Key: 72f2ec4f...)
+[2025-05-19 08:39:34,036: DEBUG/MainProcess] Cache MISS for sentence index 24 (Key: 9aff7fc0...)
+[2025-05-19 08:39:36,435: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.527 for sentence: 'The Terroir project by the Danish designers Edvard...'
+[2025-05-19 08:39:36,435: DEBUG/MainProcess] Stored result in cache for sentence index 24 (Key: 9aff7fc0...)
+[2025-05-19 08:39:36,435: DEBUG/MainProcess] Cache MISS for sentence index 25 (Key: 003ad768...)
+[2025-05-19 08:39:38,255: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.425 for sentence: 'The cork like composite is then used in a local cr...'
+[2025-05-19 08:39:38,255: DEBUG/MainProcess] Stored result in cache for sentence index 25 (Key: 003ad768...)
+[2025-05-19 08:39:38,255: DEBUG/MainProcess] Cache MISS for sentence index 26 (Key: d67b32f7...)
+[2025-05-19 08:39:40,468: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.514 for sentence: 'Swedish designer Hanna Carlsson developed a wood c...'
+[2025-05-19 08:39:40,469: DEBUG/MainProcess] Stored result in cache for sentence index 26 (Key: d67b32f7...)
+[2025-05-19 08:39:40,469: DEBUG/MainProcess] Cache MISS for sentence index 27 (Key: 7053f834...)
+[2025-05-19 08:39:43,191: DEBUG/MainProcess] Task None: Calculated Score (fast mode using FAST_MODE_WEIGHTS): 0.581 for sentence: 'The residue material is moulded into double curved...'
+[2025-05-19 08:39:43,192: DEBUG/MainProcess] Stored result in cache for sentence index 27 (Key: 7053f834...)
+[2025-05-19 08:39:43,197: INFO/MainProcess] analyze_text_complexity: Final count of sentence results (in 'results' list var): 28 for analysis_id: None
+[2025-05-19 08:39:43,197: INFO/MainProcess] analyze_text_complexity: First sentence data (sample from 'results' list var): {'sentence': 'EPDE2020/1280', 'score': 0.0, 'level': 'Very Simple', 'color_class': 'bg-green-500', 'start': 0, 'end': 13, 'index': 0, 'mode': 'fast', 'complexity_factors': {'score': 0.0, 'length_factor': 0.0, 'word_len_factor': 0.0, 'frequency_factor...
+[2025-05-19 08:39:43,198: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Text analysis complete. Overall level: Moderate
+[2025-05-19 08:39:43,198: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Analyzed 28 sentences.
+[2025-05-19 08:39:43,200: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Generating highlighted PDF...
+[2025-05-19 08:39:43,629: INFO/MainProcess] Highlighting process complete. Added 120 highlight annotations total across all pages.
+[2025-05-19 08:39:43,629: INFO/MainProcess] Adding complexity overview page to the PDF.
+[2025-05-19 08:39:43,655: INFO/MainProcess] Overview: Drawing Top X Sentences. Count: 5, Type: complex
+[2025-05-19 08:39:43,655: INFO/MainProcess] Overview: Found 28 sentences in analysis_results.
+[2025-05-19 08:39:43,655: INFO/MainProcess] Overview: Top sentences list created with 5 sentences.
+[2025-05-19 08:39:43,656: INFO/MainProcess] Overview: Drawing sentence 1
+[2025-05-19 08:39:43,678: INFO/MainProcess] Overview: Drawing sentence 2
+[2025-05-19 08:39:43,691: INFO/MainProcess] Overview: Drawing sentence 3
+[2025-05-19 08:39:43,700: INFO/MainProcess] Overview: Drawing sentence 4
+[2025-05-19 08:39:43,710: INFO/MainProcess] Overview: Drawing sentence 5
+[2025-05-19 08:39:43,720: INFO/MainProcess] Successfully drew content on the overview page.
+[2025-05-19 08:39:43,743: INFO/MainProcess] Highlighted PDF successfully saved to: /home/pepper/typecomplex/processed_pdfs/fb801459-a744-4504-88c3-d2de41bc5de2_highlighted.pdf
+[2025-05-19 08:39:43,745: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Highlighted PDF generated: fb801459-a744-4504-88c3-d2de41bc5de2_highlighted.pdf
+[2025-05-19 08:39:43,745: INFO/MainProcess] Task fb801459-a744-4504-88c3-d2de41bc5de2: Processing complete. Result: {'original_filename': '1280-1.pdf', 'highlighted_pdf_filename': 'fb801459-a744-4504-88c3-d2de41bc5de2_highlighted.pdf', 'overall_level': {'level': 3, 'description': 'Moderate', 'color_class': 'bg-yellow-500'}, 'readability_scores': {'flesch_kincaid_grade': 19.3, 'gunning_fog': 16.6, 'smog_index': 19.9}, 'num_sentences_analyzed': 28, 'num_sentences_with_coords': 28, 'processed_text_preview': 'EPDE2020/1280\n\nINTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 10-11 SEPTEMBER 2020, VIA DESIGN, VIA UNIVERSITY COLLEGE, HERNING, DENMARK\n\nA QUALITATIVE STUDY OF THE CHALLENGES FA...', 'status_message': 'PDF processed successfully.'}
+[2025-05-19 08:39:43,747: INFO/MainProcess] Task app.tasks.process_pdf_task[fb801459-a744-4504-88c3-d2de41bc5de2] succeeded in 69.66826782099997s: {'original_filename': '1280-1.pdf', 'highlighted_pdf_filename': 'fb801459-a744-4504-88c3-d2de41bc5de2_highlighted.pdf', 'overall_level': {'level': 3, 'description': 'Moderate', 'color_class': 'bg-yellow-500'}, 'readability_scores': {'flesch_kincaid_grade': 19.3, 'gunning_fog': 16.6, 'smog_index': 19.9}, 'num_sentences_analyzed': 28, 'num_sentences_with_coords': 28, 'processed_text_preview': 'EPDE2020/1280
+
+INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 10-11 SEPTEMBER 2020, VIA DESIGN, VIA UNIVERSITY COLLEGE, HERNING, DENMARK
+
+A QUALITATIVE STUDY OF THE CHALLENGES FA...', 'status_message': 'PDF processed successfully.'}

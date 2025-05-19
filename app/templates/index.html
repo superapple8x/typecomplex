@@ -36,8 +36,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
             </button>
+            <!-- Prominent Title for PDF Toolkit -->
+            <div class="pt-3 pb-1 border-b border-[var(--border-color-muted)]"> <!-- Adjusted pt to ensure it's below collapse button, added pb and border -->
+                <h2 class="text-lg font-semibold text-[var(--text-primary)] text-center">PDF Toolkit</h2>
+            </div>
+
             <!-- Content Container for better organization -->
-            <div class="flex flex-col space-y-6 pt-4">
+            <div class="flex flex-col space-y-4 pt-3"> <!-- Reduced space-y from 6 to 4, reduced pt from 4 to 3 -->
                 <!-- Upload Card with better styling -->
                 <div id="pdf-upload-card" class="sidebar-card bg-[var(--input-bg)] rounded-lg border border-[var(--border-color)] p-2">
                 <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
@@ -59,7 +64,7 @@
                           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
                         </svg>
                         <p id="pdf-filename" class="text-sm font-medium text-[var(--text-primary)] truncate">No file selected.</p>
-                        <button id="pdf-remove-btn" class="ml-auto text-[var(--text-secondary)] hover:text-[var(--accent-red)] transition-colors p-1" title="Remove PDF">
+                        <button id="pdf-remove-btn" class="ml-auto text-[var(--accent-red)] hover:opacity-75 transition-opacity p-1" title="Remove PDF">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -68,9 +73,9 @@
             </div>
 
                     <!-- Actions with improved styling -->
-                    <div id="pdf-actions-container" class="space-y-3 p-3 rounded-md">
+                    <div id="pdf-actions-container" class="space-y-4 p-3 rounded-md">
                         <!-- PDF Target Audience Selector -->
-                        <div class="mt-2 relative">
+                        <div class="relative">
                             <label for="pdf-target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience (PDF)</label>
                             <button id="pdf-target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
                                 <span id="pdf-target-audience-selected">Standard</span>
@@ -87,8 +92,8 @@
                             </div>
                         </div>
                         
-                        <!-- NEW PDF Analysis Mode Selector -->
-                        <div class="mt-2 relative">
+                        <!-- PDF Analysis Mode Selector -->
+                        <div class="relative">
                             <label for="pdf-analysis-mode-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Analysis Mode (PDF)</label>
                             <button id="pdf-analysis-mode-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
                                 <span id="pdf-analysis-mode-selected">Better Analysis</span> <!-- Default to Better -->
@@ -125,7 +130,7 @@
                         </div>
 
                         <!-- Consolidated PDF Actions: Extract Text & Analyze -->
-                        <div>
+                        <div class="pt-2">
                             <button id="text-extract-btn" class="sidebar-button w-full">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" /></svg>
                                 Extract Text
@@ -138,7 +143,7 @@
                         </div>
 
                         <!-- NEW PDF Overview Page Options -->
-                        <div class="mt-4 pt-3 border-t border-[var(--border-color)]">
+                        <div class="pt-4 mt-3 border-t border-[var(--border-color-muted)]">
                             <h4 class="text-xs font-semibold text-[var(--text-secondary)] mb-2 uppercase">PDF Overview Page Options</h4>
                             <div class="space-y-3 text-sm">
                                 <div id="overview-options-details" class="space-y-3 pl-2 border-l-2 border-[var(--border-color)] ml-2">

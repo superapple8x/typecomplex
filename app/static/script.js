@@ -974,6 +974,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     console.log('Analysis fetch aborted (analyzeAndHighlight). ID:', requestBody.analysisId);
                     // currentAnalysisData might be stale or null, itemsForHighlightingAndMap will be derived from it
                     // applyStatisticalHighlighting and updateDocumentMap will be called in the outer scope
+                    // Ensure UI reflects that analysis is now paused/idle due to abort
+                    if (!isAnalysisPaused) { // If it was running and got aborted
+                        isAnalysisPaused = true;
+                        updateAnalysisButtonState();
+                        updatePhaseIndicator('idle');
+                    }
                     return; 
                 }
                 console.error('Error fetching analysis:', error);
@@ -983,26 +989,32 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 updateReadabilityScores(null);
                 if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
                 updatePhaseIndicator('error');
-                // Map and highlights will be updated/cleared in the outer scope based on null currentAnalysisData
+                // Ensure UI reflects that analysis is now paused/idle due to error
+                isAnalysisPaused = true;
+                updateAnalysisButtonState();
             } finally {
                 const wasAborted = currentAbortController?.signal.aborted ?? false;
                 if (!wasAborted) {
                     if (!currentAnalysisData && !isOverallScoreOutOfBounds) {
-                        // Error state already set
+                        // Error state already set by catch block, which also sets isAnalysisPaused = true
                     } else if (text.trim()) {
                         updatePhaseIndicator('complete');
+                        isAnalysisPaused = true; // << SET PAUSED ON COMPLETION
+                        updateAnalysisButtonState(); // << UPDATE BUTTON
                     } else {
                         updatePhaseIndicator('idle');
+                        isAnalysisPaused = true; // << SET PAUSED (e.g. if text was cleared)
+                        updateAnalysisButtonState(); // << UPDATE BUTTON
                     }
                     currentAnalysisId = null;
                     currentAbortController = null;
                 } else {
                      console.log("analyzeAndHighlight finally: Analysis was aborted, not setting complete/idle.");
+                     // isAnalysisPaused and button state should have been handled by the AbortError catch block
                 }
             }
         }
         // If forceHighlightUpdate = true, currentAnalysisData from a previous call is used.
-        // If fetch failed, currentAnalysisData might be null.
 
         // --- Normalize the source of sentence-level data for highlighting and map ---
         // This block now runs after currentAnalysisData is settled (either new, existing, or null)
@@ -1980,37 +1992,41 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         } catch (error) {
              if (error.name === 'AbortError') {
                  console.log(`Sequential analysis fetch aborted or cancelled by backend (ID: ${analysisId}).`);
-                 // Update UI minimally to show cancellation, avoid error state
-                 updatePhaseIndicator('idle'); // Go idle after abort
-                 // Optionally clear highlights/map if desired after abort
-                 // quill.formatText(0, quill.getLength(), 'background', false, 'api');
-                 // if (documentMapContainer) documentMapContainer.innerHTML = '';
+                 updatePhaseIndicator('idle'); 
+                 if (!isAnalysisPaused) { // If it was running and got aborted
+                    isAnalysisPaused = true;
+                    updateAnalysisButtonState();
+                 }
              } else {
                  console.error('Error during sequential analysis:', error);
-                 // Handle other errors during the streaming process
                  updateComplexityMeter({level: 0, description: "Sequential analysis error"});
-                 updateReadabilityScores(null); // Reset scores
-                 // clearLlmEnhancements(); // Call REMOVED
+                 updateReadabilityScores(null); 
                  if (analysisTimeEl) analysisTimeEl.textContent = 'Error';
-                 if (documentMapContainer) documentMapContainer.innerHTML = ''; // Clear map on error
-                 updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
+                 if (documentMapContainer) documentMapContainer.innerHTML = ''; 
+                 updatePhaseIndicator('error'); 
+                 isAnalysisPaused = true; // << SET PAUSED ON ERROR
+                 updateAnalysisButtonState(); // << UPDATE BUTTON
              }
         } finally {
-            // if (complexityLoadingEl) complexityLoadingEl.classList.add('hidden'); // REMOVE old loading bar
-            isSequentialAnalysisRunning = false; // Reset flag
+            isSequentialAnalysisRunning = false; 
 
-            const wasAborted = currentAbortController?.signal.aborted ?? false; // Check if aborted
+            const wasAborted = currentAbortController?.signal.aborted ?? false; 
 
-            // Set to 'complete' only if no error/abort occurred during the *final* analysis fetch
-            if (!wasAborted && currentAnalysisData && text.trim()) { // Check if final data exists and text is present
-                 updatePhaseIndicator('complete'); // <<< SET Phase Indicator to 'complete' (Magenta) briefly
+            if (!wasAborted && currentAnalysisData && text.trim()) { 
+                 updatePhaseIndicator('complete'); 
+                 isAnalysisPaused = true; // << SET PAUSED ON COMPLETION
+                 updateAnalysisButtonState(); // << UPDATE BUTTON
             } else if (!wasAborted && !text.trim()) {
-                 updatePhaseIndicator('idle'); // Back to idle if text was cleared
+                 updatePhaseIndicator('idle'); 
+                 isAnalysisPaused = true; // << SET PAUSED (e.g. if text cleared)
+                 updateAnalysisButtonState(); // << UPDATE BUTTON
+            } else if (wasAborted && !isAnalysisPaused) {
+                 // If aborted, and it wasn't already paused by the AbortError catch block
+                 isAnalysisPaused = true;
+                 updateAnalysisButtonState();
             }
-            // Abort/Error states handled in catch block
-
-            // Clear tracking info if analysis completed naturally or was aborted
-            if (analysisId === currentAnalysisId) { // Only clear if this is the *current* analysis being tracked
+            
+            if (analysisId === currentAnalysisId) { 
                  currentAnalysisId = null;
                  currentAbortController = null;
                  console.log(`[Seq] Cleared tracking for analysis ID: ${analysisId}`);
@@ -2039,7 +2055,6 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             let insertedText = '';
             let deleteLength = 0;
 
-            // Check for significant changes (more than just one char add/delete or formatting)
             if (ops && ops.length === 1) {
                 if (ops[0].insert && ops[0].insert.length > 1) {
                     isSignificantChange = true;
@@ -2052,12 +2067,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 } else if (ops[0].delete && ops[0].delete > 1) {
                     isSignificantChange = true;
                     deleteLength = ops[0].delete;
-                } else if (ops[0].insert) { // Single character insert
-                    isSignificantChange = false; 
-                } else if (ops[0].delete) { // Single character delete
-                    isSignificantChange = false;
-                }
-            } else if (ops && ops.length > 1) { // Multiple operations often mean significant change
+                } 
+            } else if (ops && ops.length > 1) { 
                 isSignificantChange = true;
                 ops.forEach(op => {
                     if (op.insert) insertedText += op.insert;
@@ -2070,38 +2081,50 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
             }
 
-            let cancelled = false; // Flag to check if paste-delete cancelled analysis
-
-            if (isSignificantChange && lastPasteInfo && deleteLength > 0) { // Potential delete after paste
+            // --- Paste-delete detection to cancel an ONGOING analysis ---
+            if (isSignificantChange && lastPasteInfo && deleteLength > 0 && !isAnalysisPaused) { 
                 const timeDiff = Date.now() - lastPasteInfo.timestamp;
                 const lengthRatio = deleteLength / lastPasteInfo.length;
                 console.log(`Delete detected: length ${deleteLength}, time since paste: ${timeDiff}ms, paste length: ${lastPasteInfo.length}, ratio: ${lengthRatio.toFixed(2)}`);
 
                 if (timeDiff < PASTE_DELETE_THRESHOLD_MS && lengthRatio >= DELETE_MATCH_RATIO) {
-                    console.log(`%cPaste-delete detected! Cancelling analysis ID: ${currentAnalysisId}`, 'color: orange; font-weight: bold;');
-                    cancelled = true;
-                    cancelCurrentAnalysis(); // Use the consolidated cancel function
+                    console.log(`%cPaste-delete detected during active analysis! Cancelling analysis ID: ${currentAnalysisId}`, 'color: orange; font-weight: bold;');
+                    cancelCurrentAnalysis(); // This will also set isAnalysisPaused = true and update button state indirectly if analysis was running.
                 }
             }
-            lastPasteInfo = isPaste ? lastPasteInfo : null; // Reset if not a paste or if paste-delete handled
+            lastPasteInfo = isPaste ? lastPasteInfo : null;
 
-
-            // Trigger analysis on significant change if not paused and not cancelled by paste-delete
-            if (isSignificantChange && !isAnalysisPaused && !cancelled) {
+            // --- Optional: Initial analysis on significant paste when PAUSED ---
+            if (isPaste && isAnalysisPaused && insertedText.length > PASTE_LENGTH_THRESHOLD) {
+                console.log("%cSignificant paste detected while paused. Triggering initial analysis...", 'color: blueviolet');
+                isAnalysisPaused = false; // Temporarily unpause
+                updateAnalysisButtonState(); // Show it's running
+                
+                const currentText = quill.getText();
+                const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
+                // Analysis will auto-pause on completion due to changes in analyzeAndHighlight/analyzeSequentially
+                if (currentAnalysisMode === 'fast') {
+                    analyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
+                } else { 
+                    analyzeAndHighlight(false, currentAnalysisMode);
+                }
+            } 
+            // --- REMOVED: Automatic re-analysis on general significant text changes ---
+            /*
+            if (isSignificantChange && !isAnalysisPaused && !cancelled) { // 'cancelled' was for paste-delete
                 console.log(`%cSignificant text change detected (source: ${source}). Triggering analysis with mode: ${currentAnalysisMode}.`, 'color: orange');
-                const currentText = quill.getText(); // Get current text for analysis
+                const currentText = quill.getText();
                 const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
 
                 if (currentAnalysisMode === 'fast') {
                     debouncedAnalyzeSequentially(currentText, currentTargetAudience, contextEnabled, 'fast');
                 } else { // 'better' or 'best'
-                    // analyzeAndHighlight gets its text, audience, context internally.
-                    // Pass false for forceHighlightUpdate, and currentAnalysisMode for the mode.
                     debouncedAnalyzeAndHighlight(false, currentAnalysisMode);
                 }
             } else if (source === 'user' && !isSignificantChange && !isAnalysisPaused && !cancelled) {
                 // console.log("Minor text change, only updating stats.");
             }
+            */
         }
     });
 
