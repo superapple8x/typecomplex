@@ -13,9 +13,9 @@ packag
 processed_pdfs/
 uploads/
 celery_worker.log
-celery_worker.log
 dump.rdb
 dump.rdb
 .parcel-cache
 dist/
 special_keys.txt
+__pycache__/gunicorn.conf.cpython-311.pyc

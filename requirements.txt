@@ -127,3 +127,4 @@ celery
 redis
 thefuzz
 requests
+gunicorn

@@ -1,11 +1,39 @@
+from dotenv import load_dotenv # Add this line
+load_dotenv() # Add this line to load .env file
+
 import redis # Add redis import for RateLimiter
 from flask import Flask
 from flask_caching import Cache # Import Cache
 from celery import Celery, Task # Import Celery and Task
 from app.rate_limiter import RateLimiter # Import RateLimiter
+import os # Added for environment variables
+import sys # Added for stderr warning output
 
 # Initialize the Flask application
 app = Flask(__name__)
+
+# --- Production/Development Configuration ---
+# For SECRET_KEY, it's crucial to set this in your production environment.
+# For development, you can use a default, but warn if it's not set.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+if not app.config['SECRET_KEY'] and os.environ.get('FLASK_ENV', 'production').lower() == 'production': # Default to 'production' if FLASK_ENV not set
+    # In a real production setup, you might prefer to fail hard here.
+    # For now, we'll print an error and proceed with a default if it's somehow missed in prod,
+    # but the goal is that the environment variable *must* be set.
+    print("CRITICAL WARNING: SECRET_KEY is not set in a production-like environment. Please set the SECRET_KEY environment variable.", file=sys.stderr)
+    # Fallback to a clearly insecure key if not set, to avoid crashing, but this is NOT for production.
+    app.config['SECRET_KEY'] = 'ensure-this-is-overridden-in-production' 
+elif not app.config['SECRET_KEY']:
+    app.config['SECRET_KEY'] = 'dev-secret-key-for-flask-CHANGE-ME-AND-SET-VIA-ENV' 
+    print("INFO: SECRET_KEY is not set via environment variable. Using a default development key. For production, set the SECRET_KEY environment variable.", file=sys.stderr)
+
+# Set DEBUG mode from environment variable FLASK_DEBUG. Defaults to False if not set or not 'true'.
+app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+if app.config['DEBUG']:
+    print("INFO: Flask DEBUG mode is ON.", file=sys.stderr)
+else:
+    print("INFO: Flask DEBUG mode is OFF.", file=sys.stderr)
+# --- End Production/Development Configuration ---
 
 # --- Celery Configuration ---
 # Update this with your actual Redis URL if different
@@ -47,7 +75,6 @@ app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = 5 # New LLM Synonym Limit
 app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = 5 # New LLM Rewrite Limit
 
 # It's good practice to allow overriding from environment variables
-import os
 app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', app.config['RATE_LIMIT_FAST_PER_DAY']))
 app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', app.config['RATE_LIMIT_BETTER_PER_DAY']))
 app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', app.config['RATE_LIMIT_BEST_PER_DAY']))

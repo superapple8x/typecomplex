@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Remove this line
 import json
 import logging
 # Import AUDIENCE_PROFILES to get profile details
@@ -10,7 +10,7 @@ from app.analysis import AUDIENCE_PROFILES
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv() # Remove this line
 
 # --- Gemini API Configuration ---
 api_key = os.getenv("GEMINI_API_KEY")

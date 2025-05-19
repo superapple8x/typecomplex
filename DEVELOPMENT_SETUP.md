@@ -1,11 +1,12 @@
 # Development Setup
 
-This document outlines the steps required to set up and run the Sentence Complexity Analyzer project locally.
+This document outlines the steps required to set up and run the Sentence Complexity Analyzer project locally for development.
 
 ## Prerequisites
 
 *   Python 3.x installed
 *   Node.js and npm installed (for frontend dependencies and build process)
+*   Access to a Redis server (for Celery and Rate Limiting, typically running on `redis://localhost:6379/0`)
 
 ## Setup
 
@@ -23,55 +24,91 @@ This document outlines the steps required to set up and run the Sentence Complex
     ```
 
 3.  **Install Python Dependencies:**
-    Install the required Python packages, including Flask and NLTK.
+    Install the required Python packages, including Flask, Gunicorn, Celery, NLTK, and python-dotenv.
     ```bash
-    pip install -r requirements.txt # Assuming a requirements.txt exists or create one
-    # If requirements.txt doesn't exist, install manually:
-    # pip install Flask nltk
+    pip install -r requirements.txt
     ```
-    *Note: The initial setup might have installed Flask globally, but using a venv is preferred.*
 
-4.  **Download NLTK Data:**
+4.  **Set up Environment Variables (`.env` file):**
+    The application uses a `.env` file in the project root to manage configuration and secrets.
+    *   Create a file named `.env` in the root of the project (`/home/pepper/typecomplex/.env`).
+    *   Add the following necessary configurations. Generate a strong `SECRET_KEY`.
+
+    ```env
+    # Flask Core Settings
+    FLASK_ENV='development'
+    FLASK_DEBUG='true'
+    SECRET_KEY='your_strong_random_secret_key_here' # Generate one using: python -c 'import secrets; print(secrets.token_hex(32))'
+
+    # API Keys (if you use these features)
+    # GEMINI_API_KEY='your_gemini_api_key'
+    # DEEPSEEK_API_KEY='your_deepseek_api_key'
+
+    # Celery and Redis (defaults are usually fine if Redis is local)
+    # CELERY_BROKER_URL='redis://localhost:6379/0'
+    # CELERY_RESULT_BACKEND='redis://localhost:6379/0'
+    # RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+
+    # Gunicorn settings (can also be set here, or in gunicorn.conf.py, or command line)
+    # PORT='5001' # Port Gunicorn should bind to
+    # GUNICORN_WORKERS='2' # Number of workers for development
+    ```
+    **Important:** Add `.env` to your `.gitignore` file to prevent committing secrets.
+
+5.  **Download NLTK Data:**
     Run Python and download the necessary NLTK data (`punkt` for tokenization, `wordnet` and `omw-1.4` for synonyms).
-    ```python
-    import nltk
-    nltk.download('punkt')
-    nltk.download('wordnet')
-    nltk.download('omw-1.4')
-    exit()
+    ```bash
+    python -c "import nltk; nltk.download('punkt'); nltk.download('wordnet'); nltk.download('omw-1.4');"
     ```
     *(See Troubleshooting section below for potential issues with 'punkt' on some systems).*
 
-5.  **Install Frontend Dependencies:**
+6.  **Install Frontend Dependencies:**
     Install Node.js packages defined in `package.json`.
     ```bash
     npm install
     ```
 
-6.  **Build Frontend Assets:**
+7.  **Build Frontend Assets:**
     Compile the Tailwind CSS.
     ```bash
     npm run build:css
     ```
-    *(See Troubleshooting section below if this command fails).*
+    *(See Troubleshooting section below if this command fails).)*
 
 ## Running the Application
 
-1.  **Activate Virtual Environment (if not already active):**
+The application is run using the Gunicorn WSGI server.
+
+1.  **Ensure Redis Server is Running:**
+    The application uses Redis for Celery task queues and rate limiting. Make sure your Redis server is running.
+
+2.  **Activate Virtual Environment (if not already active):**
     ```bash
     source .venv/bin/activate # On Windows use: .venv\Scripts\activate
     ```
 
-2.  **Run the Flask Development Server:**
+3.  **Run the Gunicorn Server:**
+    The project includes a `gunicorn.conf.py` file that's configured to pick up environment variables (like `PORT` from your `.env` file).
     ```bash
-    flask run
+    gunicorn -c gunicorn.conf.py "app:app"
     ```
-    The application should now be accessible at `http://127.0.0.1:5000` (or the address provided by Flask).
+    Alternatively, you can run Gunicorn with specific command-line options (though the config file is preferred for consistency):
+    ```bash
+    # Example: gunicorn --workers 2 --bind 0.0.0.0:5001 "app:app"
+    ```
+    The application should now be accessible based on the Gunicorn configuration (e.g., `http://127.0.0.1:5001` if `PORT=5001` is set and Gunicorn binds to `0.0.0.0` or `127.0.0.1`). Check Gunicorn's startup messages for the exact address.
+
+    Your Flask app (`app/__init__.py`) is configured to load variables from the `.env` file, so `FLASK_DEBUG=true` and your `SECRET_KEY` will be used.
 
 ## Development Workflow
 
-*   For CSS changes, you can run `npm run watch:css` in a separate terminal to automatically rebuild `style.css` when `input.css` or related files change.
-*   Remember to activate the virtual environment (`source .venv/bin/activate`) in any new terminal session before running `flask` commands.
+*   **Backend Changes:** Gunicorn by default does not auto-reload on Python code changes like `flask run --debug` does. For development, you can run Gunicorn with the `--reload` flag:
+    ```bash
+    gunicorn --reload -c gunicorn.conf.py "app:app"
+    ```
+    This will restart workers when Python files are modified. Be aware that `--reload` is not suitable for production.
+*   **Frontend Changes:** For CSS changes, you can run `npm run watch:css` in a separate terminal to automatically rebuild `style.css` when `input.css` or related files change.
+*   Remember to activate the virtual environment (`source .venv/bin/activate`) in any new terminal session before running `gunicorn` or Python commands.
 
 ## Troubleshooting / Environment Notes
 
@@ -94,7 +131,7 @@ This ensures that the dependencies are installed correctly for the current envir
 
 ### NLTK 'punkt' Tokenizer Issues (Ubuntu/WSL)
 
-On some systems (observed on Ubuntu 24 within WSL), the application might fail to load the NLTK 'punkt' tokenizer even after `nltk.download('punkt')` reports success. This can manifest as errors mentioning `punkt_tab` not found during application startup (`flask run`).
+On some systems (observed on Ubuntu 24 within WSL), the application might fail to load the NLTK 'punkt' tokenizer even after `nltk.download('punkt')` reports success. This can manifest as errors mentioning `punkt_tab` not found during application startup.
 
 **Solution:** Explicitly download the `punkt_tab` resource using the NLTK downloader:
 ```bash
