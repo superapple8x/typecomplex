@@ -43,7 +43,8 @@ class RateLimiter:
         limit_for_mode = limits.get(analysis_mode)
 
         if limit_for_mode is None:
-            # This mode is not configured for rate limiting (e.g., might be a typo or new unconfigured mode)
+            # This mode is not configured for rate limiting (e.g., not 'better' or 'best')
+            # Depending on policy, you could allow or deny. Allowing seems safer.
             current_app.logger.warn(f"RateLimiter: No limit explicitly configured for analysis mode '{analysis_mode}'. Allowing request from {ip_address}.")
             return True # Default to allow if mode is unknown to prevent accidental blocking
 
@@ -51,11 +52,11 @@ class RateLimiter:
         key = f"ratelimit:{ip_address}:{analysis_mode}:{today_iso}"
 
         try:
-            current_count = self.redis_client.get(key)
-            if current_count is None:
+            current_count_val = self.redis_client.get(key)
+            if current_count_val is None:
                 current_count = 0
             else:
-                current_count = int(current_count)
+                current_count = int(current_count_val)
 
             if current_count >= limit_for_mode:
                 current_app.logger.info(f"Rate limit exceeded for {ip_address} on mode '{analysis_mode}'. Count: {current_count}, Limit: {limit_for_mode}")
@@ -80,6 +81,31 @@ class RateLimiter:
         except Exception as e:
             current_app.logger.error(f"RateLimiter: Error during rate limit check: {e}. Allowing request as a fallback.")
             return True # Fallback for other unexpected errors
+
+    def get_current_usage(self, ip_address: str) -> dict:
+        """
+        Gets the current usage counts for all rate-limited modes for a given IP.
+        Returns a dictionary like {'fast': count, 'better': count, 'best': count}.
+        """
+        usage = {}
+        today_iso = datetime.date.today().isoformat()
+        configured_limits = self.get_limits() # To know which modes to check
+
+        for mode in configured_limits.keys():
+            key = f"ratelimit:{ip_address}:{mode}:{today_iso}"
+            try:
+                count_val = self.redis_client.get(key)
+                if count_val is None:
+                    usage[mode] = 0
+                else:
+                    usage[mode] = int(count_val)
+            except redis.exceptions.ConnectionError as e:
+                current_app.logger.error(f"RateLimiter: Redis connection error in get_current_usage for {mode}: {e}. Returning 0 for this mode.")
+                usage[mode] = 0 # Assume 0 usage if Redis fails for a key
+            except Exception as e:
+                current_app.logger.error(f"RateLimiter: Error in get_current_usage for {mode}: {e}. Returning 0 for this mode.")
+                usage[mode] = 0
+        return usage
 
 # Global instance (optional, can be managed by Flask app factory)
 # rate_limiter_instance = RateLimiter() 

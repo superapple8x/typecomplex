@@ -545,11 +545,24 @@ def test_celery_add(a, b):
 # --- NEW: API Endpoint for Rate Limits ---
 @app.route('/api/get_rate_limits', methods=['GET'])
 def get_rate_limits_config():
-    """Returns the configured rate limits."""
-    limits = {
+    """Returns the configured rate limits and current remaining counts for the user."""
+    client_ip = request.remote_addr
+    total_limits = {
         'fast': current_app.config.get('RATE_LIMIT_FAST_PER_DAY', 10),
         'better': current_app.config.get('RATE_LIMIT_BETTER_PER_DAY', 5),
         'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2)
     }
-    return jsonify(limits)
+    
+    current_usage = rate_limiter.get_current_usage(client_ip)
+    
+    remaining_counts = {}
+    for mode, total in total_limits.items():
+        remaining_counts[mode] = total - current_usage.get(mode, 0)
+        if remaining_counts[mode] < 0:
+            remaining_counts[mode] = 0 # Ensure it doesn't go negative
+            
+    return jsonify({
+        'total_limits': total_limits,
+        'remaining_counts': remaining_counts
+    })
 # --- END NEW API Endpoint ---

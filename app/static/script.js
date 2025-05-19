@@ -21,8 +21,8 @@ function debounce(func, wait) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Global variable to store rate limits ---
-    let currentRateLimits = {};
+    // --- Global variables to store rate limits ---
+    let currentRateLimitInfo = { total_limits: {}, remaining_counts: {} }; // Store both
 
     // --- Function to fetch and apply rate limits ---
     async function fetchAndApplyRateLimits() {
@@ -30,42 +30,62 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/get_rate_limits');
             if (!response.ok) {
                 console.error('Failed to fetch rate limits:', response.status);
+                // Potentially set a default or error state for limits
+                currentRateLimitInfo = { 
+                    total_limits: {fast: 10, better: 5, best: 2}, // Fallback totals
+                    remaining_counts: {fast: 0, better: 0, best: 0} // Assume 0 remaining on error
+                };
                 return;
             }
-            currentRateLimits = await response.json();
-            console.log('Fetched rate limits:', currentRateLimits);
+            currentRateLimitInfo = await response.json();
+            console.log('Fetched rate limit info:', currentRateLimitInfo);
             updateAnalysisModeOptionText();
             updatePdfAnalysisModeOptionText();
         } catch (error) {
             console.error('Error fetching rate limits:', error);
+            currentRateLimitInfo = { 
+                total_limits: {fast: 10, better: 5, best: 2}, // Fallback totals
+                remaining_counts: {fast: 0, better: 0, best: 0} // Assume 0 remaining on error
+            };
         }
     }
 
     // --- Function to update text for main analysis mode options ---
     function updateAnalysisModeOptionText() {
-        const analysisModeOptionElements = document.querySelectorAll('#analysis-options-menu .analysis-mode-option'); // Target specific menu
+        const analysisModeOptionElements = document.querySelectorAll('#analysis-options-menu .analysis-mode-option');
         analysisModeOptionElements.forEach(option => {
-            const mode = option.dataset.mode; // Assuming options have data-mode="fast/better/best"
-            if (mode && currentRateLimits[mode] !== undefined) {
-                const originalText = option.textContent.replace(/\s*\(.*\)/, ''); // Remove existing limit text if any
-                option.textContent = `${originalText} (${currentRateLimits[mode]}/day)`;
+            const mode = option.dataset.mode;
+            if (mode && currentRateLimitInfo.total_limits[mode] !== undefined && currentRateLimitInfo.remaining_counts[mode] !== undefined) {
+                const total = currentRateLimitInfo.total_limits[mode];
+                const remaining = currentRateLimitInfo.remaining_counts[mode];
+                const originalText = option.textContent.replace(/\s*\(.*\)/, '').replace(/Remaining:/gi, '').trim();
+                option.textContent = `${originalText} (${remaining}/${total} remaining)`;
+                
+                option.classList.remove('text-red-500', 'font-semibold'); // Clear previous styling
+                if (remaining <= 0) {
+                    option.classList.add('text-red-500', 'font-semibold');
+                }
             }
         });
     }
 
     // --- Function to update text for PDF analysis mode options ---
     function updatePdfAnalysisModeOptionText() {
-        const pdfModeOptionElements = document.querySelectorAll('#pdf-analysis-mode-options a'); // Links inside the PDF options dropdown
+        const pdfModeOptionElements = document.querySelectorAll('#pdf-analysis-mode-options a');
         pdfModeOptionElements.forEach(optionLink => {
-            const mode = optionLink.dataset.value; // PDF options use data-value
-            if (mode && currentRateLimits[mode] !== undefined) {
-                // The text content might be just the mode name e.g. "Best"
-                // Or it might already have " Analysis" appended. We need to be careful.
+            const mode = optionLink.dataset.value;
+            if (mode && currentRateLimitInfo.total_limits[mode] !== undefined && currentRateLimitInfo.remaining_counts[mode] !== undefined) {
+                const total = currentRateLimitInfo.total_limits[mode];
+                const remaining = currentRateLimitInfo.remaining_counts[mode];
                 let modeText = optionLink.textContent.trim();
-                // Remove any existing count like (X/day)
-                modeText = modeText.replace(/\s*\(\d+\/day\)/, '');
+                modeText = modeText.replace(/\s*\(\d+\/\d+\s*remaining\)/i, '').replace(/\s*\(\d+\/day\)/i, '').trim(); // Clear old formats
                 
-                optionLink.textContent = `${modeText} (${currentRateLimits[mode]}/day)`;
+                optionLink.textContent = `${modeText} (${remaining}/${total} remaining)`;
+                
+                optionLink.classList.remove('text-red-500', 'font-semibold'); // Clear previous styling
+                if (remaining <= 0) {
+                    optionLink.classList.add('text-red-500', 'font-semibold');
+                }
             }
         });
     }
@@ -918,12 +938,19 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
                 if (!response.ok) {
                     let errorMsg = `HTTP error! status: ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                    } catch (e) { /* Ignore parsing error */ }
-                    throw new Error(errorMsg);
+                    // If it's a 429 (Rate Limit Exceeded), the message is already specific
+                    // Otherwise, try to parse JSON error from backend
+                    if (response.status !== 429) {
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.error || errorMsg;
+                        } catch (e) { /* Ignore parsing error */ }
+                    }
+                    throw new Error(errorMsg); // Will be caught below
                 }
+
+                // If successful analysis (not 429), refresh rate limits
+                fetchAndApplyRateLimits(); 
 
                 const data = await response.json();
                 currentAnalysisData = data; // Store the FULL response
@@ -1849,47 +1876,50 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                      throw new DOMException('Aborted by user', 'AbortError');
                 }
 
-                // Call the original /analyze endpoint to get overall scores and readability
-                // Use the *same* analysisId and signal, AND the mode *originally passed to analyzeSequentially*
-                // Correction: Use the effectiveMode that was determined at the start of analyzeSequentially for consistency
-                // Construct a clean request body for the final analysis call
                 const finalRequestBody = {
-                    text: text, // The full original text
-                    target_audience: audience, // The original target audience
-                    context_awareness_enabled: contextAwarenessEnabled, // Original context setting
-                    analysisId: analysisId, // The ongoing analysis ID
-                    mode: effectiveMode // The effective mode for this analysis run
+                    text: text, 
+                    target_audience: audience, 
+                    context_awareness_enabled: contextAwarenessEnabled, 
+                    analysisId: analysisId, 
+                    mode: effectiveMode 
                 };
                 console.log(`[Seq] Sending final /analyze request (ID: ${analysisId}, mode: ${effectiveMode}):`, finalRequestBody);
                 const finalAnalysisResponse = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(finalRequestBody), // Send body *with* mode
-                    signal: signal // Pass same abort signal
+                    body: JSON.stringify(finalRequestBody), 
+                    signal: signal 
                 });
 
-                // After fetching, transition to processing state
-                updatePhaseIndicator('processing_overall'); // <<< SET Phase Indicator to 'processing_overall' (Magenta)
+                updatePhaseIndicator('processing_overall');
 
                 if (!finalAnalysisResponse.ok) {
-                     // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
-                      updatePhaseIndicator('error'); // <<< SET Phase Indicator to 'error' (Red)
+                      updatePhaseIndicator('error'); 
                       let errorMsg = `HTTP error! status: ${finalAnalysisResponse.status} during final analysis.`;
-                      try {
-                         const errorData = await finalAnalysisResponse.json();
-                        errorMsg = errorData.error || errorMsg;
-                     } catch (e) { /* Ignore parsing error */ }
+                      // If 429, message from backend is already specific in error.error
+                      if (finalAnalysisResponse.status !== 429) {
+                        try {
+                           const errorData = await finalAnalysisResponse.json();
+                          errorMsg = errorData.error || errorMsg;
+                       } catch (e) { /* Ignore parsing error */ }
+                      }
                      console.error('Error fetching final analysis:', errorMsg);
-                     // Update UI to show error for overall scores
                      updateComplexityMeter({level: 0, description: "Final analysis error"});
-                     updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores}); // Keep target scores if available
+                     updateReadabilityScores({readability_scores: null, target_readability_scores: currentAnalysisData?.target_readability_scores});
+                     // Refresh limits even on error, in case a slot was consumed before error (e.g. backend logic error after rate check)
+                     // However, 429 specifically means no slot was consumed by *this* request.
+                     if (finalAnalysisResponse.status !== 429) {
+                        fetchAndApplyRateLimits();
+                     }
 
              } else {
                     const finalAnalysisData = await finalAnalysisResponse.json();
-                    // if (analysisLoadingIndicator) analysisLoadingIndicator.classList.add('hidden'); // REMOVE old spinner
-                    // Phase indicator will be set to 'complete' in the finally block
+                    
+                    // ADDED: Refresh rate limits after successful final /analyze call in sequential
+                    if (finalAnalysisResponse.status !== 429) { // Should not be 429 if response.ok was true
+                        fetchAndApplyRateLimits();
+                    }
 
-                    // --- Check if final analysis was cancelled by backend ---
                     if (finalAnalysisData?.overall_level?.description === "Analysis cancelled") {
                          console.log(`[Seq] Final /analyze call returned cancelled status (ID: ${analysisId}).`);
                          // Update UI to reflect cancellation
@@ -2756,7 +2786,12 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 }
                 pollTaskStatus(result.task_id, actionType); // Start polling for this specific action
             } else {
-                throw new Error(result.error || `Failed to start ${actionType}`);
+                // If the error is 429, the backend might send it. Otherwise, general error.
+                if (response.status === 429 && result.error) {
+                     updatePdfStatus(result.error, 'error', actionType);
+                } else {
+                    throw new Error(result.error || `Failed to start ${actionType}`);
+                }
             }
         } catch (error) {
             console.error(`Error during ${actionType}:`, error);
