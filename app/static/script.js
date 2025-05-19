@@ -3034,6 +3034,43 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     // Function to update the main analysis button based on selected mode (optional enhancement)
     // function updateAnalysisButtonAppearance() { ... }
 
-}); // End DOMContentLoaded
+    const SCREEN_SIZE_THRESHOLD = 1024; // pixels, Tailwind lg breakpoint
+    const screenSizeWarning = document.getElementById('screen-size-warning');
+    
+    const appHeader = document.querySelector('header'); 
+    const mainContentRow = document.querySelector('.main-content-row'); 
+    const appFooter = document.getElementById('status-bar');
+
+    if (!screenSizeWarning || !appHeader || !mainContentRow || !appFooter) {
+        console.warn('Screen size warning or main app elements not found. Responsive warning may not work correctly.');
+        return;
+    }
+
+    let resizeTimeout;
+    function handleScreenSizeCheck() {
+        if (window.innerWidth < SCREEN_SIZE_THRESHOLD) {
+            screenSizeWarning.classList.remove('hidden');
+            appHeader.classList.add('hidden');
+            mainContentRow.classList.add('hidden');
+            appFooter.classList.add('hidden');
+        } else {
+            screenSizeWarning.classList.add('hidden');
+            appHeader.classList.remove('hidden');
+            mainContentRow.classList.remove('hidden');
+            appFooter.classList.remove('hidden');
+        }
+    }
+
+    function debouncedCheck() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleScreenSizeCheck, 250); // Debounce for 250ms
+    }
+
+    // Initial check
+    handleScreenSizeCheck();
+
+    // Check on resize
+    window.addEventListener('resize', debouncedCheck);
+});
 
 

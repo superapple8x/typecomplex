@@ -18,6 +18,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='custom-layout-fixes.css') }}">
 </head>
 <body class="flex flex-col min-h-screen scroll-smooth">
+    <!-- Screen Size Warning Overlay -->
+    <div id="screen-size-warning" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 text-white flex flex-col items-center justify-center p-8 z-[9999]">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-6 text-blue-500">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5.052 14.03a2.25 2.25 0 01-1.591.659H1.5M9.75 3.104A2.25 2.25 0 007.5 1.5h-3A2.25 2.25 0 002.25 3.75v15A2.25 2.25 0 004.5 21h15a2.25 2.25 0 002.25-2.25V3.75A2.25 2.25 0 0019.5 1.5h-3a2.25 2.25 0 00-2.25 1.604m-7.5 0S9.06 3 9.75 3m0 0V1.5M3 9.75l6.75-3.375M3 14.25l6.75 3.375m0 0V21m-6.75-6.75v-5.714m0 0a2.25 2.25 0 01.659-1.591L5.052 5.97a2.25 2.25 0 011.591-.659H9.75m4.508 9.032l1.061-1.061A2.25 2.25 0 0116.5 15.75h1.5m-2.625 2.625l1.06-1.06A2.25 2.25 0 0016.5 15.75h1.5M18 9.75l-6.75 3.375m0 0V1.5m6.75 8.25v5.714m0 0a2.25 2.25 0 01-.659 1.591L14.948 20.03a2.25 2.25 0 01-1.591.659h-1.806" />
+        </svg>
+        <h2 class="text-3xl font-semibold mb-4 text-center">Screen Size Too Small</h2>
+        <p class="text-lg text-gray-300 text-center max-w-md">
+            For the best experience with the Sentence Complexity Analyzer, please use a desktop computer or a larger screen display.
+        </p>
+    </div>
     <!-- Enhanced Header -->
     <header class="bg-[var(--sidebar-bg)] py-4 px-4 shadow-md">
         <div class="container mx-auto flex justify-between items-center">
