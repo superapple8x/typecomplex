@@ -1,7 +1,8 @@
-      
+import redis # Add redis import for RateLimiter
 from flask import Flask
 from flask_caching import Cache # Import Cache
 from celery import Celery, Task # Import Celery and Task
+from app.rate_limiter import RateLimiter # Import RateLimiter
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -35,6 +36,26 @@ app.config.update(
 )
 celery = make_celery(app)
 # --- End Celery Configuration ---
+
+# --- Rate Limiter Configuration ---
+# Use the same Redis as Celery for simplicity, or define a new one.
+app.config['RATE_LIMITER_REDIS_URL'] = app.config['CELERY_BROKER_URL'] 
+app.config['RATE_LIMIT_FAST_PER_DAY'] = 10  # New limit for Fast
+app.config['RATE_LIMIT_BETTER_PER_DAY'] = 5 # Updated limit for Better
+app.config['RATE_LIMIT_BEST_PER_DAY'] = 2   # Updated limit for Best
+
+# It's good practice to allow overriding from environment variables
+import os
+app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', app.config['RATE_LIMIT_FAST_PER_DAY']))
+app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', app.config['RATE_LIMIT_BETTER_PER_DAY']))
+app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', app.config['RATE_LIMIT_BEST_PER_DAY']))
+
+# Initialize RateLimiter
+# We can initialize it directly here, or use Flask's extension pattern if it gets more complex.
+# For now, direct instantiation is fine. It will use current_app.config.
+# The RateLimiter class itself will create the redis client using the URL from app.config
+rate_limiter = RateLimiter()
+# --- End Rate Limiter Configuration ---
 
 
 # Configure cache

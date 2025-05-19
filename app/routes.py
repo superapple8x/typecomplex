@@ -1,6 +1,6 @@
 import logging # Add logging
 from flask import render_template, request, jsonify, Response, send_from_directory, current_app # Import Response, send_from_directory, current_app
-from app import app, celery # Import celery
+from app import app, celery, rate_limiter # Import celery AND rate_limiter
 # Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model # UPDATED: Removed nlp, Added get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
@@ -66,6 +66,13 @@ def analyze_text():
     context_awareness_enabled = data.get('context_awareness_enabled', False) # Keep the toggle state
     analysis_id = data.get('analysisId') # <<< Get analysisId from request
     mode = data.get('mode', 'better') # <<< NEW: Get mode, default to 'better'
+
+    # --- Rate Limiting Check ---
+    client_ip = request.remote_addr
+    if not rate_limiter.check_and_update_limit(client_ip, mode):
+        logging.warning(f"Rate limit exceeded for IP: {client_ip}, Mode: {mode} on /analyze route.")
+        return jsonify({"error": f"Rate limit exceeded for {mode} analysis. Please try again later."}), 429
+    # --- End Rate Limiting Check ---
 
     logging.info(f"Received analysis request (ID: {analysis_id}). Mode: {mode}, Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}") # Added mode to log
 
@@ -330,62 +337,72 @@ def rewrite_suggestion():
 
 @app.route('/upload_pdf', methods=['POST'])
 def upload_pdf_file():
-    if 'pdf-file' not in request.files:
-        return jsonify({"error": "No PDF file part"}), 400
-    file = request.files['pdf-file']
+    """Handles PDF file uploads, saves it, and triggers Celery task for processing."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No PDF selected"}), 400
+        return jsonify({"error": "No selected file"}), 400
+
+    # Get other parameters from form data
+    action = request.form.get('action', 'full_analysis')
+    target_audience = request.form.get('target_audience', 'Standard')
+    analysis_mode_pdf = request.form.get('analysis_mode', 'best') # Get analysis_mode for PDF
+    # Parameters for overview page generation
+    include_overview_page_str = request.form.get('include_overview_page', 'true').lower()
+    include_overview_page = include_overview_page_str == 'true'
+    overview_top_x_count = int(request.form.get('overview_top_x_count', 5))
+    overview_top_x_type = request.form.get('overview_top_x_type', 'complex')
+    overview_show_visual_map_str = request.form.get('overview_show_visual_map', 'true').lower()
+    overview_show_visual_map = overview_show_visual_map_str == 'true'
+
 
     if file and allowed_file(file.filename):
-        original_filename = secure_filename(file.filename)
-        # Generate a unique filename for storing to avoid conflicts
-        unique_suffix = str(uuid.uuid4())
-        temp_filename = f"{unique_suffix}_{original_filename}"
+        filename = secure_filename(file.filename)
+        # Generate a unique ID for the file to avoid conflicts and for tracking
+        unique_id = str(uuid.uuid4())
+        temp_filename = f"{unique_id}_{filename}" # Prepend unique_id to original filename
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
-        file.save(file_path)
-        app.logger.info(f"PDF '{original_filename}' uploaded and saved to {file_path}")
-
-        # Get additional parameters from the form
-        target_audience = request.form.get('target_audience', 'Standard')
-        action = request.form.get('action', 'full_analysis') # e.g., 'extract_text' or 'full_analysis'
-        analysis_mode = request.form.get('analysis_mode', 'better') # NEW: Get analysis mode, default to 'better'
-
-        # Get PDF overview parameters from form data
-        include_overview_page_str = request.form.get('include_overview_page', 'true').lower()
-        include_overview_page = include_overview_page_str == 'true'
         
-        overview_top_x_count_str = request.form.get('overview_top_x_count', '5')
         try:
-            overview_top_x_count = int(overview_top_x_count_str)
-        except ValueError:
-            overview_top_x_count = 5 # Default if conversion fails
+            file.save(file_path)
+            app.logger.info(f"File '{filename}' (temp: '{temp_filename}') saved to '{file_path}'")
 
-        overview_top_x_type = request.form.get('overview_top_x_type', 'complex')
-        if overview_top_x_type not in ['complex', 'simple']:
-            overview_top_x_type = 'complex' # Default
+            # --- Rate Limiting Check for PDF analysis ---
+            # PDF analysis rate limiting is handled by the task itself if it's 'better' or 'best'
+            # However, if we want to prevent even queuing the task, we can check here.
+            # For now, let's assume the task will handle it, but we need to pass the IP.
+            client_ip = request.remote_addr
+            # If the chosen mode for PDF is 'fast', it won't be rate-limited.
+            # If it's 'better' or 'best', the task will check.
 
-        overview_show_visual_map_str = request.form.get('overview_show_visual_map', 'true').lower()
-        overview_show_visual_map = overview_show_visual_map_str == 'true'
+            # Trigger Celery task for PDF processing
+            task = process_pdf_task.delay(
+                file_path=file_path, 
+                original_filename=filename, # Pass original filename for user reference
+                action=action,
+                target_audience=target_audience,
+                include_overview_page=include_overview_page,
+                overview_top_x_count=overview_top_x_count,
+                overview_top_x_type=overview_top_x_type,
+                overview_show_visual_map=overview_show_visual_map,
+                analysis_mode=analysis_mode_pdf, # Pass the mode for PDF analysis
+                client_ip_address=client_ip # <<< PASS CLIENT IP TO TASK
+            )
+            app.logger.info(f"Celery task '{task.id}' created for PDF: {filename} with mode: {analysis_mode_pdf} from IP: {client_ip}")
 
-        app.logger.info(f"Enqueuing PDF processing task for '{original_filename}'. Action: {action}, Target Audience: {target_audience}, Analysis Mode: {analysis_mode}, Overview Page: {include_overview_page}, Top X: {overview_top_x_count} ({overview_top_x_type}), Show Map: {overview_show_visual_map}")
+            return jsonify({
+                "message": "File uploaded successfully, processing started.", 
+                "task_id": task.id, 
+                "original_filename": filename,
+                "upload_id": unique_id # Return unique_id if client wants to track by it
+            }), 202
 
-        # Enqueue the Celery task
-        task = process_pdf_task.delay(
-            file_path, 
-            original_filename, 
-            action=action, 
-            target_audience=target_audience,
-            analysis_mode=analysis_mode, # NEW: Pass analysis mode to task
-            include_overview_page=include_overview_page,
-            overview_top_x_count=overview_top_x_count,
-            overview_top_x_type=overview_top_x_type,
-            overview_show_visual_map=overview_show_visual_map
-        )
-        app.logger.info(f"Task {task.id} for '{original_filename}' enqueued.")
-
-        return jsonify({"message": "PDF uploaded successfully, processing started.", "task_id": task.id, "filename": original_filename}), 202
+        except Exception as e:
+            app.logger.error(f"Error during PDF upload or task creation for {filename}: {e}", exc_info=True)
+            return jsonify({"error": f"Could not process file: {str(e)}"}), 500
     else:
-        return jsonify({"error": "Invalid file type, only PDF allowed"}), 400
+        return jsonify({"error": "File type not allowed"}), 400
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def get_task_status(task_id):
@@ -524,3 +541,15 @@ def test_celery_add(a, b):
     except Exception as e:
         app.logger.error(f"Error dispatching 'add' task: {e}", exc_info=True)
         return jsonify({"error": f"Server error during 'add' task dispatch: {str(e)}"}), 500
+
+# --- NEW: API Endpoint for Rate Limits ---
+@app.route('/api/get_rate_limits', methods=['GET'])
+def get_rate_limits_config():
+    """Returns the configured rate limits."""
+    limits = {
+        'fast': current_app.config.get('RATE_LIMIT_FAST_PER_DAY', 10),
+        'better': current_app.config.get('RATE_LIMIT_BETTER_PER_DAY', 5),
+        'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2)
+    }
+    return jsonify(limits)
+# --- END NEW API Endpoint ---

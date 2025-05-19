@@ -21,6 +21,58 @@ function debounce(func, wait) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Global variable to store rate limits ---
+    let currentRateLimits = {};
+
+    // --- Function to fetch and apply rate limits ---
+    async function fetchAndApplyRateLimits() {
+        try {
+            const response = await fetch('/api/get_rate_limits');
+            if (!response.ok) {
+                console.error('Failed to fetch rate limits:', response.status);
+                return;
+            }
+            currentRateLimits = await response.json();
+            console.log('Fetched rate limits:', currentRateLimits);
+            updateAnalysisModeOptionText();
+            updatePdfAnalysisModeOptionText();
+        } catch (error) {
+            console.error('Error fetching rate limits:', error);
+        }
+    }
+
+    // --- Function to update text for main analysis mode options ---
+    function updateAnalysisModeOptionText() {
+        const analysisModeOptionElements = document.querySelectorAll('#analysis-options-menu .analysis-mode-option'); // Target specific menu
+        analysisModeOptionElements.forEach(option => {
+            const mode = option.dataset.mode; // Assuming options have data-mode="fast/better/best"
+            if (mode && currentRateLimits[mode] !== undefined) {
+                const originalText = option.textContent.replace(/\s*\(.*\)/, ''); // Remove existing limit text if any
+                option.textContent = `${originalText} (${currentRateLimits[mode]}/day)`;
+            }
+        });
+    }
+
+    // --- Function to update text for PDF analysis mode options ---
+    function updatePdfAnalysisModeOptionText() {
+        const pdfModeOptionElements = document.querySelectorAll('#pdf-analysis-mode-options a'); // Links inside the PDF options dropdown
+        pdfModeOptionElements.forEach(optionLink => {
+            const mode = optionLink.dataset.value; // PDF options use data-value
+            if (mode && currentRateLimits[mode] !== undefined) {
+                // The text content might be just the mode name e.g. "Best"
+                // Or it might already have " Analysis" appended. We need to be careful.
+                let modeText = optionLink.textContent.trim();
+                // Remove any existing count like (X/day)
+                modeText = modeText.replace(/\s*\(\d+\/day\)/, '');
+                
+                optionLink.textContent = `${modeText} (${currentRateLimits[mode]}/day)`;
+            }
+        });
+    }
+
+    // Call fetchAndApplyRateLimits when DOM is loaded
+    fetchAndApplyRateLimits();
+
     // --- DOM References ---
     const editorContainer = document.getElementById('editor-container');
     const wordCountEl = document.getElementById('word-count');
@@ -2657,7 +2709,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }
 
         const formData = new FormData();
-        formData.append('pdf-file', currentPdfFile);
+        formData.append('file', currentPdfFile); // <<< CHANGED 'pdf-file' to 'file'
         formData.append('action', actionType);
         // Get target audience for PDF from the UI
         const selectedPdfAudience = pdfTargetAudienceSelected.dataset.value || 'Standard';
