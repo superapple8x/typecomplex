@@ -20,7 +20,9 @@ class RateLimiter:
         return {
             'fast': current_app.config.get('RATE_LIMIT_FAST_PER_DAY', 10),
             'better': current_app.config.get('RATE_LIMIT_BETTER_PER_DAY', 5),
-            'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2)
+            'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2),
+            'llm_synonym': current_app.config.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', 5),
+            'llm_rewrite': current_app.config.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', 5)
         }
 
     def check_and_update_limit(self, ip_address: str, analysis_mode: str) -> bool:
@@ -106,6 +108,48 @@ class RateLimiter:
                 current_app.logger.error(f"RateLimiter: Error in get_current_usage for {mode}: {e}. Returning 0 for this mode.")
                 usage[mode] = 0
         return usage
+
+    def reset_limits_for_ip(self, ip_address: str) -> bool:
+        """
+        Resets all rate limits for a given IP address for the current day.
+
+        Args:
+            ip_address (str): The IP address for which to reset limits.
+
+        Returns:
+            bool: True if keys were found and attempted to be deleted, False otherwise.
+        """
+        today_iso = datetime.date.today().isoformat()
+        # Pattern to match all rate limit keys for the IP for today
+        # Covers all modes: fast, better, best, llm_synonym, llm_rewrite, etc.
+        key_pattern = f"ratelimit:{ip_address}:*:{today_iso}"
+        
+        keys_to_delete = []
+        try:
+            # Ensure redis_client is available
+            if not hasattr(self, 'redis_client') or self.redis_client is None:
+                current_app.logger.error("RateLimiter: Redis client not available for reset_limits_for_ip.")
+                return False
+
+            # Fetch all keys matching the pattern
+            # Note: SCAN is generally preferred over KEYS in production for large datasets
+            # to avoid blocking, but for a limited number of rate limit keys, KEYS might be acceptable.
+            # If performance becomes an issue, consider implementing SCAN.
+            keys_to_delete = self.redis_client.keys(key_pattern)
+            
+            if keys_to_delete:
+                num_deleted = self.redis_client.delete(*keys_to_delete)
+                current_app.logger.info(f"RateLimiter: Reset {num_deleted} rate limit entries for IP {ip_address} using pattern {key_pattern}. Keys deleted: {keys_to_delete}")
+                return True
+            else:
+                current_app.logger.info(f"RateLimiter: No rate limit entries found to reset for IP {ip_address} with pattern {key_pattern}.")
+                return False
+        except redis.exceptions.ConnectionError as e:
+            current_app.logger.error(f"RateLimiter: Redis connection error during limit reset for IP {ip_address}: {e}")
+            return False
+        except Exception as e:
+            current_app.logger.error(f"RateLimiter: Error during limit reset for IP {ip_address}: {e}")
+            return False
 
 # Global instance (optional, can be managed by Flask app factory)
 # rate_limiter_instance = RateLimiter() 

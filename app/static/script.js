@@ -22,7 +22,10 @@ function debounce(func, wait) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Global variables to store rate limits ---
-    let currentRateLimitInfo = { total_limits: {}, remaining_counts: {} }; // Store both
+    let currentRateLimitInfo = { 
+        total_limits: {fast: 10, better: 5, best: 2, llm_synonym: 5, llm_rewrite: 5 }, // Add new defaults
+        remaining_counts: {fast: 0, better: 0, best: 0, llm_synonym: 0, llm_rewrite: 0 } // Add new defaults
+    }; 
 
     // --- Function to fetch and apply rate limits ---
     async function fetchAndApplyRateLimits() {
@@ -30,23 +33,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/get_rate_limits');
             if (!response.ok) {
                 console.error('Failed to fetch rate limits:', response.status);
-                // Potentially set a default or error state for limits
+                // Fallback to defaults on error
                 currentRateLimitInfo = { 
-                    total_limits: {fast: 10, better: 5, best: 2}, // Fallback totals
-                    remaining_counts: {fast: 0, better: 0, best: 0} // Assume 0 remaining on error
+                    total_limits: {fast: 10, better: 5, best: 2, llm_synonym: 5, llm_rewrite: 5},
+                    remaining_counts: {fast: 0, better: 0, best: 0, llm_synonym: 0, llm_rewrite: 0}
                 };
+                // Still try to update UI with these potentially zeroed-out fallbacks
+                updateAnalysisModeOptionText();
+                updatePdfAnalysisModeOptionText();
+                updateSynonymTooltipRateLimitDisplay(); // Call new function
+                updateRewriteButtonRateLimitDisplay(); // Call new function
                 return;
             }
             currentRateLimitInfo = await response.json();
             console.log('Fetched rate limit info:', currentRateLimitInfo);
             updateAnalysisModeOptionText();
             updatePdfAnalysisModeOptionText();
+            updateSynonymTooltipRateLimitDisplay(); // Call new function
+            updateRewriteButtonRateLimitDisplay(); // Call new function
         } catch (error) {
             console.error('Error fetching rate limits:', error);
             currentRateLimitInfo = { 
-                total_limits: {fast: 10, better: 5, best: 2}, // Fallback totals
-                remaining_counts: {fast: 0, better: 0, best: 0} // Assume 0 remaining on error
+                total_limits: {fast: 10, better: 5, best: 2, llm_synonym: 5, llm_rewrite: 5},
+                remaining_counts: {fast: 0, better: 0, best: 0, llm_synonym: 0, llm_rewrite: 0}
             };
+            // Attempt to update UI even with fallbacks
+            updateAnalysisModeOptionText();
+            updatePdfAnalysisModeOptionText();
+            updateSynonymTooltipRateLimitDisplay(); 
+            updateRewriteButtonRateLimitDisplay(); 
         }
     }
 
@@ -88,6 +103,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+    }
+
+    // --- NEW: Function to update Synonym Tooltip with rate limit info ---
+    function updateSynonymTooltipRateLimitDisplay() {
+        // This is tricky because the synonym tooltip content is built dynamically.
+        // We will add a placeholder in the synonym tooltip's HTML structure 
+        // if contextual suggestions are enabled and then update it here.
+        // For now, let's log it. We might need to adjust showSynonymTooltip.
+        if (currentRateLimitInfo.total_limits.llm_synonym !== undefined) {
+            const total = currentRateLimitInfo.total_limits.llm_synonym;
+            const remaining = currentRateLimitInfo.remaining_counts.llm_synonym;
+            console.log(`Synonym LLM Limit: ${remaining}/${total} remaining`);
+            // Later: document.getElementById('synonym-llm-limit-display').textContent = `(${remaining}/${total} remaining)`;
+        }
+    }
+
+    // --- NEW: Function to update Rewrite Button/UI with rate limit info ---
+    function updateRewriteButtonRateLimitDisplay() {
+        // Assuming there's a button or info area for rewrite suggestions.
+        // Let's assume an element with id 'rewrite-suggestion-trigger' or similar.
+        const rewriteTriggerElement = document.getElementById('context-menu-rewrite-btn'); // Example ID from context menu
+        if (rewriteTriggerElement && currentRateLimitInfo.total_limits.llm_rewrite !== undefined) {
+            const total = currentRateLimitInfo.total_limits.llm_rewrite;
+            const remaining = currentRateLimitInfo.remaining_counts.llm_rewrite;
+            
+            let textContent = rewriteTriggerElement.textContent.replace(/\s*\(.*\)/, '').trim();
+            textContent += ` (${remaining}/${total} remaining)`;
+            rewriteTriggerElement.textContent = textContent;
+
+            rewriteTriggerElement.classList.remove('text-red-500', 'font-semibold');
+            if (remaining <= 0) {
+                rewriteTriggerElement.classList.add('text-red-500', 'font-semibold');
+                // Optionally disable the button if exhausted: rewriteTriggerElement.disabled = true;
+            }
+        }
     }
 
     // Call fetchAndApplyRateLimits when DOM is loaded
@@ -1541,6 +1591,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             `;
             const rankedSynonyms = data.ranked_synonyms || [];
             const llmRec = data.llm_recommendation;
+            const llmSynonymTotal = currentRateLimitInfo.total_limits.llm_synonym || 5;
+            const llmSynonymRemaining = currentRateLimitInfo.remaining_counts.llm_synonym !== undefined ? currentRateLimitInfo.remaining_counts.llm_synonym : llmSynonymTotal;
 
             if (rankedSynonyms.length > 0) {
                 contentHTML += `
@@ -1571,24 +1623,28 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                 });
                 contentHTML += `</ul>`;
 
-                // --- Add LLM Recommendation --- // Renamed section
-                if (llmRec && !llmRec.error && llmRec.recommendation && llmRec.recommendation.length > 0) { // Use llmRec
-                    contentHTML += `<hr class="border-gray-600 my-1">`; // Separator
-                    contentHTML += `<div class="text-purple-300 text-xs font-semibold mb-0.5">Contextual Suggestion:</div>`;
-                    contentHTML += `<div class="text-gray-300 text-xs mb-1">"${llmRec.recommendation.join('" or "')}"</div>`; // Use llmRec
-                    if (llmRec.reasoning) { // Use llmRec
-                        contentHTML += `<div class="text-gray-400 text-xs italic">Reason: ${llmRec.reasoning}</div>`; // Use llmRec
+                if (contextAwarenessEnabled) { // Only show LLM section if context awareness is on
+                    contentHTML += `<hr class="border-gray-600 my-1">`; 
+                    let limitText = `(${llmSynonymRemaining}/${llmSynonymTotal} remaining)`;
+                    let limitColor = 'text-gray-400';
+                    if (llmSynonymRemaining <= 0) {
+                        limitColor = 'text-red-500 font-semibold';
                     }
-                } else if (llmRec && llmRec.error) { // Use llmRec
-                    contentHTML += `<hr class="border-gray-600 my-1">`;
-                    contentHTML += `<div class="text-red-400 text-xs">Suggestion Error: ${llmRec.error}</div>`; // Use llmRec
-                } else if (contextAwarenessEnabled) {
-                     // Only show 'no suggestion' if context awareness was on
-                     contentHTML += `<hr class="border-gray-600 my-1">`;
-                     contentHTML += `<div class="text-gray-500 text-xs italic">No specific contextual suggestion.</div>`;
+                    contentHTML += `<div class="text-purple-300 text-xs font-semibold mb-0.5 flex justify-between">Contextual Suggestion <span id="synonym-llm-limit-display" class="${limitColor} text-xs ml-2">${limitText}</span></div>`;
+                    
+                    if (llmRec && !llmRec.error && llmRec.recommendation && llmRec.recommendation.length > 0) {
+                        contentHTML += `<div class="text-gray-300 text-xs mb-1">"${llmRec.recommendation.join('" or "')}"</div>`; 
+                        if (llmRec.reasoning) { 
+                            contentHTML += `<div class="text-gray-400 text-xs italic">Reason: ${llmRec.reasoning}</div>`; 
+                        }
+                    } else if (llmRec && llmRec.error) { 
+                        contentHTML += `<div class="text-red-400 text-xs">${llmRec.error}</div>`; 
+                    } else if (currentRateLimitInfo.remaining_counts.llm_synonym <=0 && contextAwarenessEnabled) {
+                         contentHTML += `<div class="text-red-400 text-xs">Contextual suggestion rate limit exceeded. Please try again later.</div>`;
+                    }else {
+                         contentHTML += `<div class="text-gray-500 text-xs italic">No specific contextual suggestion available.</div>`;
+                    }
                 }
-                // --- End Add LLM Recommendation --- // Renamed section
-
             } else {
                 contentHTML += `No synonyms found for "${selectedText}".`;
             }
@@ -2636,6 +2692,10 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
             // Use the debounced sequential analysis (default 'full' mode)
             debouncedAnalyzeSequentially(currentText, audience, contextEnabled);
+        },
+        // NEW: Function to call after a rewrite attempt to refresh limits
+        refreshRateLimitsAfterRewrite: () => {
+            fetchAndApplyRateLimits();
         }
     };
     console.log("typecomplexApp object exposed on window."); // DEBUG

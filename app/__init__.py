@@ -40,15 +40,19 @@ celery = make_celery(app)
 # --- Rate Limiter Configuration ---
 # Use the same Redis as Celery for simplicity, or define a new one.
 app.config['RATE_LIMITER_REDIS_URL'] = app.config['CELERY_BROKER_URL'] 
-app.config['RATE_LIMIT_FAST_PER_DAY'] = 10  # New limit for Fast
-app.config['RATE_LIMIT_BETTER_PER_DAY'] = 5 # Updated limit for Better
-app.config['RATE_LIMIT_BEST_PER_DAY'] = 2   # Updated limit for Best
+app.config['RATE_LIMIT_FAST_PER_DAY'] = 10  
+app.config['RATE_LIMIT_BETTER_PER_DAY'] = 5 
+app.config['RATE_LIMIT_BEST_PER_DAY'] = 2   
+app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = 5 # New LLM Synonym Limit
+app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = 5 # New LLM Rewrite Limit
 
 # It's good practice to allow overriding from environment variables
 import os
 app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', app.config['RATE_LIMIT_FAST_PER_DAY']))
 app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', app.config['RATE_LIMIT_BETTER_PER_DAY']))
 app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', app.config['RATE_LIMIT_BEST_PER_DAY']))
+app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY']))
+app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY']))
 
 # Initialize RateLimiter
 # We can initialize it directly here, or use Flask's extension pattern if it gets more complex.

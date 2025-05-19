@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Reset Rate Limit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Add some specific styles for this admin page if needed, or rely on Tailwind */
+        .admin-container {
+            max-width: 500px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: var(--sidebar-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .form-input {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: inset 0 0 0 1px var(--accent-blue);
+        }
+        .submit-btn {
+            background-color: var(--accent-blue);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .submit-btn:hover {
+            background-color: #0056b3; /* Darker blue for hover */
+        }
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .status-success {
+            background-color: rgba(var(--accent-green-rgb), 0.1);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+        .status-error {
+            background-color: rgba(var(--accent-red-rgb), 0.1);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen bg-[var(--main-bg)]">
+    <header class="bg-[var(--sidebar-bg)] py-4 px-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-semibold text-[var(--text-primary)]">Admin Panel</h1>
+            <a href="{{ url_for('index') }}" class="text-sm text-[var(--accent-blue)] hover:underline">Back to App</a>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-6">
+        <div class="admin-container">
+            <h2 class="text-xl font-semibold text-[var(--text-primary)] mb-6 text-center">Reset User Rate Limit</h2>
+            <form id="reset-rate-limit-form">
+                <div class="mb-4">
+                    <label for="special-key" class="block text-sm font-medium text-[var(--text-secondary)] mb-2">Special Key</label>
+                    <input type="password" id="special-key" name="special-key" class="form-input" required>
+                </div>
+                <button type="submit" class="submit-btn w-full">Reset Rate Limit for My IP</button>
+            </form>
+            <div id="status-message-container" class="status-message" style="display: none;"></div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('reset-rate-limit-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const specialKey = document.getElementById('special-key').value;
+            const statusContainer = document.getElementById('status-message-container');
+            statusContainer.style.display = 'none';
+            statusContainer.textContent = '';
+            statusContainer.className = 'status-message'; // Reset classes
+
+            if (!specialKey) {
+                statusContainer.textContent = 'Special Key cannot be empty.';
+                statusContainer.classList.add('status-error');
+                statusContainer.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch("{{ url_for('admin_reset_rate_limit') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ key: specialKey }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusContainer.textContent = result.message || 'Rate limit reset successfully.';
+                    statusContainer.classList.add('status-success');
+                } else {
+                    statusContainer.textContent = result.error || 'Failed to reset rate limit.';
+                    statusContainer.classList.add('status-error');
+                }
+            } catch (error) {
+                console.error('Error resetting rate limit:', error);
+                statusContainer.textContent = 'An unexpected error occurred. Please check the console.';
+                statusContainer.classList.add('status-error');
+            }
+            statusContainer.style.display = 'block';
+            document.getElementById('special-key').value = ''; // Clear the input
+        });
+    </script>
+</body>
+</html> 

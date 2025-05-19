@@ -238,15 +238,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     }),
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                    let errorMessage;
+                    let errorData = null;
+                    try {
+                        // Attempt to parse the error response body as JSON
+                        errorData = await response.json();
+                    } catch (jsonParseError) {
+                        console.warn("Rewrite Handler: Could not parse error response as JSON for /rewrite_suggestion:", jsonParseError);
+                        // errorData remains null, logic below will use status code for message
+                    }
+
+                    if (response.status === 429) {
+                        errorMessage = "LLM Rewrite suggestion exceeded"; // User's desired custom message
+                    } else if (errorData && errorData.error) {
+                        errorMessage = errorData.error; // Use error message from JSON response
+                    } else {
+                        // Fallback generic error if no specific message is found
+                        errorMessage = `Error processing rewrite: Status ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
                 }
+
+                // If response.ok, parse the JSON for the success case
+                // The response body has not been read yet at this point if response.ok was true
+                const data = await response.json();
 
                 // Update tooltip with formatted results
                          const formattedContent = formatRewriteResponse(data);
                 contextMenuTooltip.setContent(formattedContent);
+
+                // Refresh rate limits as a rewrite was attempted
+                if (window.typecomplexApp && typeof window.typecomplexApp.refreshRateLimitsAfterRewrite === 'function') {
+                    window.typecomplexApp.refreshRateLimitsAfterRewrite();
+                } else {
+                    console.warn("Rewrite Handler: refreshRateLimitsAfterRewrite function not available on window.typecomplexApp.");
+                }
 
                 // --- Add Event Listeners for Apply/Dismiss Buttons ---
                 // Use setTimeout to ensure the DOM is updated before querying
@@ -309,6 +336,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             contextMenuTooltip.setContent(formatRewriteResponse({ error: error.message }));
                          }
                          // No button listeners needed for error messages
+
+                        // Refresh rate limits even if an error occurred (e.g. rate limit exceeded)
+                        if (window.typecomplexApp && typeof window.typecomplexApp.refreshRateLimitsAfterRewrite === 'function') {
+                            window.typecomplexApp.refreshRateLimitsAfterRewrite();
+                        } else {
+                            console.warn("Rewrite Handler: refreshRateLimitsAfterRewrite function not available on window.typecomplexApp during error handling.");
+                        }
                      }
         });
 

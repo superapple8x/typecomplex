@@ -18,3 +18,4 @@ dump.rdb
 dump.rdb
 .parcel-cache
 dist/
+special_keys.txt

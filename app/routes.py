@@ -229,59 +229,62 @@ def analyze_text_sequential():
     return Response(generate_results(), mimetype='application/json')
 
 
-# /synonyms endpoint (POST) - Remains unchanged for now
 # /synonyms endpoint (POST) - Updated for contextual enhancement
 @app.route('/synonyms', methods=['POST'])
 def get_synonyms():
     """
     Provides ranked synonym suggestions using WordNet and optionally enhances
-    them with context-aware recommendations from Gemini.
+    them with context-aware recommendations from DeepSeek.
     """
     data = request.get_json()
-    # Add checks for new required fields
     if not data or 'word' not in data or 'sentence_context' not in data or 'target_audience' not in data:
         logging.warning("'/synonyms' request missing 'word', 'sentence_context', or 'target_audience'.")
         return jsonify({"error": "Missing 'word', 'sentence_context', or 'target_audience' in request body"}), 400
 
     word_to_lookup = data.get('word', '')
-    sentence_context = data.get('sentence_context', '') # Get sentence context
-    target_audience_profile = data.get('target_audience', 'Standard') # Get profile
-    context_awareness_enabled = data.get('context_awareness_enabled', False) # Get toggle state
+    sentence_context = data.get('sentence_context', '') 
+    target_audience_profile = data.get('target_audience', 'Standard') 
+    context_awareness_enabled = data.get('context_awareness_enabled', False) 
 
     logging.info(f"Received synonym request for '{word_to_lookup}'. Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
-    # --- 1. Get Base Ranked Synonyms (Always) ---
     ranked_synonyms = get_ranked_synonyms(word_to_lookup)
-    # Sort by rank for the base list in the API response
     ranked_synonyms.sort(key=lambda x: (x['rank'], x['word']))
 
-    # --- 2. Get DeepSeek Recommendation (Conditional) ---
-    deepseek_recommendation = None # Renamed variable
-    logging.debug(f"Synonym request debug: ranked_synonyms={ranked_synonyms}, sentence_context='{sentence_context}'") # ADDED LOG
+    deepseek_recommendation = None 
     if context_awareness_enabled and ranked_synonyms and sentence_context:
-        logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") # Updated log message
+        # --- Rate Limiting Check for LLM Synonym Suggestion ---
+        client_ip = request.remote_addr
+        if not rate_limiter.check_and_update_limit(client_ip, 'llm_synonym'):
+            logging.warning(f"Rate limit exceeded for LLM synonym suggestion. IP: {client_ip}")
+            # Return the base synonyms but indicate LLM part was skipped due to rate limit
+            return jsonify({
+                "ranked_synonyms": ranked_synonyms,
+                "llm_recommendation": {"error": "Contextual suggestion rate limit exceeded. Please try again later."}
+            }), 200 # Return 200 as base synonyms are still provided
+        # --- End Rate Limiting Check ---
+
+        logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") 
         try:
-            deepseek_recommendation = recommend_synonym( # Call the imported DeepSeek function
+            deepseek_recommendation = recommend_synonym( 
                 original_word=word_to_lookup,
                 sentence_context=sentence_context,
-                ranked_synonyms_list=ranked_synonyms, # Pass the base list
+                ranked_synonyms_list=ranked_synonyms, 
                 target_audience_profile=target_audience_profile
             )
             if deepseek_recommendation and "error" in deepseek_recommendation:
-                 logging.warning(f"DeepSeek synonym recommendation returned an error: {deepseek_recommendation['error']}") # Updated log message
+                 logging.warning(f"DeepSeek synonym recommendation returned an error: {deepseek_recommendation['error']}") 
             elif not deepseek_recommendation:
-                 logging.warning("DeepSeek synonym recommendation returned None.") # Updated log message
+                 logging.warning("DeepSeek synonym recommendation returned None.") 
         except Exception as e:
-            logging.error(f"Exception during DeepSeek synonym recommendation call: {e}", exc_info=True) # Updated log message
+            logging.error(f"Exception during DeepSeek synonym recommendation call: {e}", exc_info=True) 
             deepseek_recommendation = {"error": f"Server error during recommendation: {e}"}
     elif context_awareness_enabled:
-        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping DeepSeek recommendation.") # Updated log message
+        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping DeepSeek recommendation.") 
 
-    # --- 3. Combine and Return Results ---
-    # RENAME the key in the response for clarity. Frontend will need adjustment.
     return jsonify({
-        "ranked_synonyms": ranked_synonyms, # Always return the base list
-        "llm_recommendation": deepseek_recommendation # Use a generic key 'llm_recommendation'
+        "ranked_synonyms": ranked_synonyms, 
+        "llm_recommendation": deepseek_recommendation 
     })
 
 # --- NEW: Cancellation Endpoint ---
@@ -308,6 +311,18 @@ def rewrite_suggestion():
     if not data or not all(k in data for k in ('sentence_text', 'surrounding_context', 'target_audience', 'complexity_analysis_details')):
         logging.warning("'/rewrite_suggestion' request missing required fields.")
         return jsonify({"error": "Missing required fields (sentence_text, surrounding_context, target_audience, complexity_analysis_details)"}), 400
+
+    # --- Rate Limiting Check for LLM Rewrite Suggestion ---
+    client_ip = request.remote_addr
+    if not rate_limiter.check_and_update_limit(client_ip, 'llm_rewrite'):
+        logging.warning(f"Rate limit exceeded for LLM rewrite suggestion. IP: {client_ip}")
+        return jsonify({
+            "status": "Error", 
+            "feedback": "LLM rewrite suggestion rate limit exceeded. Please try again later.", 
+            "suggestion": None,
+            "reasoning": "Rate limit exceeded."
+        }), 429
+    # --- End Rate Limiting Check ---
 
     sentence_text = data['sentence_text']
     surrounding_context = data['surrounding_context']
@@ -422,6 +437,8 @@ def get_task_status(task_id):
         if isinstance(result, dict):
             response_data['result'] = result # Include the actual result
             response_data['status_message'] = result.get('status_message', 'Task completed successfully.')
+            if result.get('error'): # If the task itself reported an error in its result structure
+                response_data['error_details'] = result.get('error_details', 'Unknown error from task')
         else:
             # Handle cases where result might not be a dict (e.g. older task versions)
             response_data['result'] = {'raw_result': str(result)} # Basic representation
@@ -550,7 +567,9 @@ def get_rate_limits_config():
     total_limits = {
         'fast': current_app.config.get('RATE_LIMIT_FAST_PER_DAY', 10),
         'better': current_app.config.get('RATE_LIMIT_BETTER_PER_DAY', 5),
-        'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2)
+        'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2),
+        'llm_synonym': current_app.config.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', 5),
+        'llm_rewrite': current_app.config.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', 5)
     }
     
     current_usage = rate_limiter.get_current_usage(client_ip)
@@ -566,3 +585,72 @@ def get_rate_limits_config():
         'remaining_counts': remaining_counts
     })
 # --- END NEW API Endpoint ---
+
+# --- Admin UI Route for Rate Limit Reset ---
+@app.route('/admin/reset-ui', methods=['GET'])
+def admin_reset_ui():
+    """Serves the HTML page for resetting rate limits via UI."""
+    return render_template('admin_reset.html')
+
+# --- NEW: Admin Route to Reset Rate Limits ---
+@app.route('/admin/reset_rate_limit', methods=['POST'])
+def admin_reset_rate_limit():
+    """
+    Resets the rate limits for the requester's IP address if a valid special key is provided.
+    Expects JSON: {"key": "YOUR_SPECIAL_KEY"}
+    """
+    data = request.get_json()
+    if not data or 'key' not in data:
+        logging.warning("Admin rate limit reset: Missing key in request.")
+        return jsonify({"error": "Missing 'key' in request body"}), 400
+
+    special_key_provided = data.get('key')
+    ip_to_reset = request.remote_addr # Automatically use the requester's IP
+
+    # Validate IP address format (basic validation) - request.remote_addr should be reliable
+    # but an explicit check is good practice if there's any doubt or proxy involvement
+    try:
+        import ipaddress
+        ipaddress.ip_address(ip_to_reset)
+    except ValueError:
+        # This should ideally not happen with request.remote_addr but good to have a safeguard
+        logging.error(f"Admin rate limit reset: Invalid IP address obtained from request.remote_addr: {ip_to_reset}")
+        return jsonify({"error": "Invalid IP address obtained from request."}), 400
+
+    valid_keys = []
+    key_file_path = os.path.join(app.root_path, '..', 'special_keys.txt') # Assuming special_keys.txt is in the workspace root
+    
+    try:
+        with open(key_file_path, 'r') as f:
+            valid_keys = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        logging.error(f"Admin rate limit reset: special_keys.txt not found at {key_file_path}")
+        # Do not expose file path in error to client
+        return jsonify({"error": "Server configuration error. Key file not found."}), 500
+    except Exception as e:
+        logging.error(f"Admin rate limit reset: Error reading special_keys.txt: {e}")
+        return jsonify({"error": "Server error while validating key."}), 500
+
+    if not valid_keys:
+        logging.error(f"Admin rate limit reset: No valid keys found in special_keys.txt.")
+        return jsonify({"error": "Server configuration error. No special keys configured."}), 500
+
+    if special_key_provided in valid_keys:
+        logging.info(f"Admin rate limit reset: Valid key received. Attempting to reset limits for IP: {ip_to_reset}")
+        # Assuming rate_limiter is the global instance from app/__init__.py
+        success = rate_limiter.reset_limits_for_ip(ip_to_reset)
+        if success:
+            return jsonify({"message": f"Rate limits successfully reset for IP: {ip_to_reset}"}), 200
+        else:
+            # This could mean no keys were found for the IP, or a Redis error occurred.
+            # The RateLimiter class logs specifics.
+            return jsonify({"message": f"Attempted to reset limits for IP: {ip_to_reset}. No active limits found or Redis issue."}), 200
+    else:
+        logging.warning(f"Admin rate limit reset: Invalid key provided for IP: {ip_to_reset}")
+        return jsonify({"error": "Invalid special key."}), 403
+
+
+if __name__ == '__main__':
+    # Note: Debug mode should be False in a production environment!
+    # Use a proper WSGI server like Gunicorn or uWSGI for production.
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
