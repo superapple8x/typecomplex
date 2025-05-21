@@ -14,8 +14,42 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='editor-theme.css') }}">
     <!-- Link to Quill Snow theme CSS (we'll copy this file later) -->
     <link href="{{ url_for('static', filename='quill.snow.css') }}" rel="stylesheet">
+    <!-- Better Table Module CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.css" rel="stylesheet">
     <!-- Custom layout fixes - Added for better UI spacing -->
     <link rel="stylesheet" href="{{ url_for('static', filename='custom-layout-fixes.css') }}">
+    <!-- Better table module for Quill -->
+    <script src="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.min.js"></script>
+    
+    <!-- Custom scrollbar styling for cross-browser consistency -->
+    <style>
+        /* Custom scrollbar styling for Chromium browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(31, 32, 40, 0.2);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(108, 111, 147, 0.4);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(108, 111, 147, 0.6);
+        }
+        
+        /* Firefox scrollbar styling (for future compatibility) */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(108, 111, 147, 0.4) rgba(31, 32, 40, 0.2);
+        }
+    </style>
 </head>
 <body class="flex flex-col min-h-screen scroll-smooth">
     <!-- Screen Size Warning Overlay -->

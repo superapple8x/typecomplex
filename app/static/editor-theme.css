@@ -50,15 +50,17 @@ body {
 
 /* Quill Editor Customization */
 .ql-toolbar {
-  background: rgba(49, 50, 68, 0.5) !important;
-  backdrop-filter: blur(10px);
+  background: rgba(49, 50, 68, 0.7) !important; /* Increased opacity for better contrast */
+  backdrop-filter: blur(12px);
   border-top-left-radius: var(--border-radius) !important;
   border-top-right-radius: var(--border-radius) !important;
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border: none !important;
-  border-bottom: 1px solid rgba(108, 111, 147, 0.1) !important;
+  border-bottom: 1px solid rgba(108, 111, 147, 0.2) !important; /* Slightly more visible border */
   transition: all var(--transition-speed) ease;
+  padding: 8px !important; /* Increased padding for better clickable area */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; /* Subtle shadow for depth */
 }
 
 .ql-container {
@@ -103,8 +105,38 @@ body {
 
 .ql-toolbar .ql-formats {
   border-right: 1px solid rgba(108, 111, 147, 0.2);
-  padding-right: 0.5rem;
-  margin-right: 0.5rem;
+  padding-right: 0.75rem;
+  margin-right: 0.75rem;
+  position: relative;
+}
+
+/* Add subtle animations */
+.ql-toolbar button {
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+  border-radius: 4px !important;
+}
+
+.ql-toolbar button:hover {
+  transform: translateY(-1px) !important;
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+.ql-toolbar button:active {
+  transform: translateY(0) !important;
+}
+
+/* Enhance the custom analyze button */
+.ql-toolbar .ql-analyze-text {
+  background-color: rgba(137, 180, 250, 0.2) !important;
+  border-radius: 4px !important;
+}
+
+.ql-toolbar .ql-analyze-text:hover {
+  background-color: rgba(137, 180, 250, 0.3) !important;
+}
+
+.ql-toolbar .ql-analyze-text svg {
+  stroke: var(--accent-blue) !important;
 }
 
 /* Fix for dropdown menus */
@@ -126,13 +158,21 @@ body {
 }
 
 .ql-toolbar .ql-picker-options {
-  background: rgba(49, 50, 68, 0.9) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(108, 111, 147, 0.2) !important;
+  background: rgba(49, 50, 68, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
   border-radius: var(--border-radius) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.25) !important,
+    0 0 0 1px rgba(108, 111, 147, 0.1) !important;
   z-index: 1000;
   position: absolute;
+  padding: 8px !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+  transform-origin: top !important;
 }
 
 .ql-toolbar .ql-picker-label {
@@ -141,10 +181,20 @@ body {
 
 .ql-toolbar .ql-picker-item {
   color: var(--text-primary) !important;
+  padding: 5px 8px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
 }
 
 .ql-toolbar .ql-picker-item:hover {
   color: var(--accent-blue) !important;
+  background-color: rgba(108, 111, 147, 0.2) !important;
+}
+
+.ql-toolbar .ql-picker-item.ql-selected {
+  color: var(--accent-blue) !important;
+  background-color: rgba(137, 180, 250, 0.15) !important;
+  font-weight: 600 !important;
 }
 
 /* Specific fixes for header dropdown */
@@ -1091,4 +1141,153 @@ h1, h2, h3 {
 #pdf-analysis-btn:hover svg, 
 #download-pdf-btn:hover svg {
   color: var(--accent-blue) !important;
+}
+
+/* Table Module Styling */
+.ql-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ql-table th, .ql-table td {
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  padding: 6px 10px !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+}
+
+.ql-table th {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+/* Enhanced image handling */
+.ql-editor img {
+  max-width: 100%;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin: 10px 0;
+}
+
+/* Enhance focus state for better accessibility */
+.ql-toolbar button:focus,
+.ql-toolbar .ql-picker-label:focus {
+  outline: 2px solid var(--accent-blue) !important;
+  outline-offset: 2px !important;
+}
+
+/* Floating selection toolbar - for future implementation */
+.ql-floating-toolbar {
+  background: rgba(49, 50, 68, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  padding: 6px !important;
+  z-index: 1500;
+  position: absolute;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Better Table Module Styling */
+.ql-better-table-wrapper {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+.ql-better-table {
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  border-collapse: collapse !important;
+  background-color: rgba(49, 50, 68, 0.5) !important;
+}
+
+.ql-better-table th, 
+.ql-better-table td {
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  padding: 8px 12px !important;
+}
+
+.ql-better-table th {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.ql-better-table-operation-menu {
+  background-color: rgba(49, 50, 68, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(108, 111, 147, 0.3) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+.ql-better-table-operation-menu .item {
+  padding: 8px 12px !important;
+  cursor: pointer;
+  transition: background-color 0.15s ease !important;
+}
+
+.ql-better-table-operation-menu .item:hover {
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  color: var(--accent-blue) !important;
+}
+
+/* Add custom table button */
+.ql-toolbar .ql-table-button {
+  position: relative;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+  margin-left: 10px;
+}
+
+.ql-toolbar .ql-table-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ql-toolbar .ql-table-button:hover {
+  color: var(--accent-blue);
+}
+
+.ql-toolbar .ql-table-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background-color: rgba(49, 50, 68, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(108, 111, 147, 0.3);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  padding: 10px;
+  display: none;
+}
+
+.ql-toolbar .ql-table-button:hover .ql-table-dropdown {
+  display: block;
+}
+
+.ql-toolbar .ql-table-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 20px);
+  grid-template-rows: repeat(6, 20px);
+  gap: 2px;
+}
+
+.ql-toolbar .ql-table-cell {
+  width: 20px;
+  height: 20px;
+  background-color: rgba(108, 111, 147, 0.2);
+  border: 1px solid rgba(108, 111, 147, 0.3);
+  transition: background-color 0.15s ease;
+}
+
+.ql-toolbar .ql-table-cell:hover {
+  background-color: var(--accent-blue);
 }

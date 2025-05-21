@@ -4,19 +4,19 @@ INFO: Flask DEBUG mode is OFF.
 INFO: Cache configured with RedisCache at redis://localhost:6379/0
 /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/spacy/util.py:910: UserWarning: [W095] Model 'en_core_web_sm' (3.8.0) was trained with spaCy v3.8.0 and may not be 100% compatible with the current version (3.7.4). If you see errors or degraded performance, download a newer compatible model or retrain your custom model with the current spaCy version. For more details and available updates, run: python -m spacy validate
   warnings.warn(warn_msg)
-2025-05-19 16:48:35,519 - INFO - DeepSeek client initialized successfully.
-2025-05-19 16:48:35,579 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
+2025-05-22 05:24:06,786 - INFO - DeepSeek client initialized successfully.
+2025-05-22 05:24:06,846 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
 [nltk_data] Downloading package wordnet to /home/pepper/nltk_data...
 [nltk_data]   Package wordnet is already up-to-date!
-2025-05-19 16:48:35,693 - INFO - NLTK resource 'wordnet' downloaded successfully.
-2025-05-19 16:48:35,694 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
-2025-05-19 16:48:35,694 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
-[2025-05-19 16:48:35,716: DEBUG/MainProcess] | Worker: Preparing bootsteps.
-[2025-05-19 16:48:35,717: DEBUG/MainProcess] | Worker: Building graph...
-[2025-05-19 16:48:35,718: DEBUG/MainProcess] | Worker: New boot order: {StateDB, Timer, Hub, Pool, Autoscaler, Beat, Consumer}
-[2025-05-19 16:48:35,724: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
-[2025-05-19 16:48:35,725: DEBUG/MainProcess] | Consumer: Building graph...
-[2025-05-19 16:48:35,740: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Mingle, Gossip, Tasks, DelayedDelivery, Heart, Agent, Control, event loop}
+2025-05-22 05:24:06,959 - INFO - NLTK resource 'wordnet' downloaded successfully.
+2025-05-22 05:24:06,960 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
+2025-05-22 05:24:06,960 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
+[2025-05-22 05:24:06,986: DEBUG/MainProcess] | Worker: Preparing bootsteps.
+[2025-05-22 05:24:06,989: DEBUG/MainProcess] | Worker: Building graph...
+[2025-05-22 05:24:06,990: DEBUG/MainProcess] | Worker: New boot order: {StateDB, Timer, Hub, Pool, Autoscaler, Beat, Consumer}
+[2025-05-22 05:24:06,999: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
+[2025-05-22 05:24:07,000: DEBUG/MainProcess] | Consumer: Building graph...
+[2025-05-22 05:24:07,018: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Heart, Agent, Mingle, Tasks, DelayedDelivery, Control, Gossip, event loop}
 Loading frequency data from: /home/pepper/typecomplex/app/data/ngram_freq.csv
 CSV Columns loaded: ['word', 'count']
 Using existing 'word' and 'count' columns.
@@ -30,10 +30,10 @@ Successfully loaded 'punkt' tokenizer.
  
  -------------- celery@fedora v5.5.2 (immunity)
 --- ***** ----- 
--- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-19 16:48:35
+-- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-22 05:24:07
 - *** --- * --- 
 - ** ---------- [config]
-- ** ---------- .> app:         app:0x7ff29b94c3d0
+- ** ---------- .> app:         app:0x7f6f19b4c450
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/0
 - *** --- * --- .> concurrency: 8 (eventlet)
@@ -56,377 +56,34 @@ Successfully loaded 'punkt' tokenizer.
   . celery.map
   . celery.starmap
 
-[2025-05-19 16:48:35,767: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
+[2025-05-22 05:24:07,045: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
     The 'CELERY_RESULT_BACKEND' setting is deprecated and scheduled for removal in
     version 6.0.0. Use the result_backend instead
 
   deprecated.warn(description=f'The {setting!r} setting',
 
-[2025-05-19 16:48:35,767: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
-[2025-05-19 16:48:35,767: DEBUG/MainProcess] | Worker: Starting Pool
-[2025-05-19 16:48:35,767: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:35,767: DEBUG/MainProcess] | Worker: Starting Consumer
-[2025-05-19 16:48:35,767: DEBUG/MainProcess] | Consumer: Starting Connection
-[2025-05-19 16:48:35,769: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2025-05-19 16:48:35,769: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:35,770: DEBUG/MainProcess] | Consumer: Starting Events
-[2025-05-19 16:48:35,772: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:35,772: DEBUG/MainProcess] | Consumer: Starting Mingle
-[2025-05-19 16:48:35,772: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-19 16:48:36,783: INFO/MainProcess] mingle: all alone
-[2025-05-19 16:48:36,783: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:36,783: DEBUG/MainProcess] | Consumer: Starting Gossip
-[2025-05-19 16:48:36,787: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:36,787: DEBUG/MainProcess] | Consumer: Starting Tasks
-[2025-05-19 16:48:36,789: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:36,789: DEBUG/MainProcess] | Consumer: Starting Heart
-[2025-05-19 16:48:36,791: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:36,791: DEBUG/MainProcess] | Consumer: Starting Control
-[2025-05-19 16:48:36,791: DEBUG/MainProcess] ^-- substep ok
-[2025-05-19 16:48:36,792: DEBUG/MainProcess] | Consumer: Starting event loop
-[2025-05-19 16:48:36,792: INFO/MainProcess] celery@fedora ready.
-[2025-05-19 16:48:36,792: DEBUG/MainProcess] basic.qos: prefetch_count->32
-[2025-05-19 16:48:36,795: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
-[2025-05-19 16:51:06,698: INFO/MainProcess] Task app.tasks.process_pdf_task[be83086f-f4bb-4bd5-a0bd-34d24cadc697] received
-[2025-05-19 16:51:06,698: DEBUG/MainProcess] TaskPool: Apply <function fast_trace_task at 0x7ff29c49b560> (args:('app.tasks.process_pdf_task', 'be83086f-f4bb-4bd5-a0bd-34d24cadc697', {'lang': 'py', 'task': 'app.tasks.process_pdf_task', 'id': 'be83086f-f4bb-4bd5-a0bd-34d24cadc697', 'shadow': None, 'eta': None, 'expires': None, 'group': None, 'group_index': None, 'retries': 0, 'timelimit': [None, None], 'root_id': 'be83086f-f4bb-4bd5-a0bd-34d24cadc697', 'parent_id': None, 'argsrepr': '()', 'kwargsrepr': "{'file_path': '/home/pepper/typecomplex/uploads/2084e57f-413d-4075-a4af-6af29a918968_1280-1.pdf', 'original_filename': '1280-1.pdf', 'action': 'full_analysis', 'target_audience': 'General Public', 'include_overview_page': True, 'overview_top_x_count': 5, 'overview_top_x_type': 'complex', 'overview_show_visual_map': True, 'analysis_mode': 'best', 'client_ip_address': '127.0.0.1'}", 'origin': 'gen8707@fedora', 'ignore_result': False, 'replaced_task_nesting': 0, 'stamped_headers': None, 'stamps': {}, 'properties': {'correlation_id': 'be83086f-f4bb-4bd5-a0bd-34d24cadc697', 'reply_to': 'cbdf3ca2-2870-35df-9330-7ba74f503a9c',... kwargs:{})
-[2025-05-19 16:51:06,699: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: PyMuPDF (fitz) version: 1.25.5
-[2025-05-19 16:51:06,699: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: PyMuPDF (fitz) path: /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/fitz/__init__.py
-[2025-05-19 16:51:06,699: INFO/MainProcess] Starting PDF processing for: 1280-1.pdf (Task ID: be83086f-f4bb-4bd5-a0bd-34d24cadc697) at path: /home/pepper/typecomplex/uploads/2084e57f-413d-4075-a4af-6af29a918968_1280-1.pdf
-[2025-05-19 16:51:06,702: INFO/MainProcess] Rate limit check passed for 127.0.0.1 on mode 'best'. New count: 2, Limit: 2
-[2025-05-19 16:51:06,718: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Extracting text and coordinates from /home/pepper/typecomplex/uploads/2084e57f-413d-4075-a4af-6af29a918968_1280-1.pdf...
-[2025-05-19 16:51:06,763: INFO/MainProcess]   SUCCESS (Block-NLTK): 'EPDE2020/1280...' Coords: 1. P1 B0
-[2025-05-19 16:51:06,766: INFO/MainProcess]   SUCCESS (Block-NLTK): 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 1...' Coords: 2. P1 B1
-[2025-05-19 16:51:06,770: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MATERIAL DESIGNERS WHEN...' Coords: 3. P1 B2
-[2025-05-19 16:51:06,774: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School of Art and Communicat...' Coords: 2. P1 B3
-[2025-05-19 16:51:06,780: INFO/MainProcess]   SUCCESS (Block-NLTK): 'ABSTRACT The recent academic literature on material practices within d...' Coords: 8. P1 B4
-[2025-05-19 16:51:06,785: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials and the Material Driven Design met...' Coords: 13. P1 B4
-[2025-05-19 16:51:06,790: INFO/MainProcess]   SUCCESS (Block-NLTK): 'This paper presents a qualitative case study of the challenges faced b...' Coords: 12. P1 B4
-[2025-05-19 16:51:06,795: INFO/MainProcess]   SUCCESS (Block-NLTK): 'A comparative case study of twenty-eight material driven design projec...' Coords: 2. P1 B4
-[2025-05-19 16:51:06,800: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The result suggest: (a) that designers have a tendency to focus more o...' Coords: 6. P1 B4
-[2025-05-19 16:51:06,804: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper we also build on our previous research, regarding the de...' Coords: 2. P1 B4
-[2025-05-19 16:51:06,809: INFO/MainProcess]   SUCCESS (Block-NLTK): 'It is hoped that this research can contribute to the further developme...' Coords: 2. P1 B4
-[2025-05-19 16:51:06,813: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Keywords: DIY-materials, material driven design, experiential knowledg...' Coords: 2. P1 B5
-[2025-05-19 16:51:06,818: INFO/MainProcess]   SUCCESS (Block-NLTK): '1 INTRODUCTION The recent academic literature on material practices wi...' Coords: 4. P1 B6
-[2025-05-19 16:51:06,823: INFO/MainProcess]   SUCCESS (Block-NLTK): 'In this paper, we use the definition of DIY-materials as defined by Ro...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,827: INFO/MainProcess]   SUCCESS (Block-NLTK): '‘ materials which are created through individual or collective self-pr...' Coords: 3. P1 B6
-[2025-05-19 16:51:06,832: INFO/MainProcess]   SUCCESS (Block-NLTK): 'They can be totally new materials, modified, or further developed vers...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,837: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Designers educated in DIY-materials [5] and the Material Driven Design...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,841: INFO/MainProcess]   SUCCESS (Block-NLTK): 'TU Delft (NL), Politecnico di Milano (IT), Imperial College London (UK...' Coords: 3. P1 B6
-[2025-05-19 16:51:06,846: INFO/MainProcess]   SUCCESS (Block-NLTK): 'However, these designers and students are facing great challenges when...' Coords: 3. P1 B6
-[2025-05-19 16:51:06,851: WARNING/MainProcess] Block-Search: Sentence 'There are numerous examples of DIY- materials that reach the...' NOT FOUND by page.search_for(). Attempting word-level fallback. P1 B6.
-[2025-05-19 16:51:06,862: INFO/MainProcess]   SUCCESS (Word-Fallback): Found coords for 'There are numerous examples of DIY- materials that reach the...'. P1 B6. Coords: 3
-[2025-05-19 16:51:06,862: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are numerous examples of DIY- materials that reach the developme...' Coords: 3. P1 B6
-[2025-05-19 16:51:06,867: INFO/MainProcess]   SUCCESS (Block-NLTK): 'These are often communicated through tempting images and storytelling ...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,872: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Unfortunately, few DIY-materials manage to reach the stage of viable m...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,877: INFO/MainProcess]   SUCCESS (Block-NLTK): 'There are however a few examples of successful circular and sustainabl...' Coords: 15. P1 B6
-[2025-05-19 16:51:06,881: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Terroir, Residue and Mestic....' Coords: 1. P1 B6
-[2025-05-19 16:51:06,887: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The Terroir project by the Danish designers Edvard & Steenfatt [7] use...' Coords: 14. P1 B6
-[2025-05-19 16:51:06,892: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The cork like composite is then used in a local craft production of fu...' Coords: 4. P1 B6
-[2025-05-19 16:51:06,897: INFO/MainProcess]   SUCCESS (Block-NLTK): 'Swedish designer Hanna Carlsson developed a wood composite made of res...' Coords: 3. P1 B6
-[2025-05-19 16:51:06,901: INFO/MainProcess]   SUCCESS (Block-NLTK): 'The residue material is moulded into double curved surfaces in furnitu...' Coords: 2. P1 B6
-[2025-05-19 16:51:06,902: INFO/MainProcess] Block-Level NLTK Extraction Complete for /home/pepper/typecomplex/uploads/2084e57f-413d-4075-a4af-6af29a918968_1280-1.pdf. Total sentences mapped: 28
-[2025-05-19 16:51:06,902: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Text extraction complete for action 'full_analysis'. Extracted 4280 characters. Found 28 potential sentence coordinate entries.
-[2025-05-19 16:51:06,902: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: 28 sentences have coordinate data for full analysis.
-[2025-05-19 16:51:06,903: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Analyzing text complexity with mode 'best'...
-[2025-05-19 16:51:06,903: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Extracted 28 sentences for analysis.
-[2025-05-19 16:51:06,903: WARNING/MainProcess] Attempting to load large spaCy model ('en_core_web_lg') for mode: best
-[2025-05-19 16:51:10,589: WARNING/MainProcess] Successfully loaded spaCy model 'en_core_web_lg'.
-[2025-05-19 16:51:10,589: DEBUG/MainProcess] Task None: Starting spaCy processing in analyze_text_complexity with model for mode 'best'.
-[2025-05-19 16:51:10,780: DEBUG/MainProcess] Task None: Finished spaCy processing in analyze_text_complexity.
-[2025-05-19 16:51:10,780: WARNING/MainProcess] Mismatch (ID: None): spaCy found 21 sents from full text, while pre-segmented list had 28. Prioritizing pre-segmented list (28 sentences) to maintain coordinate mapping integrity.
-[2025-05-19 16:51:10,788: DEBUG/MainProcess] Cache MISS for sentence index 0 (Key: de038745...)
-[2025-05-19 16:51:10,788: DEBUG/MainProcess] Stored result in cache for sentence index 0 (Key: de038745...)
-[2025-05-19 16:51:10,796: DEBUG/MainProcess] Cache MISS for sentence index 1 (Key: e0f3bde0...)
-[2025-05-19 16:51:16,480: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:16,915: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1947 for sentence: 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUC...' (Mode: local)
-[2025-05-19 16:51:16,915: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 2.608695652173913, 'has_passive_voice': 0}, Combined Factor: 0.248
-[2025-05-19 16:51:16,916: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 0, 'max_pp_nesting_depth': 0}, Combined Factor: 0.000
-[2025-05-19 16:51:16,916: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.375}, Combined Factor: 0.385
-[2025-05-19 16:51:16,916: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.329, Factor: 0.403
-[2025-05-19 16:51:16,916: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.437 for sentence: 'INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUC...'
-[2025-05-19 16:51:16,916: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'INTERNATIONAL CONFERENCE ON EN', 'length_factor': 0.64, 'word_len_factor': 1.0089285714285714, 'frequency_factor': 0.022027841791005382, 'embedding_factor': 0.19474815856665373, 'syntactic_factor': 0.24818840579710147, 'dependency_factor': 0.0, 'lexical_factor': 0.3851495726495726, 'semantic_coherence_factor': 0.40264382145621563}
-[2025-05-19 16:51:16,918: DEBUG/MainProcess] Stored result in cache for sentence index 1 (Key: e0f3bde0...)
-[2025-05-19 16:51:16,926: DEBUG/MainProcess] Cache MISS for sentence index 2 (Key: aa15fa45...)
-[2025-05-19 16:51:18,367: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:18,375: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1474 for sentence: 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MAT...' (Mode: local)
-[2025-05-19 16:51:18,376: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 4, 'num_clauses': 1, 'avg_dependency_length': 2.5714285714285716, 'has_passive_voice': 0}, Combined Factor: 0.226
-[2025-05-19 16:51:18,376: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.158
-[2025-05-19 16:51:18,376: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.4}, Combined Factor: 0.192
-[2025-05-19 16:51:18,376: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.484, Factor: 0.120
-[2025-05-19 16:51:18,376: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.351 for sentence: 'A QUALITATIVE STUDY OF THE CHALLENGES FACED BY MAT...'
-[2025-05-19 16:51:18,376: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'A QUALITATIVE STUDY OF THE CHA', 'length_factor': 0.56, 'word_len_factor': 0.836734693877551, 'frequency_factor': 0.013978849307296742, 'embedding_factor': 0.14739495302949632, 'syntactic_factor': 0.22619047619047616, 'dependency_factor': 0.15773809523809523, 'lexical_factor': 0.1923076923076923, 'semantic_coherence_factor': 0.11998636794812761}
-[2025-05-19 16:51:18,377: DEBUG/MainProcess] Stored result in cache for sentence index 2 (Key: aa15fa45...)
-[2025-05-19 16:51:18,385: DEBUG/MainProcess] Cache MISS for sentence index 3 (Key: 8aaccfca...)
-[2025-05-19 16:51:19,972: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:19,985: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1888 for sentence: 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School o...' (Mode: local)
-[2025-05-19 16:51:19,986: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 2.4, 'has_passive_voice': 0}, Combined Factor: 0.242
-[2025-05-19 16:51:19,986: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 1, 'max_pp_nesting_depth': 1}, Combined Factor: 0.097
-[2025-05-19 16:51:19,986: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.14285714285714285}, Combined Factor: 0.390
-[2025-05-19 16:51:19,986: DEBUG/MainProcess] Task None: Semantic Coherence Score: 1.000, Factor: 0.000
-[2025-05-19 16:51:19,986: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.381 for sentence: 'Charlotte Asbjørn SÖRENSEN and Emma THYNI School o...'
-[2025-05-19 16:51:19,986: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Charlotte Asbjørn SÖRENSEN and', 'length_factor': 0.6, 'word_len_factor': 0.8476190476190476, 'frequency_factor': 0.12639973208851038, 'embedding_factor': 0.18879583080609638, 'syntactic_factor': 0.2416666666666667, 'dependency_factor': 0.09651360544217688, 'lexical_factor': 0.39010989010989006, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:51:19,987: DEBUG/MainProcess] Stored result in cache for sentence index 3 (Key: 8aaccfca...)
-[2025-05-19 16:51:19,997: DEBUG/MainProcess] Cache MISS for sentence index 4 (Key: 16899fc6...)
-[2025-05-19 16:51:22,472: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:22,481: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1829 for sentence: 'ABSTRACT The recent academic literature on materia...' (Mode: local)
-[2025-05-19 16:51:22,481: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 1, 'avg_dependency_length': 2.9615384615384617, 'has_passive_voice': 0}, Combined Factor: 0.280
-[2025-05-19 16:51:22,481: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.267
-[2025-05-19 16:51:22,482: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.6153846153846154}, Combined Factor: 0.181
-[2025-05-19 16:51:22,482: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.417, Factor: 0.242
-[2025-05-19 16:51:22,482: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.480 for sentence: 'ABSTRACT The recent academic literature on materia...'
-[2025-05-19 16:51:22,482: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'ABSTRACT The recent academic l', 'length_factor': 0.96, 'word_len_factor': 0.8273809523809524, 'frequency_factor': 0.008154328762589766, 'embedding_factor': 0.1828813012689352, 'syntactic_factor': 0.2800480769230769, 'dependency_factor': 0.26686507936507936, 'lexical_factor': 0.18094820658923222, 'semantic_coherence_factor': 0.24190586985963766}
-[2025-05-19 16:51:22,483: DEBUG/MainProcess] Stored result in cache for sentence index 4 (Key: 16899fc6...)
-[2025-05-19 16:51:22,492: DEBUG/MainProcess] Cache MISS for sentence index 5 (Key: 81de81c6...)
-[2025-05-19 16:51:25,330: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:25,347: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1746 for sentence: 'Designers educated in DIY-materials and the Materi...' (Mode: local)
-[2025-05-19 16:51:25,348: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 9, 'num_clauses': 4, 'avg_dependency_length': 2.896551724137931, 'has_passive_voice': 0}, Combined Factor: 0.528
-[2025-05-19 16:51:25,348: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 2, 'subordination_count': 1, 'pp_count': 4, 'max_pp_nesting_depth': 3}, Combined Factor: 0.422
-[2025-05-19 16:51:25,348: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.5769230769230769}, Combined Factor: 0.056
-[2025-05-19 16:51:25,349: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.494, Factor: 0.103
-[2025-05-19 16:51:25,349: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.528 for sentence: 'Designers educated in DIY-materials and the Materi...'
-[2025-05-19 16:51:25,349: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Designers educated in DIY-mate', 'length_factor': 1.08, 'word_len_factor': 0.8624338624338624, 'frequency_factor': 0.007248292233413125, 'embedding_factor': 0.17463193281933112, 'syntactic_factor': 0.5280172413793104, 'dependency_factor': 0.42162698412698413, 'lexical_factor': 0.05621301775147934, 'semantic_coherence_factor': 0.10258736703302956}
-[2025-05-19 16:51:25,350: DEBUG/MainProcess] Stored result in cache for sentence index 5 (Key: 81de81c6...)
-[2025-05-19 16:51:25,368: DEBUG/MainProcess] Cache MISS for sentence index 6 (Key: e0df1cdc...)
-[2025-05-19 16:51:29,158: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:29,168: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1804 for sentence: 'This paper presents a qualitative case study of th...' (Mode: local)
-[2025-05-19 16:51:29,169: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 16, 'num_clauses': 3, 'avg_dependency_length': 4.121951219512195, 'has_passive_voice': 0}, Combined Factor: 0.650
-[2025-05-19 16:51:29,169: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 2, 'subordination_count': 2, 'pp_count': 6, 'max_pp_nesting_depth': 5}, Combined Factor: 0.547
-[2025-05-19 16:51:29,169: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.625}, Combined Factor: 0.019
-[2025-05-19 16:51:29,169: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.532, Factor: 0.033
-[2025-05-19 16:51:29,170: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.657 for sentence: 'This paper presents a qualitative case study of th...'
-[2025-05-19 16:51:29,170: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'This paper presents a qualitat', 'length_factor': 1.56, 'word_len_factor': 0.8205128205128205, 'frequency_factor': 0.00659196269434829, 'embedding_factor': 0.18042036394278207, 'syntactic_factor': 0.6496443089430893, 'dependency_factor': 0.5468159486016628, 'lexical_factor': 0.019230769230769246, 'semantic_coherence_factor': 0.03266769241202969}
-[2025-05-19 16:51:29,171: DEBUG/MainProcess] Stored result in cache for sentence index 6 (Key: e0df1cdc...)
-[2025-05-19 16:51:29,179: DEBUG/MainProcess] Cache MISS for sentence index 7 (Key: 117db183...)
-[2025-05-19 16:51:31,151: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:31,162: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1447 for sentence: 'A comparative case study of twenty-eight material ...' (Mode: local)
-[2025-05-19 16:51:31,162: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 3.1739130434782608, 'has_passive_voice': 1}, Combined Factor: 0.578
-[2025-05-19 16:51:31,162: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.122
-[2025-05-19 16:51:31,162: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.7}, Combined Factor: 0.038
-[2025-05-19 16:51:31,163: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.520, Factor: 0.054
-[2025-05-19 16:51:31,163: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.438 for sentence: 'A comparative case study of twenty-eight material ...'
-[2025-05-19 16:51:31,163: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'A comparative case study of tw', 'length_factor': 0.84, 'word_len_factor': 0.8843537414965986, 'frequency_factor': 0.01291104222678315, 'embedding_factor': 0.1447140858286903, 'syntactic_factor': 0.5783514492753623, 'dependency_factor': 0.12202380952380953, 'lexical_factor': 0.03846153846153841, 'semantic_coherence_factor': 0.054288227449763984}
-[2025-05-19 16:51:31,164: DEBUG/MainProcess] Stored result in cache for sentence index 7 (Key: 117db183...)
-[2025-05-19 16:51:31,181: DEBUG/MainProcess] Cache MISS for sentence index 8 (Key: 6052a4ca...)
-[2025-05-19 16:51:38,467: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:38,485: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1954 for sentence: 'The result suggest: (a) that designers have a tend...' (Mode: local)
-[2025-05-19 16:51:38,486: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 10, 'num_clauses': 7, 'avg_dependency_length': 5.021505376344086, 'has_passive_voice': 1}, Combined Factor: 0.990
-[2025-05-19 16:51:38,486: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 2, 'subordination_count': 2, 'pp_count': 11, 'max_pp_nesting_depth': 3}, Combined Factor: 0.330
-[2025-05-19 16:51:38,486: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 2, 'content_word_ratio': 0.5}, Combined Factor: 0.204
-[2025-05-19 16:51:38,487: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.475, Factor: 0.137
-[2025-05-19 16:51:38,487: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 1.081 for sentence: 'The result suggest: (a) that designers have a tend...'
-[2025-05-19 16:51:38,487: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'The result suggest: (a) that d', 'length_factor': 3.12, 'word_len_factor': 0.7619047619047619, 'frequency_factor': 0.011196427741047921, 'embedding_factor': 0.1954231121792243, 'syntactic_factor': 0.990255376344086, 'dependency_factor': 0.3301882809861533, 'lexical_factor': 0.20403709765411893, 'semantic_coherence_factor': 0.13673977960239764}
-[2025-05-19 16:51:38,488: DEBUG/MainProcess] Stored result in cache for sentence index 8 (Key: 6052a4ca...)
-[2025-05-19 16:51:38,496: DEBUG/MainProcess] Cache MISS for sentence index 9 (Key: ef7fc268...)
-[2025-05-19 16:51:40,748: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:40,760: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1681 for sentence: 'In this paper we also build on our previous resear...' (Mode: local)
-[2025-05-19 16:51:40,761: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 7, 'num_clauses': 2, 'avg_dependency_length': 3.0416666666666665, 'has_passive_voice': 0}, Combined Factor: 0.366
-[2025-05-19 16:51:40,761: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 6, 'max_pp_nesting_depth': 5}, Combined Factor: 0.484
-[2025-05-19 16:51:40,761: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 2, 'content_word_ratio': 0.56}, Combined Factor: 0.403
-[2025-05-19 16:51:40,762: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.538, Factor: 0.022
-[2025-05-19 16:51:40,762: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.494 for sentence: 'In this paper we also build on our previous resear...'
-[2025-05-19 16:51:40,762: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'In this paper we also build on', 'length_factor': 0.92, 'word_len_factor': 0.8012422360248447, 'frequency_factor': 0.00023394205216324313, 'embedding_factor': 0.1680581466011379, 'syntactic_factor': 0.3658854166666667, 'dependency_factor': 0.48392857142857143, 'lexical_factor': 0.4025641025641026, 'semantic_coherence_factor': 0.022415468951205414}
-[2025-05-19 16:51:40,763: DEBUG/MainProcess] Stored result in cache for sentence index 9 (Key: ef7fc268...)
-[2025-05-19 16:51:40,772: DEBUG/MainProcess] Cache MISS for sentence index 10 (Key: b747f120...)
-[2025-05-19 16:51:42,610: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:42,619: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1493 for sentence: 'It is hoped that this research can contribute to t...' (Mode: local)
-[2025-05-19 16:51:42,620: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 2, 'avg_dependency_length': 2.95, 'has_passive_voice': 1}, Combined Factor: 0.592
-[2025-05-19 16:51:42,620: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 1, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.356
-[2025-05-19 16:51:42,620: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.47619047619047616}, Combined Factor: 0.332
-[2025-05-19 16:51:42,620: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.509, Factor: 0.075
-[2025-05-19 16:51:42,620: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.457 for sentence: 'It is hoped that this research can contribute to t...'
-[2025-05-19 16:51:42,620: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'It is hoped that this research', 'length_factor': 0.8, 'word_len_factor': 0.7071428571428572, 'frequency_factor': 0.0, 'embedding_factor': 0.1493168368935585, 'syntactic_factor': 0.5921875, 'dependency_factor': 0.3556783824640968, 'lexical_factor': 0.33211233211233215, 'semantic_coherence_factor': 0.0754209805016566}
-[2025-05-19 16:51:42,621: DEBUG/MainProcess] Stored result in cache for sentence index 10 (Key: b747f120...)
-[2025-05-19 16:51:42,629: DEBUG/MainProcess] Cache MISS for sentence index 11 (Key: 011d4905...)
-[2025-05-19 16:51:43,812: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:43,821: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1471 for sentence: 'Keywords: DIY-materials, material driven design, e...' (Mode: local)
-[2025-05-19 16:51:43,821: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 3.411764705882353, 'has_passive_voice': 0}, Combined Factor: 0.273
-[2025-05-19 16:51:43,821: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 0, 'max_pp_nesting_depth': 0}, Combined Factor: 0.000
-[2025-05-19 16:51:43,821: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.6666666666666666}, Combined Factor: 0.244
-[2025-05-19 16:51:43,822: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.446, Factor: 0.188
-[2025-05-19 16:51:43,822: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.370 for sentence: 'Keywords: DIY-materials, material driven design, e...'
-[2025-05-19 16:51:43,822: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Keywords: DIY-materials, mater', 'length_factor': 0.48, 'word_len_factor': 1.0833333333333333, 'frequency_factor': 0.02399330218024688, 'embedding_factor': 0.14714661488930383, 'syntactic_factor': 0.2732843137254902, 'dependency_factor': 0.0, 'lexical_factor': 0.24430199430199426, 'semantic_coherence_factor': 0.18834944401890788}
-[2025-05-19 16:51:43,824: DEBUG/MainProcess] Stored result in cache for sentence index 11 (Key: 011d4905...)
-[2025-05-19 16:51:43,833: DEBUG/MainProcess] Cache MISS for sentence index 12 (Key: 8fc37696...)
-[2025-05-19 16:51:46,379: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:46,388: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1983 for sentence: '1 INTRODUCTION The recent academic literature on m...' (Mode: local)
-[2025-05-19 16:51:46,389: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 5.111111111111111, 'has_passive_voice': 0}, Combined Factor: 0.326
-[2025-05-19 16:51:46,389: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.245
-[2025-05-19 16:51:46,389: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 2, 'content_word_ratio': 0.47058823529411764}, Combined Factor: 0.363
-[2025-05-19 16:51:46,389: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.426, Factor: 0.225
-[2025-05-19 16:51:46,389: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.530 for sentence: '1 INTRODUCTION The recent academic literature on m...'
-[2025-05-19 16:51:46,389: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': '1 INTRODUCTION The recent acad', 'length_factor': 1.08, 'word_len_factor': 0.8201058201058201, 'frequency_factor': 0.007248292233413125, 'embedding_factor': 0.19826173340832745, 'syntactic_factor': 0.3263888888888889, 'dependency_factor': 0.2454150579150579, 'lexical_factor': 0.3632342749989809, 'semantic_coherence_factor': 0.22510245352080377}
-[2025-05-19 16:51:46,391: DEBUG/MainProcess] Stored result in cache for sentence index 12 (Key: 8fc37696...)
-[2025-05-19 16:51:46,399: DEBUG/MainProcess] Cache MISS for sentence index 13 (Key: cf1cb7e8...)
-[2025-05-19 16:51:48,011: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:48,020: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1690 for sentence: 'In this paper, we use the definition of DIY-materi...' (Mode: local)
-[2025-05-19 16:51:48,021: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 2, 'avg_dependency_length': 4.62962962962963, 'has_passive_voice': 0}, Combined Factor: 0.395
-[2025-05-19 16:51:48,021: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 2, 'pp_count': 3, 'max_pp_nesting_depth': 1}, Combined Factor: 0.288
-[2025-05-19 16:51:48,021: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.2608695652173913}, Combined Factor: 0.448
-[2025-05-19 16:51:48,021: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.572, Factor: 0.000
-[2025-05-19 16:51:48,021: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.415 for sentence: 'In this paper, we use the definition of DIY-materi...'
-[2025-05-19 16:51:48,021: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'In this paper, we use the defi', 'length_factor': 0.68, 'word_len_factor': 0.6890756302521008, 'frequency_factor': 0.11813567397276709, 'embedding_factor': 0.16896519196384094, 'syntactic_factor': 0.39467592592592593, 'dependency_factor': 0.28784013605442177, 'lexical_factor': 0.4481406274884536, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:51:48,022: DEBUG/MainProcess] Stored result in cache for sentence index 13 (Key: cf1cb7e8...)
-[2025-05-19 16:51:48,030: DEBUG/MainProcess] Cache MISS for sentence index 14 (Key: 74fc256d...)
-[2025-05-19 16:51:50,044: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:50,052: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1468 for sentence: '‘ materials which are created through individual o...' (Mode: local)
-[2025-05-19 16:51:50,053: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 7, 'num_clauses': 1, 'avg_dependency_length': 3.64, 'has_passive_voice': 1}, Combined Factor: 0.572
-[2025-05-19 16:51:50,053: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 4, 'max_pp_nesting_depth': 3}, Combined Factor: 0.297
-[2025-05-19 16:51:50,053: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 2, 'content_word_ratio': 0.5416666666666666}, Combined Factor: 0.404
-[2025-05-19 16:51:50,053: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.493, Factor: 0.104
-[2025-05-19 16:51:50,053: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.495 for sentence: '‘ materials which are created through individual o...'
-[2025-05-19 16:51:50,053: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': '‘ materials which are created ', 'length_factor': 0.84, 'word_len_factor': 0.8843537414965986, 'frequency_factor': 0.0, 'embedding_factor': 0.1467733911815144, 'syntactic_factor': 0.5720833333333333, 'dependency_factor': 0.2973901098901099, 'lexical_factor': 0.4038461538461539, 'semantic_coherence_factor': 0.10385261656660033}
-[2025-05-19 16:51:50,055: DEBUG/MainProcess] Stored result in cache for sentence index 14 (Key: 74fc256d...)
-[2025-05-19 16:51:50,062: DEBUG/MainProcess] Cache MISS for sentence index 15 (Key: c7b167c8...)
-[2025-05-19 16:51:51,448: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:51,456: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1547 for sentence: 'They can be totally new materials, modified, or fu...' (Mode: local)
-[2025-05-19 16:51:51,456: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 3, 'avg_dependency_length': 2.4375, 'has_passive_voice': 0}, Combined Factor: 0.389
-[2025-05-19 16:51:51,456: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 1, 'max_pp_nesting_depth': 1}, Combined Factor: 0.268
-[2025-05-19 16:51:51,457: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.5625}, Combined Factor: 0.067
-[2025-05-19 16:51:51,457: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.467, Factor: 0.151
-[2025-05-19 16:51:51,457: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.367 for sentence: 'They can be totally new materials, modified, or fu...'
-[2025-05-19 16:51:51,457: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'They can be totally new materi', 'length_factor': 0.56, 'word_len_factor': 0.826530612244898, 'frequency_factor': 0.0, 'embedding_factor': 0.15467756135123117, 'syntactic_factor': 0.388671875, 'dependency_factor': 0.2679154995331466, 'lexical_factor': 0.06730769230769232, 'semantic_coherence_factor': 0.15074591948227456}
-[2025-05-19 16:51:51,458: DEBUG/MainProcess] Stored result in cache for sentence index 15 (Key: c7b167c8...)
-[2025-05-19 16:51:51,466: DEBUG/MainProcess] Cache MISS for sentence index 16 (Key: 725832ea...)
-[2025-05-19 16:51:53,228: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:53,237: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1900 for sentence: 'Designers educated in DIY-materials [5] and the Ma...' (Mode: local)
-[2025-05-19 16:51:53,238: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 4.2592592592592595, 'has_passive_voice': 0}, Combined Factor: 0.362
-[2025-05-19 16:51:53,238: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.363
-[2025-05-19 16:51:53,238: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.5}, Combined Factor: 0.115
-[2025-05-19 16:51:53,238: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.410, Factor: 0.255
-[2025-05-19 16:51:53,238: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.437 for sentence: 'Designers educated in DIY-materials [5] and the Ma...'
-[2025-05-19 16:51:53,238: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Designers educated in DIY-mate', 'length_factor': 0.72, 'word_len_factor': 0.8492063492063492, 'frequency_factor': 0.010872438350119688, 'embedding_factor': 0.19001015151540437, 'syntactic_factor': 0.36226851851851855, 'dependency_factor': 0.3632369614512472, 'lexical_factor': 0.11538461538461539, 'semantic_coherence_factor': 0.2546295397209399}
-[2025-05-19 16:51:53,239: DEBUG/MainProcess] Stored result in cache for sentence index 16 (Key: 725832ea...)
-[2025-05-19 16:51:53,249: DEBUG/MainProcess] Cache MISS for sentence index 17 (Key: 1df41b30...)
-[2025-05-19 16:51:55,865: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:55,876: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1984 for sentence: 'TU Delft (NL), Politecnico di Milano (IT), Imperia...' (Mode: local)
-[2025-05-19 16:51:55,877: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 3.8048780487804876, 'has_passive_voice': 0}, Combined Factor: 0.348
-[2025-05-19 16:51:55,877: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.097
-[2025-05-19 16:51:55,877: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.16666666666666666}, Combined Factor: 0.372
-[2025-05-19 16:51:55,877: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.191, Factor: 0.653
-[2025-05-19 16:51:55,877: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.555 for sentence: 'TU Delft (NL), Politecnico di Milano (IT), Imperia...'
-[2025-05-19 16:51:55,877: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'TU Delft (NL), Politecnico di ', 'length_factor': 1.08, 'word_len_factor': 0.7566137566137566, 'frequency_factor': 0.0459685383222977, 'embedding_factor': 0.19838133233564872, 'syntactic_factor': 0.3480691056910569, 'dependency_factor': 0.09651360544217688, 'lexical_factor': 0.3717948717948718, 'semantic_coherence_factor': 0.6527539509715455}
-[2025-05-19 16:51:55,878: DEBUG/MainProcess] Stored result in cache for sentence index 17 (Key: 1df41b30...)
-[2025-05-19 16:51:55,889: DEBUG/MainProcess] Cache MISS for sentence index 18 (Key: 64c306f0...)
-[2025-05-19 16:51:58,397: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:51:58,407: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1629 for sentence: 'However, these designers and students are facing g...' (Mode: local)
-[2025-05-19 16:51:58,407: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 7, 'num_clauses': 4, 'avg_dependency_length': 3.8666666666666667, 'has_passive_voice': 0}, Combined Factor: 0.517
-[2025-05-19 16:51:58,407: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.198
-[2025-05-19 16:51:58,407: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.6071428571428571}, Combined Factor: 0.033
-[2025-05-19 16:51:58,408: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.558, Factor: 0.000
-[2025-05-19 16:51:58,408: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.481 for sentence: 'However, these designers and students are facing g...'
-[2025-05-19 16:51:58,408: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'However, these designers and s', 'length_factor': 1.0, 'word_len_factor': 0.9257142857142858, 'frequency_factor': 0.010283461803183331, 'embedding_factor': 0.162867092192173, 'syntactic_factor': 0.5166666666666667, 'dependency_factor': 0.19818868407578086, 'lexical_factor': 0.032967032967033016, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:51:58,409: DEBUG/MainProcess] Stored result in cache for sentence index 18 (Key: 64c306f0...)
-[2025-05-19 16:51:58,417: DEBUG/MainProcess] Cache MISS for sentence index 19 (Key: 9bc90ef4...)
-[2025-05-19 16:52:00,787: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:00,799: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1726 for sentence: 'There are numerous examples of DIY- materials that...' (Mode: local)
-[2025-05-19 16:52:00,799: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 10, 'num_clauses': 4, 'avg_dependency_length': 4.75, 'has_passive_voice': 0}, Combined Factor: 0.607
-[2025-05-19 16:52:00,799: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 2, 'pp_count': 3, 'max_pp_nesting_depth': 1}, Combined Factor: 0.280
-[2025-05-19 16:52:00,799: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.6071428571428571}, Combined Factor: 0.177
-[2025-05-19 16:52:00,800: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.465, Factor: 0.154
-[2025-05-19 16:52:00,800: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.524 for sentence: 'There are numerous examples of DIY- materials that...'
-[2025-05-19 16:52:00,800: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'There are numerous examples of', 'length_factor': 1.0, 'word_len_factor': 0.8971428571428571, 'frequency_factor': 0.00525861670328038, 'embedding_factor': 0.17262351870536805, 'syntactic_factor': 0.6067708333333334, 'dependency_factor': 0.2800697865353038, 'lexical_factor': 0.17664519388657324, 'semantic_coherence_factor': 0.1544993890618737}
-[2025-05-19 16:52:00,802: DEBUG/MainProcess] Stored result in cache for sentence index 19 (Key: 9bc90ef4...)
-[2025-05-19 16:52:00,810: DEBUG/MainProcess] Cache MISS for sentence index 20 (Key: d3b37c3c...)
-[2025-05-19 16:52:02,045: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:02,093: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1119 for sentence: 'These are often communicated through tempting imag...' (Mode: local)
-[2025-05-19 16:52:02,094: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 2.4615384615384617, 'has_passive_voice': 1}, Combined Factor: 0.494
-[2025-05-19 16:52:02,094: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 3}, Combined Factor: 0.290
-[2025-05-19 16:52:02,094: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.6153846153846154}, Combined Factor: 0.027
-[2025-05-19 16:52:02,094: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.714, Factor: 0.000
-[2025-05-19 16:52:02,094: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.360 for sentence: 'These are often communicated through tempting imag...'
-[2025-05-19 16:52:02,094: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'These are often communicated t', 'length_factor': 0.52, 'word_len_factor': 0.9120879120879122, 'frequency_factor': 0.007975818721910053, 'embedding_factor': 0.11193501146940085, 'syntactic_factor': 0.4935897435897436, 'dependency_factor': 0.2895408163265306, 'lexical_factor': 0.026627218934911233, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:02,095: DEBUG/MainProcess] Stored result in cache for sentence index 20 (Key: d3b37c3c...)
-[2025-05-19 16:52:02,104: DEBUG/MainProcess] Cache MISS for sentence index 21 (Key: 9ab12e2b...)
-[2025-05-19 16:52:04,019: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:04,028: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1632 for sentence: 'Unfortunately, few DIY-materials manage to reach t...' (Mode: local)
-[2025-05-19 16:52:04,028: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 8, 'num_clauses': 2, 'avg_dependency_length': 2.6818181818181817, 'has_passive_voice': 0}, Combined Factor: 0.375
-[2025-05-19 16:52:04,028: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 3}, Combined Factor: 0.250
-[2025-05-19 16:52:04,028: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.6818181818181818}, Combined Factor: 0.024
-[2025-05-19 16:52:04,029: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.486, Factor: 0.116
-[2025-05-19 16:52:04,029: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.428 for sentence: 'Unfortunately, few DIY-materials manage to reach t...'
-[2025-05-19 16:52:04,029: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Unfortunately, few DIY-materia', 'length_factor': 0.8, 'word_len_factor': 0.8857142857142858, 'frequency_factor': 0.02049705588270043, 'embedding_factor': 0.16320111528038977, 'syntactic_factor': 0.3754734848484848, 'dependency_factor': 0.24961180124223603, 'lexical_factor': 0.02447552447552442, 'semantic_coherence_factor': 0.11576323622426432}
-[2025-05-19 16:52:04,030: DEBUG/MainProcess] Stored result in cache for sentence index 21 (Key: 9ab12e2b...)
-[2025-05-19 16:52:04,037: DEBUG/MainProcess] Cache MISS for sentence index 22 (Key: 4adbfd67...)
-[2025-05-19 16:52:05,603: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:05,612: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1528 for sentence: 'There are however a few examples of successful cir...' (Mode: local)
-[2025-05-19 16:52:05,612: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 7, 'num_clauses': 2, 'avg_dependency_length': 3.2941176470588234, 'has_passive_voice': 0}, Combined Factor: 0.374
-[2025-05-19 16:52:05,612: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.296
-[2025-05-19 16:52:05,612: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.7058823529411765}, Combined Factor: 0.043
-[2025-05-19 16:52:05,612: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.569, Factor: 0.000
-[2025-05-19 16:52:05,613: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.379 for sentence: 'There are however a few examples of successful cir...'
-[2025-05-19 16:52:05,613: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'There are however a few exampl', 'length_factor': 0.64, 'word_len_factor': 0.8839285714285714, 'frequency_factor': 0.0, 'embedding_factor': 0.15280839148908854, 'syntactic_factor': 0.3737745098039216, 'dependency_factor': 0.2961860670194003, 'lexical_factor': 0.04298642533936653, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:05,613: DEBUG/MainProcess] Stored result in cache for sentence index 22 (Key: 4adbfd67...)
-[2025-05-19 16:52:05,619: DEBUG/MainProcess] Cache MISS for sentence index 23 (Key: e21f1d6a...)
-[2025-05-19 16:52:06,025: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:06,035: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.0981 for sentence: 'Terroir, Residue and Mestic....' (Mode: local)
-[2025-05-19 16:52:06,035: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 2, 'num_clauses': 1, 'avg_dependency_length': 2.2, 'has_passive_voice': 0}, Combined Factor: 0.173
-[2025-05-19 16:52:06,035: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 0, 'max_pp_nesting_depth': 0}, Combined Factor: 0.000
-[2025-05-19 16:52:06,035: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.0}, Combined Factor: 0.500
-[2025-05-19 16:52:06,035: DEBUG/MainProcess] Task None: Semantic Coherence Score: 1.000, Factor: 0.000
-[2025-05-19 16:52:06,035: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.253 for sentence: 'Terroir, Residue and Mestic....'
-[2025-05-19 16:52:06,035: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Terroir, Residue and Mestic.', 'length_factor': 0.16, 'word_len_factor': 0.8214285714285714, 'frequency_factor': 0.12376204354661706, 'embedding_factor': 0.09814218431711197, 'syntactic_factor': 0.17291666666666666, 'dependency_factor': 0.0, 'lexical_factor': 0.5, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:06,036: DEBUG/MainProcess] Stored result in cache for sentence index 23 (Key: e21f1d6a...)
-[2025-05-19 16:52:06,045: DEBUG/MainProcess] Cache MISS for sentence index 24 (Key: 9d122325...)
-[2025-05-19 16:52:08,007: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:08,019: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1731 for sentence: 'The Terroir project by the Danish designers Edvard...' (Mode: local)
-[2025-05-19 16:52:08,019: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 2, 'avg_dependency_length': 2.6666666666666665, 'has_passive_voice': 0}, Combined Factor: 0.312
-[2025-05-19 16:52:08,019: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.231
-[2025-05-19 16:52:08,019: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.55}, Combined Factor: 0.077
-[2025-05-19 16:52:08,020: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.412, Factor: 0.250
-[2025-05-19 16:52:08,020: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.429 for sentence: 'The Terroir project by the Danish designers Edvard...'
-[2025-05-19 16:52:08,020: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'The Terroir project by the Dan', 'length_factor': 0.8, 'word_len_factor': 0.7642857142857142, 'frequency_factor': 0.10192947542447435, 'embedding_factor': 0.17310937717556954, 'syntactic_factor': 0.3125, 'dependency_factor': 0.23075396825396827, 'lexical_factor': 0.0769230769230769, 'semantic_coherence_factor': 0.2501552050763911}
-[2025-05-19 16:52:08,021: DEBUG/MainProcess] Stored result in cache for sentence index 24 (Key: 9d122325...)
-[2025-05-19 16:52:08,029: DEBUG/MainProcess] Cache MISS for sentence index 25 (Key: 31aec910...)
-[2025-05-19 16:52:09,508: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:09,516: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1212 for sentence: 'The cork like composite is then used in a local cr...' (Mode: local)
-[2025-05-19 16:52:09,517: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 5, 'num_clauses': 1, 'avg_dependency_length': 2.3125, 'has_passive_voice': 1}, Combined Factor: 0.489
-[2025-05-19 16:52:09,517: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 3, 'max_pp_nesting_depth': 3}, Combined Factor: 0.314
-[2025-05-19 16:52:09,517: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.5625}, Combined Factor: 0.312
-[2025-05-19 16:52:09,517: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.652, Factor: 0.000
-[2025-05-19 16:52:09,517: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.388 for sentence: 'The cork like composite is then used in a local cr...'
-[2025-05-19 16:52:09,517: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'The cork like composite is the', 'length_factor': 0.64, 'word_len_factor': 0.6875, 'frequency_factor': 0.01648421086146018, 'embedding_factor': 0.1212090253829956, 'syntactic_factor': 0.4889322916666667, 'dependency_factor': 0.3135504201680672, 'lexical_factor': 0.3124057315233786, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:09,518: DEBUG/MainProcess] Stored result in cache for sentence index 25 (Key: 31aec910...)
-[2025-05-19 16:52:09,526: DEBUG/MainProcess] Cache MISS for sentence index 26 (Key: 363d4644...)
-[2025-05-19 16:52:11,393: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:11,402: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1405 for sentence: 'Swedish designer Hanna Carlsson developed a wood c...' (Mode: local)
-[2025-05-19 16:52:11,402: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 4, 'num_clauses': 2, 'avg_dependency_length': 6.5, 'has_passive_voice': 0}, Combined Factor: 0.411
-[2025-05-19 16:52:11,402: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 0, 'subordination_count': 0, 'pp_count': 2, 'max_pp_nesting_depth': 1}, Combined Factor: 0.115
-[2025-05-19 16:52:11,402: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 0, 'content_word_ratio': 0.5909090909090909}, Combined Factor: 0.045
-[2025-05-19 16:52:11,402: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.587, Factor: 0.000
-[2025-05-19 16:52:11,403: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.391 for sentence: 'Swedish designer Hanna Carlsson developed a wood c...'
-[2025-05-19 16:52:11,403: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'Swedish designer Hanna Carlsso', 'length_factor': 0.76, 'word_len_factor': 0.8571428571428571, 'frequency_factor': 0.01127939862960655, 'embedding_factor': 0.1405286757569564, 'syntactic_factor': 0.4114583333333333, 'dependency_factor': 0.11541005291005291, 'lexical_factor': 0.04545454545454545, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:11,404: DEBUG/MainProcess] Stored result in cache for sentence index 26 (Key: 363d4644...)
-[2025-05-19 16:52:11,412: DEBUG/MainProcess] Cache MISS for sentence index 27 (Key: 7023d906...)
-[2025-05-19 16:52:14,024: WARNING/MainProcess] Calculating embeddings locally.
-[2025-05-19 16:52:14,034: WARNING/MainProcess] DEBUG: Calculated embedding complexity factor: 0.1465 for sentence: 'The residue material is moulded into double curved...' (Mode: local)
-[2025-05-19 16:52:14,034: DEBUG/MainProcess] Task None: Original Syntactic Features: {'parse_tree_depth': 6, 'num_clauses': 4, 'avg_dependency_length': 2.6296296296296298, 'has_passive_voice': 1}, Combined Factor: 0.707
-[2025-05-19 16:52:14,034: DEBUG/MainProcess] Task None: Dependency Metrics: {'complex_dep_count': 1, 'subordination_count': 1, 'pp_count': 4, 'max_pp_nesting_depth': 3}, Combined Factor: 0.389
-[2025-05-19 16:52:14,035: DEBUG/MainProcess] Task None: Lexical Metrics: {'nominalization_count': 1, 'content_word_ratio': 0.6538461538461539}, Combined Factor: 0.152
-[2025-05-19 16:52:14,035: DEBUG/MainProcess] Task None: Semantic Coherence Score: 0.599, Factor: 0.000
-[2025-05-19 16:52:14,035: DEBUG/MainProcess] Task None: Calculated Score (full mode using profile weights): 0.534 for sentence: 'The residue material is moulded into double curved...'
-[2025-05-19 16:52:14,035: INFO/MainProcess] Task None: DEBUG FACTORS (Full Mode): {'sentence_start': 'The residue material is moulde', 'length_factor': 1.08, 'word_len_factor': 0.8253968253968254, 'frequency_factor': 0.003389360109724035, 'embedding_factor': 0.1464615927802192, 'syntactic_factor': 0.7071759259259259, 'dependency_factor': 0.3887471655328798, 'lexical_factor': 0.1517681036911806, 'semantic_coherence_factor': 0.0}
-[2025-05-19 16:52:14,036: DEBUG/MainProcess] Stored result in cache for sentence index 27 (Key: 7023d906...)
-[2025-05-19 16:52:14,055: INFO/MainProcess] analyze_text_complexity: Final count of sentence results (in 'results' list var): 28 for analysis_id: None
-[2025-05-19 16:52:14,055: INFO/MainProcess] analyze_text_complexity: First sentence data (sample from 'results' list var): {'sentence': 'EPDE2020/1280', 'score': 0.0, 'level': 'Very Simple', 'color_class': 'bg-green-500', 'start': 0, 'end': 13, 'index': 0, 'mode': 'full', 'complexity_factors': {'score': 0.0, 'length_factor': 0.0, 'word_len_factor': 0.0, 'frequency_factor...
-[2025-05-19 16:52:14,055: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Text analysis complete. Overall level: Moderate
-[2025-05-19 16:52:14,055: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Analyzed 28 sentences.
-[2025-05-19 16:52:14,056: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Generating highlighted PDF...
-[2025-05-19 16:52:14,492: INFO/MainProcess] Highlighting process complete. Added 120 highlight annotations total across all pages.
-[2025-05-19 16:52:14,492: INFO/MainProcess] Adding complexity overview page to the PDF.
-[2025-05-19 16:52:14,526: INFO/MainProcess] Overview: Drawing Top X Sentences. Count: 5, Type: complex
-[2025-05-19 16:52:14,527: INFO/MainProcess] Overview: Found 28 sentences in analysis_results.
-[2025-05-19 16:52:14,527: INFO/MainProcess] Overview: Top sentences list created with 5 sentences.
-[2025-05-19 16:52:14,527: INFO/MainProcess] Overview: Drawing sentence 1
-[2025-05-19 16:52:14,548: INFO/MainProcess] Overview: Drawing sentence 2
-[2025-05-19 16:52:14,559: INFO/MainProcess] Overview: Drawing sentence 3
-[2025-05-19 16:52:14,567: INFO/MainProcess] Overview: Drawing sentence 4
-[2025-05-19 16:52:14,576: INFO/MainProcess] Overview: Drawing sentence 5
-[2025-05-19 16:52:14,586: INFO/MainProcess] Successfully drew content on the overview page.
-[2025-05-19 16:52:14,612: INFO/MainProcess] Highlighted PDF successfully saved to: /home/pepper/typecomplex/processed_pdfs/be83086f-f4bb-4bd5-a0bd-34d24cadc697_highlighted.pdf
-[2025-05-19 16:52:14,613: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Highlighted PDF generated: be83086f-f4bb-4bd5-a0bd-34d24cadc697_highlighted.pdf
-[2025-05-19 16:52:14,613: INFO/MainProcess] Task be83086f-f4bb-4bd5-a0bd-34d24cadc697: Processing complete. Result: {'original_filename': '1280-1.pdf', 'highlighted_pdf_filename': 'be83086f-f4bb-4bd5-a0bd-34d24cadc697_highlighted.pdf', 'overall_level': {'level': 3, 'description': 'Moderate', 'color_class': 'bg-yellow-500'}, 'readability_scores': {'flesch_kincaid_grade': 19.3, 'gunning_fog': 16.6, 'smog_index': 19.9}, 'num_sentences_analyzed': 28, 'num_sentences_with_coords': 28, 'processed_text_preview': 'EPDE2020/1280\n\nINTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 10-11 SEPTEMBER 2020, VIA DESIGN, VIA UNIVERSITY COLLEGE, HERNING, DENMARK\n\nA QUALITATIVE STUDY OF THE CHALLENGES FA...', 'status_message': 'PDF processed successfully.'}
-[2025-05-19 16:52:14,615: INFO/MainProcess] Task app.tasks.process_pdf_task[be83086f-f4bb-4bd5-a0bd-34d24cadc697] succeeded in 67.91541901100004s: {'original_filename': '1280-1.pdf', 'highlighted_pdf_filename': 'be83086f-f4bb-4bd5-a0bd-34d24cadc697_highlighted.pdf', 'overall_level': {'level': 3, 'description': 'Moderate', 'color_class': 'bg-yellow-500'}, 'readability_scores': {'flesch_kincaid_grade': 19.3, 'gunning_fog': 16.6, 'smog_index': 19.9}, 'num_sentences_analyzed': 28, 'num_sentences_with_coords': 28, 'processed_text_preview': 'EPDE2020/1280
-
-INTERNATIONAL CONFERENCE ON ENGINEERING AND PRODUCT DESIGN EDUCATION 10-11 SEPTEMBER 2020, VIA DESIGN, VIA UNIVERSITY COLLEGE, HERNING, DENMARK
-
-A QUALITATIVE STUDY OF THE CHALLENGES FA...', 'status_message': 'PDF processed successfully.'}
+[2025-05-22 05:24:07,045: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
+[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Worker: Starting Pool
+[2025-05-22 05:24:07,045: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Worker: Starting Consumer
+[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Consumer: Starting Connection
+[2025-05-22 05:24:07,048: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-05-22 05:24:07,048: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:07,048: DEBUG/MainProcess] | Consumer: Starting Events
+[2025-05-22 05:24:07,050: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:07,050: DEBUG/MainProcess] | Consumer: Starting Heart
+[2025-05-22 05:24:07,052: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:07,052: DEBUG/MainProcess] | Consumer: Starting Mingle
+[2025-05-22 05:24:07,052: INFO/MainProcess] mingle: searching for neighbors
+[2025-05-22 05:24:08,060: INFO/MainProcess] mingle: all alone
+[2025-05-22 05:24:08,060: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:08,060: DEBUG/MainProcess] | Consumer: Starting Tasks
+[2025-05-22 05:24:08,064: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:08,064: DEBUG/MainProcess] | Consumer: Starting Control
+[2025-05-22 05:24:08,064: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:08,064: DEBUG/MainProcess] | Consumer: Starting Gossip
+[2025-05-22 05:24:08,068: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
+[2025-05-22 05:24:08,071: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 05:24:08,071: DEBUG/MainProcess] | Consumer: Starting event loop
+[2025-05-22 05:24:08,071: INFO/MainProcess] celery@fedora ready.
+[2025-05-22 05:24:08,072: DEBUG/MainProcess] basic.qos: prefetch_count->32

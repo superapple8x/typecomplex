@@ -407,9 +407,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- END NEW ---
 
     // --- Quill Initialization ---
-    // Removed the custom Attributor registration as it caused errors with global script loading.
-    // We will use a standard CSS class instead.
-
+    // Import and register required modules for enhanced functionality
+    
+    // Register better-table module if it exists
+    if (window.QuillBetterTable) {
+        const Delta = Quill.import('delta');
+        const Module = Quill.import('core/module');
+        Quill.register({
+            'modules/better-table': window.QuillBetterTable
+        }, true);
+    }
+    
+    // Custom image handler
+    function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+        
+        input.onchange = () => {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const imageUrl = reader.result;
+                    const range = quill.getSelection(true);
+                    quill.insertEmbed(range.index, 'image', imageUrl);
+                    quill.setSelection(range.index + 1);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+    
     // REMOVED Custom Format Registration for GoalDeviationUnderline
     
     // --- LLM Enhancement Format REMOVED ---
@@ -417,16 +447,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const quill = new Quill(editorContainer, {
         theme: 'snow', // Use the Snow theme
         modules: {
-            toolbar: [ // Revised toolbar structure
-                [{ 'header': [1, 2, 3, false] }],           // Group 1: Headings
-                ['bold', 'italic', 'underline'],            // Group 2: Basic inline
-                ['blockquote', 'code-block'],               // Group 3: Block elements (removed link)
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Group 4: Lists
-                [{ 'indent': '-1'}, { 'indent': '+1' }],      // Group 5: Indentation
-                [{ 'align': [] }],                           // Group 6: Alignment
-                ['clean']                                   // Group 7: Clean
-                // Undo/Redo are typically handled by the history module + keyboard shortcuts
-            ],
+            'better-table': {
+                operationMenu: {
+                    items: {
+                        insertColumnRight: {
+                            text: 'Insert Column Right'
+                        },
+                        insertColumnLeft: {
+                            text: 'Insert Column Left'
+                        },
+                        insertRowUp: {
+                            text: 'Insert Row Above'
+                        },
+                        insertRowDown: {
+                            text: 'Insert Row Below'
+                        },
+                        mergeCells: {
+                            text: 'Merge Cells'
+                        },
+                        unmergeCells: {
+                            text: 'Unmerge Cells'
+                        },
+                        deleteColumn: {
+                            text: 'Delete Column'
+                        },
+                        deleteRow: {
+                            text: 'Delete Row'
+                        },
+                        deleteTable: {
+                            text: 'Delete Table'
+                        }
+                    }
+                }
+            },
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, 3, false] }],           // Group 1: Headings
+                    ['bold', 'italic', 'underline', 'strike'],  // Group 2: Basic inline formatting
+                    [{ 'color': [] }, { 'background': [] }],    // Group 3: Colors
+                    ['link', 'blockquote', 'code-block'],       // Group 4: Block elements & links
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Group 5: Lists
+                    [{ 'script': 'sub'}, { 'script': 'super' }],  // Group 6: Subscript/superscript
+                    [{ 'indent': '-1'}, { 'indent': '+1' }],      // Group 7: Indentation
+                    [{ 'align': [] }],                           // Group 8: Alignment
+                    ['image'],                                   // Group 9: Media
+                    ['clean'],                                   // Group 10: Clean formatting
+                    ['analyze-text']                             // Group 11: Custom - Analyze text
+                ],
+                handlers: {
+                    'image': imageHandler,
+                    'analyze-text': function() {
+                        if (typeof analyzeAndHighlight === 'function') {
+                            analyzeAndHighlight(true);
+                        }
+                    }
+                }
+            },
+            keyboard: {
+                bindings: window.QuillBetterTable ? {
+                    'tab': {
+                        key: 9,
+                        handler: function() {
+                            return true;
+                        }
+                    }
+                } : {}
+            },
              history: { // Enable history module for undo/redo
                  delay: 1000, // Debounce time for history entries (ms)
                  maxStack: 500, // Max undo stack size
@@ -465,6 +551,64 @@ document.addEventListener('DOMContentLoaded', () => {
             quill.root.setAttribute('data-placeholder', 'Start writing here...');  // Restore placeholder if empty
         }
     });
+    
+    // Register custom toolbar button for text analysis
+    const QuillClass = quill.constructor;
+    let CustomButton = QuillClass.import('ui/icons');
+    CustomButton['analyze-text'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`;
+    
+    // Add custom table button to toolbar
+    const toolbar = quill.getModule('toolbar');
+    if (toolbar && window.QuillBetterTable) {
+        // Create table button and add it to toolbar
+        const tableButton = document.createElement('button');
+        tableButton.className = 'ql-table-button';
+        tableButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"></path></svg>`;
+        tableButton.title = 'Insert Table';
+        
+        // Add click handler for inserting table
+        tableButton.addEventListener('click', () => {
+            const tableModule = quill.getModule('better-table');
+            if (tableModule) {
+                // Insert a 3x3 table at current cursor position
+                tableModule.insertTable(3, 3);
+            }
+        });
+        
+        // Add to toolbar in the right position (after image button)
+        const imageButton = toolbar.container.querySelector('.ql-image');
+        if (imageButton && imageButton.parentNode) {
+            imageButton.parentNode.appendChild(tableButton);
+        }
+    }
+    
+    // Add tooltip with keyboard shortcuts to toolbar buttons
+    toolbar.container.querySelectorAll('button').forEach(button => {
+        // Skip buttons that already have title attributes
+        if (!button.title) {
+            // Map format to keyboard shortcut
+            const format = button.className.split('ql-')[1];
+            let shortcut = '';
+            switch(format) {
+                case 'bold': shortcut = 'Ctrl+B'; break;
+                case 'italic': shortcut = 'Ctrl+I'; break;
+                case 'underline': shortcut = 'Ctrl+U'; break;
+                case 'link': shortcut = 'Ctrl+K'; break;
+                case 'image': shortcut = 'Ctrl+Shift+I'; break;
+                case 'analyze-text': shortcut = 'Alt+A'; break;
+                // Add more shortcuts as needed
+            }
+            
+            // Set the title attribute for tooltip
+            if (shortcut) {
+                button.title = `${format.charAt(0).toUpperCase() + format.slice(1)} (${shortcut})`;
+            } else if (format) {
+                button.title = format.charAt(0).toUpperCase() + format.slice(1);
+            }
+        }
+    });
+    
+    // No need for additional event listener as we're using the handlers in toolbar config
 
     // --- Tippy Initialization ---
     const synonymTooltip = tippy(document.body, { // Attach to body, trigger manually
