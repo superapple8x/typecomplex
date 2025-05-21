@@ -78,11 +78,13 @@ body {
 }
 
 .ql-toolbar .ql-stroke {
-  stroke: var(--text-primary) !important;
+  fill: none !important;
+  stroke: currentColor !important; /* Ensure it inherits from button or its active state */
 }
 
 .ql-toolbar .ql-fill {
-  fill: var(--text-primary) !important;
+  fill: currentColor !important; /* Ensure it inherits from button or its active state */
+  stroke: none !important;
 }
 
 .ql-toolbar button:hover,
@@ -112,71 +114,127 @@ body {
 
 /* Add subtle animations */
 .ql-toolbar button {
-  transition: transform 0.15s ease, background-color 0.15s ease !important;
-  border-radius: 4px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  padding: 2px 3px !important;
+  margin: 0 1px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  border-radius: 3px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  position: relative !important;
 }
 
+/* Specifically target SVGs inside buttons for consistent sizing and fill/stroke */
+.ql-toolbar button svg {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Override stroke/fill for specific Quill classes */
+.ql-toolbar .ql-stroke {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+
+.ql-toolbar .ql-fill {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+
+/* Button hover and active states */
 .ql-toolbar button:hover {
-  transform: translateY(-1px) !important;
+  background-color: rgba(108, 111, 147, 0.2) !important;
+  color: var(--accent-blue) !important;
+}
+
+.ql-toolbar button.ql-active {
+  color: var(--accent-blue) !important;
+  background-color: rgba(137, 180, 250, 0.15) !important;
+}
+
+/* Ensure active state SVG also gets the active color */
+.ql-toolbar button.ql-active svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Focus state */
+.ql-toolbar button:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-blue) !important;
+  outline: none !important;
+}
+
+/* Pseudo-element to handle background */
+.ql-toolbar button::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: transparent !important;
+  border-radius: 3px !important;
+  z-index: 0 !important;
+}
+
+.ql-toolbar button:hover::before {
   background-color: rgba(108, 111, 147, 0.2) !important;
 }
 
-.ql-toolbar button:active {
-  transform: translateY(0) !important;
-}
-
-/* Enhance the custom analyze button */
-.ql-toolbar .ql-analyze-text {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  border-radius: 4px !important;
-}
-
-.ql-toolbar .ql-analyze-text:hover {
-  background-color: rgba(137, 180, 250, 0.3) !important;
-}
-
-.ql-toolbar .ql-analyze-text svg {
-  stroke: var(--accent-blue) !important;
+.ql-toolbar button.ql-active::before {
+  background-color: rgba(137, 180, 250, 0.15) !important;
 }
 
 /* Fix for dropdown menus */
 .ql-toolbar {
-  position: relative;
-  z-index: 1;
+  position: relative !important;
+  z-index: 1 !important;
   font-family: 'Inter', sans-serif !important;
 }
 
-#editor-container {
-  position: relative;
-  z-index: 0;
+/* Picker styles */
+.ql-toolbar .ql-picker {
+  position: relative !important;
+  height: 24px !important;
 }
 
-.ql-toolbar .ql-picker-label,
-.ql-toolbar .ql-picker-item {
-  font-family: 'Inter', sans-serif !important;
-  font-weight: 500 !important;
+.ql-toolbar .ql-picker-label {
+  padding: 2px 3px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+}
+
+.ql-toolbar .ql-picker-label::before {
+  color: currentColor !important;
 }
 
 .ql-toolbar .ql-picker-options {
   background: rgba(49, 50, 68, 0.95) !important;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(108, 111, 147, 0.3) !important;
   border-radius: var(--border-radius) !important;
-  box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.25) !important,
-    0 0 0 1px rgba(108, 111, 147, 0.1) !important;
-  z-index: 1000;
-  position: absolute;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
   padding: 8px !important;
-  max-height: 300px !important;
-  overflow-y: auto !important;
-  scrollbar-width: thin !important;
-  transition: opacity 0.2s ease, transform 0.2s ease !important;
-  transform-origin: top !important;
-}
-
-.ql-toolbar .ql-picker-label {
-  color: var(--text-primary) !important;
+  margin-top: 5px !important;
 }
 
 .ql-toolbar .ql-picker-item {
@@ -197,40 +255,45 @@ body {
   font-weight: 600 !important;
 }
 
-/* Specific fixes for header dropdown */
-.ql-toolbar .ql-picker.ql-header .ql-picker-label::before,
-.ql-toolbar .ql-picker.ql-header .ql-picker-item::before {
-  color: var(--text-primary) !important;
-}
-
-/* Specific fixes for alignment dropdown */
-.ql-toolbar .ql-picker.ql-align .ql-picker-label svg,
-.ql-toolbar .ql-picker.ql-align .ql-picker-item svg {
-  stroke: var(--text-primary) !important;
-}
-
-.ql-toolbar .ql-picker.ql-align .ql-picker-label:hover svg,
-.ql-toolbar .ql-picker.ql-align .ql-picker-item:hover svg {
-  stroke: var(--accent-blue) !important;
-}
-
-.ql-toolbar .ql-formats:last-child {
-  border-right: none;
-  padding-right: 0;
-  margin-right: 0;
-}
-
-.ql-container {
-  border-bottom-left-radius: var(--border-radius) !important;
-  border-bottom-right-radius: var(--border-radius) !important;
+/* Custom table button */
+.ql-toolbar .ql-table-button {
+  position: relative !important;
+  padding: 2px 3px !important;
+  background: transparent !important;
   border: none !important;
-  font-family: 'Inter', sans-serif !important;
+  cursor: pointer !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-speed) ease !important;
+  margin: 0 1px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-.ql-editor {
-  padding: 1.5rem !important;
-  font-size: 1rem;
-  line-height: 1.6;
+.ql-toolbar .ql-table-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.ql-toolbar .ql-table-button:hover {
+  color: var(--accent-blue) !important;
+}
+
+.ql-toolbar .ql-table-button::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: transparent !important;
+  border-radius: 3px !important;
+  z-index: 0 !important;
+}
+
+.ql-toolbar .ql-table-button:hover::before {
+  background-color: rgba(108, 111, 147, 0.2) !important;
 }
 
 /* Left Sidebar General Styling - Enhanced for Collapsing - RESTORED BASE STYLES */
@@ -1172,8 +1235,10 @@ h1, h2, h3 {
 /* Enhance focus state for better accessibility */
 .ql-toolbar button:focus,
 .ql-toolbar .ql-picker-label:focus {
-  outline: 2px solid var(--accent-blue) !important;
-  outline-offset: 2px !important;
+  /* outline: 2px solid var(--accent-blue) !important; */ /* Replaced by button:focus-visible */
+  /* outline-offset: 2px !important; */
+  box-shadow: 0 0 0 2px var(--accent-blue) !important; /* Apply consistent focus to picker labels too */
+  outline: none !important;
 }
 
 /* Floating selection toolbar - for future implementation */

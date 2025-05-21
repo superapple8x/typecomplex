@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // Add a short delay to allow Quill to process the update before re-analyzing
                                 setTimeout(() => {
                                     console.log("Rewrite Handler: Triggering analysis after apply (100ms delay)."); // DEBUG
-                                    window.typecomplexApp.triggerAnalysis(); // Re-analyze after applying change
+                                    window.typecomplexApp.triggerAnalysis(true); // Re-analyze after applying change, force run
                                 }, 100); // 100ms delay
                             } else {
                                 console.error("Rewrite Handler: Could not find window.typecomplexApp.triggerAnalysis function.");

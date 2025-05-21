@@ -47,6 +47,11 @@ def load_frequency_data(filepath=_DATA_FILE_PATH):
         # Optional: Convert counts to numeric, coercing errors (though they should be numbers)
         _frequency_data = pd.to_numeric(_frequency_data, errors='coerce').fillna(0)
 
+        # Sort the Series by its index (word) for faster lookups
+        if _frequency_data is not None and not _frequency_data.empty:
+            _frequency_data.sort_index(inplace=True)
+            print("Frequency data Series sorted by index.")
+
         print(f"Successfully loaded {_frequency_data.shape[0]} words.")
 
     except FileNotFoundError:

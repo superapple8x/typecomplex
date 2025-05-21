@@ -411,43 +411,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Register better-table module if it exists
     if (window.QuillBetterTable) {
-        const Delta = Quill.import('delta');
-        const Module = Quill.import('core/module');
-        Quill.register({
-            'modules/better-table': window.QuillBetterTable
-        }, true);
+        console.log('QuillBetterTable module found, registering...');
+        try {
+            Quill.register({
+                'modules/better-table': window.QuillBetterTable.default || window.QuillBetterTable
+            }, true);
+            console.log('QuillBetterTable module registered successfully');
+        } catch (error) {
+            console.error('Failed to register QuillBetterTable module:', error);
+        }
+    } else {
+        console.warn('QuillBetterTable module not found');
     }
     
-    // Custom image handler
-    function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-        
-        input.onchange = () => {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const imageUrl = reader.result;
-                    const range = quill.getSelection(true);
-                    quill.insertEmbed(range.index, 'image', imageUrl);
-                    quill.setSelection(range.index + 1);
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-    }
-    
-    // REMOVED Custom Format Registration for GoalDeviationUnderline
-    
-    // --- LLM Enhancement Format REMOVED ---
-
-    const quill = new Quill(editorContainer, {
+    const quill = new Quill('#editor-container', {
         theme: 'snow', // Use the Snow theme
         modules: {
-            'better-table': {
+            'better-table': window.QuillBetterTable ? {
                 operationMenu: {
                     items: {
                         insertColumnRight: {
@@ -479,29 +459,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-            },
+            } : false,
             toolbar: {
                 container: [
                     [{ 'header': [1, 2, 3, false] }],           // Group 1: Headings
                     ['bold', 'italic', 'underline', 'strike'],  // Group 2: Basic inline formatting
                     [{ 'color': [] }, { 'background': [] }],    // Group 3: Colors
-                    ['link', 'blockquote', 'code-block'],       // Group 4: Block elements & links
+                    ['blockquote'], // Keeping blockquote for now unless specified to remove
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Group 5: Lists
                     [{ 'script': 'sub'}, { 'script': 'super' }],  // Group 6: Subscript/superscript
                     [{ 'indent': '-1'}, { 'indent': '+1' }],      // Group 7: Indentation
                     [{ 'align': [] }],                           // Group 8: Alignment
-                    ['image'],                                   // Group 9: Media
                     ['clean'],                                   // Group 10: Clean formatting
-                    ['analyze-text']                             // Group 11: Custom - Analyze text
                 ],
-                handlers: {
-                    'image': imageHandler,
-                    'analyze-text': function() {
-                        if (typeof analyzeAndHighlight === 'function') {
-                            analyzeAndHighlight(true);
-                        }
-                    }
-                }
+                handlers: {}
             },
             keyboard: {
                 bindings: window.QuillBetterTable ? {
@@ -513,28 +484,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } : {}
             },
-             history: { // Enable history module for undo/redo
-                 delay: 1000, // Debounce time for history entries (ms)
-                 maxStack: 500, // Max undo stack size
-                 userOnly: true // Only track user changes
-             },
-            // Configure Quill's clipboard to paste plain text only
+            history: {
+                delay: 1000,
+                maxStack: 500,
+                userOnly: true
+            },
             clipboard: {
-                matchVisual: false, // Recommended when using matchers
+                matchVisual: false,
                 matchers: [
-                    // Match all nodes during paste
                     [Node.ELEMENT_NODE, (node, delta) => {
-                        // Convert the pasted content (delta) to plain text
                         let text = '';
                         delta.ops.forEach(op => {
                             if (typeof op.insert === 'string') {
                                 text += op.insert;
                             } else {
-                                // Handle non-string inserts (like images, embeds) - replace with space or newline
-                                text += ' '; // Or '\n' if preferred
+                                text += ' ';
                             }
                         });
-                        // Return a new Delta containing only the plain text
                         const Delta = Quill.import('delta');
                         return new Delta().insert(text);
                     }]
@@ -542,21 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
     });
-    quill.on('focus', function() {
-        quill.root.setAttribute('data-placeholder', '');  // Clear placeholder on focus
-    });
-    
-    quill.on('blur', function() {
-        if (quill.getText().trim() === '') {
-            quill.root.setAttribute('data-placeholder', 'Start writing here...');  // Restore placeholder if empty
-        }
-    });
-    
-    // Register custom toolbar button for text analysis
-    const QuillClass = quill.constructor;
-    let CustomButton = QuillClass.import('ui/icons');
-    CustomButton['analyze-text'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`;
-    
+
     // Add custom table button to toolbar
     const toolbar = quill.getModule('toolbar');
     if (toolbar && window.QuillBetterTable) {
@@ -575,12 +527,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Add to toolbar in the right position (after image button)
-        const imageButton = toolbar.container.querySelector('.ql-image');
-        if (imageButton && imageButton.parentNode) {
-            imageButton.parentNode.appendChild(tableButton);
+        // Add to toolbar in the right position (after alignment button)
+        const alignButton = toolbar.container.querySelector('.ql-align');
+        if (alignButton && alignButton.parentNode) {
+            alignButton.parentNode.insertBefore(tableButton, alignButton.nextSibling);
         }
     }
+    
+    quill.on('focus', function() {
+        quill.root.setAttribute('data-placeholder', '');  // Clear placeholder on focus
+    });
+    
+    quill.on('blur', function() {
+        if (quill.getText().trim() === '') {
+            quill.root.setAttribute('data-placeholder', 'Start writing here...');  // Restore placeholder if empty
+        }
+    });
+    
+    // Register custom toolbar button for text analysis
+    const QuillClass = quill.constructor;
+    let CustomButton = QuillClass.import('ui/icons');
+    // CustomButton['analyze-text'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`; // Removed analyze-text icon
     
     // Add tooltip with keyboard shortcuts to toolbar buttons
     toolbar.container.querySelectorAll('button').forEach(button => {
@@ -2825,16 +2792,25 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         // Expose helper for getting bounds if needed by rewrite handler
         getQuillBounds: (index, length) => quill.getBounds(index, length),
         // --- NEW: Expose function to trigger analysis ---
-        triggerAnalysis: () => {
-            console.log("External triggerAnalysis called."); // DEBUG
-            if (isAnalysisPaused) {
-                console.log("Analysis is paused, triggerAnalysis ignored.");
-                return; // Don't trigger if paused
+        triggerAnalysis: (forceRun = false) => {
+            console.log(`External triggerAnalysis called. forceRun: ${forceRun}, current isAnalysisPaused: ${isAnalysisPaused}`); 
+
+            if (isAnalysisPaused && !forceRun) {
+                console.log("Analysis is paused and not forced, triggerAnalysis ignored.");
+                return; 
             }
+
+            // If analysis is paused BUT a run is forced:
+            if (isAnalysisPaused && forceRun) {
+                console.log("Analysis is paused but run is forced. Temporarily unpausing for this cycle.");
+                isAnalysisPaused = false;       // Temporarily unpause
+                updateAnalysisButtonState();    // Update UI to show analysis as active (e.g., pause icon)
+            }
+            
+            // Proceed with analysis (this part was already here)
             const currentText = quill.getText();
             const audience = currentTargetAudience;
             const contextEnabled = contextAwarenessToggle ? contextAwarenessToggle.checked : false;
-            // Use the debounced sequential analysis (default 'full' mode)
             debouncedAnalyzeSequentially(currentText, audience, contextEnabled);
         },
         // NEW: Function to call after a rewrite attempt to refresh limits

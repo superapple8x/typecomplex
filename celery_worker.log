@@ -4,22 +4,23 @@ INFO: Flask DEBUG mode is OFF.
 INFO: Cache configured with RedisCache at redis://localhost:6379/0
 /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/spacy/util.py:910: UserWarning: [W095] Model 'en_core_web_sm' (3.8.0) was trained with spaCy v3.8.0 and may not be 100% compatible with the current version (3.7.4). If you see errors or degraded performance, download a newer compatible model or retrain your custom model with the current spaCy version. For more details and available updates, run: python -m spacy validate
   warnings.warn(warn_msg)
-2025-05-22 05:24:06,786 - INFO - DeepSeek client initialized successfully.
-2025-05-22 05:24:06,846 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
+2025-05-22 06:37:57,139 - INFO - DeepSeek client initialized successfully.
+2025-05-22 06:37:57,210 - WARNING - NLTK resource 'wordnet' not found at corpora/wordnet. Attempting download...
 [nltk_data] Downloading package wordnet to /home/pepper/nltk_data...
 [nltk_data]   Package wordnet is already up-to-date!
-2025-05-22 05:24:06,959 - INFO - NLTK resource 'wordnet' downloaded successfully.
-2025-05-22 05:24:06,960 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
-2025-05-22 05:24:06,960 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
-[2025-05-22 05:24:06,986: DEBUG/MainProcess] | Worker: Preparing bootsteps.
-[2025-05-22 05:24:06,989: DEBUG/MainProcess] | Worker: Building graph...
-[2025-05-22 05:24:06,990: DEBUG/MainProcess] | Worker: New boot order: {StateDB, Timer, Hub, Pool, Autoscaler, Beat, Consumer}
-[2025-05-22 05:24:06,999: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
-[2025-05-22 05:24:07,000: DEBUG/MainProcess] | Consumer: Building graph...
-[2025-05-22 05:24:07,018: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Heart, Agent, Mingle, Tasks, DelayedDelivery, Control, Gossip, event loop}
+2025-05-22 06:37:57,323 - INFO - NLTK resource 'wordnet' downloaded successfully.
+2025-05-22 06:37:57,324 - INFO - Upload folder set to: /home/pepper/typecomplex/uploads
+2025-05-22 06:37:57,324 - INFO - Processed folder set to: /home/pepper/typecomplex/processed_pdfs
+[2025-05-22 06:37:57,377: DEBUG/MainProcess] | Worker: Preparing bootsteps.
+[2025-05-22 06:37:57,380: DEBUG/MainProcess] | Worker: Building graph...
+[2025-05-22 06:37:57,380: DEBUG/MainProcess] | Worker: New boot order: {Timer, Hub, Pool, Autoscaler, StateDB, Beat, Consumer}
+[2025-05-22 06:37:57,388: DEBUG/MainProcess] | Consumer: Preparing bootsteps.
+[2025-05-22 06:37:57,389: DEBUG/MainProcess] | Consumer: Building graph...
+[2025-05-22 06:37:57,408: DEBUG/MainProcess] | Consumer: New boot order: {Connection, Events, Mingle, Tasks, Control, Agent, Gossip, DelayedDelivery, Heart, event loop}
 Loading frequency data from: /home/pepper/typecomplex/app/data/ngram_freq.csv
 CSV Columns loaded: ['word', 'count']
 Using existing 'word' and 'count' columns.
+Frequency data Series sorted by index.
 Successfully loaded 9244879 words.
 Attempting to load tokenizer for model: 'bert-base-uncased'
 Successfully loaded tokenizer for 'bert-base-uncased'.
@@ -30,10 +31,10 @@ Successfully loaded 'punkt' tokenizer.
  
  -------------- celery@fedora v5.5.2 (immunity)
 --- ***** ----- 
--- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-22 05:24:07
+-- ******* ---- Linux-6.14.6-300.fc42.x86_64-x86_64-with-glibc2.41 2025-05-22 06:37:57
 - *** --- * --- 
 - ** ---------- [config]
-- ** ---------- .> app:         app:0x7f6f19b4c450
+- ** ---------- .> app:         app:0x7f945ec3a0d0
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/0
 - *** --- * --- .> concurrency: 8 (eventlet)
@@ -56,34 +57,34 @@ Successfully loaded 'punkt' tokenizer.
   . celery.map
   . celery.starmap
 
-[2025-05-22 05:24:07,045: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
+[2025-05-22 06:37:57,439: WARNING/MainProcess] /home/pepper/typecomplex/.venv/lib64/python3.11/site-packages/celery/app/utils.py:203: CDeprecationWarning: 
     The 'CELERY_RESULT_BACKEND' setting is deprecated and scheduled for removal in
     version 6.0.0. Use the result_backend instead
 
   deprecated.warn(description=f'The {setting!r} setting',
 
-[2025-05-22 05:24:07,045: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
-[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Worker: Starting Pool
-[2025-05-22 05:24:07,045: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Worker: Starting Consumer
-[2025-05-22 05:24:07,045: DEBUG/MainProcess] | Consumer: Starting Connection
-[2025-05-22 05:24:07,048: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2025-05-22 05:24:07,048: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:07,048: DEBUG/MainProcess] | Consumer: Starting Events
-[2025-05-22 05:24:07,050: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:07,050: DEBUG/MainProcess] | Consumer: Starting Heart
-[2025-05-22 05:24:07,052: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:07,052: DEBUG/MainProcess] | Consumer: Starting Mingle
-[2025-05-22 05:24:07,052: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-22 05:24:08,060: INFO/MainProcess] mingle: all alone
-[2025-05-22 05:24:08,060: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:08,060: DEBUG/MainProcess] | Consumer: Starting Tasks
-[2025-05-22 05:24:08,064: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:08,064: DEBUG/MainProcess] | Consumer: Starting Control
-[2025-05-22 05:24:08,064: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:08,064: DEBUG/MainProcess] | Consumer: Starting Gossip
-[2025-05-22 05:24:08,068: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
-[2025-05-22 05:24:08,071: DEBUG/MainProcess] ^-- substep ok
-[2025-05-22 05:24:08,071: DEBUG/MainProcess] | Consumer: Starting event loop
-[2025-05-22 05:24:08,071: INFO/MainProcess] celery@fedora ready.
-[2025-05-22 05:24:08,072: DEBUG/MainProcess] basic.qos: prefetch_count->32
+[2025-05-22 06:37:57,439: WARNING/MainProcess] Please run `celery upgrade settings path/to/settings.py` to avoid these warnings and to allow a smoother upgrade to Celery 6.0.
+[2025-05-22 06:37:57,439: DEBUG/MainProcess] | Worker: Starting Pool
+[2025-05-22 06:37:57,440: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:57,440: DEBUG/MainProcess] | Worker: Starting Consumer
+[2025-05-22 06:37:57,440: DEBUG/MainProcess] | Consumer: Starting Connection
+[2025-05-22 06:37:57,441: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-05-22 06:37:57,442: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:57,442: DEBUG/MainProcess] | Consumer: Starting Events
+[2025-05-22 06:37:57,443: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:57,444: DEBUG/MainProcess] | Consumer: Starting Mingle
+[2025-05-22 06:37:57,444: INFO/MainProcess] mingle: searching for neighbors
+[2025-05-22 06:37:58,453: INFO/MainProcess] mingle: all alone
+[2025-05-22 06:37:58,453: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:58,453: DEBUG/MainProcess] | Consumer: Starting Tasks
+[2025-05-22 06:37:58,466: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:58,466: DEBUG/MainProcess] | Consumer: Starting Control
+[2025-05-22 06:37:58,466: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:58,466: DEBUG/MainProcess] | Consumer: Starting Gossip
+[2025-05-22 06:37:58,469: INFO/MainProcess] pidbox: Connected to redis://localhost:6379/0.
+[2025-05-22 06:37:58,473: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:58,473: DEBUG/MainProcess] | Consumer: Starting Heart
+[2025-05-22 06:37:58,475: DEBUG/MainProcess] ^-- substep ok
+[2025-05-22 06:37:58,475: DEBUG/MainProcess] | Consumer: Starting event loop
+[2025-05-22 06:37:58,475: INFO/MainProcess] celery@fedora ready.
+[2025-05-22 06:37:58,475: DEBUG/MainProcess] basic.qos: prefetch_count->32
