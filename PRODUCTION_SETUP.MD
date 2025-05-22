@@ -107,6 +107,8 @@ GUNICORN_WORKERS='3' # Example: (2 * number_of_cpu_cores) + 1. Adjust based on s
 CELERY_BROKER_URL='redis://localhost:6379/0'
 CELERY_RESULT_BACKEND='redis://localhost:6379/0'
 RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+CELERY_CONCURRENCY='1'  # Recommended: Start with 1 worker for memory-constrained Bert usage
+CELERY_MAX_MEMORY_KB='1024000' # Recommended: ~1GB max memory per Celery worker child process. Adjust as needed.
 
 # Sentry (Error Monitoring)
 SENTRY_DSN='your_sentry_dsn_for_production' # If using Sentry
@@ -241,7 +243,8 @@ EnvironmentFile=/home/pepper/typecomplex/.env # Load environment variables
 # Path to Celery executable in the virtual environment
 # The '-A app.celery' points to your Celery application instance
 # '-l info' sets the log level. Adjust as needed.
-ExecStart=/home/pepper/typecomplex/.venv/bin/celery -A app.celery worker -l info
+# Using environment variables for concurrency and max memory, set in .env
+ExecStart=/home/pepper/typecomplex/.venv/bin/celery -A app.celery worker -l info --concurrency=${CELERY_CONCURRENCY} --max-memory-per-child=${CELERY_MAX_MEMORY_KB}
 
 Restart=always
 RestartSec=10s # Restart service after 10 seconds if it crashes

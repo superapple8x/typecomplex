@@ -1,7 +1,7 @@
 import os
 
 # Workers
-workers = int(os.environ.get('GUNICORN_WORKERS', '4')) # Default to 4, configurable via env var
+workers = int(os.environ.get('GUNICORN_WORKERS', '2')) # Default to 2 for 4GB RAM, configurable
 worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync') # e.g., 'sync', 'gevent', 'meinheld_worker'
 
 # Binding
@@ -28,11 +28,11 @@ loglevel = os.environ.get('GUNICORN_LOGLEVEL', 'info') # 'debug', 'info', 'warni
 #   - Can make zero-downtime restarts more complex if not handled carefully.
 # Test thoroughly if you enable this. Your app seems to load ML models at startup,
 # so --preload could be beneficial for memory but needs testing.
-# preload_app = True 
+preload_app = True
 
 # Timeout settings
-# timeout = int(os.environ.get('GUNICORN_TIMEOUT', 30)) # Workers silent for more than this are killed.
-# keepalive = int(os.environ.get('GUNICORN_KEEPALIVE', 2)) # Seconds to wait for requests on a Keep-Alive connection.
+timeout = int(os.environ.get('GUNICORN_TIMEOUT', '120')) # Workers silent for more than this are killed.
+keepalive = int(os.environ.get('GUNICORN_KEEPALIVE', '5')) # Seconds to wait for requests on a Keep-Alive connection.
 
 # Example of setting environment variables for the Flask app directly from Gunicorn config
 # This is an alternative to setting them in the shell environment where Gunicorn runs.
@@ -47,10 +47,10 @@ loglevel = os.environ.get('GUNICORN_LOGLEVEL', 'info') # 'debug', 'info', 'warni
 # --- Sanity checks and info logging ---
 # This print statement will appear when Gunicorn starts and reads this config.
 print(f"[gunicorn.conf.py] Effective settings: workers={workers}, class='{worker_class}', bind='{bind}', loglevel='{loglevel}'")
-# if preload_app:
-#     print("[gunicorn.conf.py] --preload_app is ENABLED (experimental for your app, test thoroughly)")
-# else:
-#     print("[gunicorn.conf.py] --preload_app is DISABLED")
+if preload_app:
+    print("[gunicorn.conf.py] --preload_app is ENABLED (experimental for your app, test thoroughly)")
+else:
+    print("[gunicorn.conf.py] --preload_app is DISABLED")
 
 # Check critical Flask environment variables
 flask_env = os.environ.get('FLASK_ENV', 'not_set (will default to production in app)')

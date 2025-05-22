@@ -161,6 +161,8 @@ GUNICORN_WORKERS='$GUNICORN_WORKERS'
 CELERY_BROKER_URL='redis://localhost:6379/0'
 CELERY_RESULT_BACKEND='redis://localhost:6379/0'
 RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+CELERY_CONCURRENCY='1'  # Recommended for memory optimization
+CELERY_MAX_MEMORY_KB='1024000' # Recommended for memory optimization (~1GB)
 
 # Sentry (Error Monitoring)
 SENTRY_DSN='$SENTRY_DSN_PROD'
@@ -280,7 +282,7 @@ User=$DEPLOY_USER
 Group=$DEPLOY_USER
 WorkingDirectory=$PROJECT_PATH
 EnvironmentFile=$PROJECT_PATH/.env
-ExecStart=$PROJECT_PATH/.venv/bin/celery -A app.celery worker -l info
+ExecStart=$PROJECT_PATH/.venv/bin/celery -A app.celery worker -l info --concurrency=${CELERY_CONCURRENCY} --max-memory-per-child=${CELERY_MAX_MEMORY_KB}
 Restart=always
 RestartSec=10s
 StandardOutput=journal

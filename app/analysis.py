@@ -55,18 +55,7 @@ def load_transformer_assets():
         return None, None
 
     if APP_BERT_EXECUTION_MODE == 'local':
-        print(f"BERT execution mode: 'local'. Attempting to load model: '{APP_BERT_LOCAL_MODEL_NAME}'")
-        try:
-            loaded_model_internal = AutoModel.from_pretrained(APP_BERT_LOCAL_MODEL_NAME)
-            loaded_model_internal.eval() # Ensure model is in evaluation mode
-            if torch.cuda.is_available():
-                loaded_model_internal.to('cuda')
-                print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' to GPU.")
-            else:
-                print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' to CPU.")
-        except Exception as e:
-            print(f"ERROR loading local model '{APP_BERT_LOCAL_MODEL_NAME}': {e}")
-            # loaded_model_internal remains None
+        print(f"BERT execution mode: 'local'. Model will be loaded on demand.")
     elif APP_BERT_EXECUTION_MODE == 'remote_hf_endpoint':
         print(f"BERT execution mode: 'remote_hf_endpoint'. Local model will not be loaded.")
         if not APP_BERT_HF_ENDPOINT_URL or not APP_BERT_HF_API_TOKEN:
@@ -77,8 +66,31 @@ def load_transformer_assets():
     return loaded_tokenizer_internal, loaded_model_internal
 
 # Initialize tokenizer and potentially model at startup
-tokenizer, model = load_transformer_assets()
+tokenizer, model = load_transformer_assets()  # model will be None for local; load on demand with get_transformer_model()
 
+# Lazy loader for transformer model
+def get_transformer_model():
+    global model
+    if model is None and APP_BERT_EXECUTION_MODE == 'local':
+        print(f"Loading BERT model on demand: '{APP_BERT_LOCAL_MODEL_NAME}'")
+        try:
+            model = AutoModel.from_pretrained(APP_BERT_LOCAL_MODEL_NAME)
+            model.eval()
+            # Move model to GPU if available, otherwise CPU
+            if torch.cuda.is_available():
+                try:
+                    model.to('cuda')
+                    print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' on GPU.")
+                except Exception as cuda_err:
+                    print(f"WARNING: Could not move model to CUDA: {cuda_err}. Falling back to CPU.")
+                    model.to('cpu')
+                    print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' on CPU.")
+            else:
+                model.to('cpu')
+                print(f"Successfully loaded local model '{APP_BERT_LOCAL_MODEL_NAME}' on CPU.")
+        except Exception as e:
+            print(f"ERROR loading BERT model: {e}")
+    return model
 
 # --- Load spaCy Model ---
 # Define model names
@@ -116,6 +128,10 @@ nlp_sm = _load_spacy_model_with_fallback(SPACY_MODEL_NAME_SM)
 def get_active_spacy_model(mode='better'): # Default to 'better' which uses small model
     """Returns the appropriate spaCy model based on the analysis mode."""
     global nlp_sm, nlp_lg # Allow modification of global vars for on-demand loading
+
+    if nlp_sm is None:
+        print(f"Loading small spaCy model on demand: '{SPACY_MODEL_NAME_SM}'")
+        nlp_sm = _load_spacy_model_with_fallback(SPACY_MODEL_NAME_SM)
 
     if mode == 'best' or mode == 'full': # 'full' is often an internal or default representation of 'best'
         if nlp_lg is None:
@@ -416,11 +432,8 @@ def _get_contextual_embedding_complexity(sentence, words_for_stats):
     # The resulting `inputs['input_ids']` are crucial for the token-to-word mapping logic later.
     # Padding to longest is fine here as we process one sentence at a time.
     inputs = tokenizer(sentence, return_tensors="pt", truncation=True, padding="longest")
-    
-    # Move tokenized inputs to GPU if local model will be used and GPU is available
+    # Use CPU-only inputs to avoid CUDA initialization errors in forked subprocesses
     inputs_on_device = inputs
-    if APP_BERT_EXECUTION_MODE == 'local' and model and torch.cuda.is_available():
-        inputs_on_device = {k: v.to('cuda') for k, v in inputs.items()}
 
     last_hidden_states_np = None
 
@@ -450,13 +463,18 @@ def _get_contextual_embedding_complexity(sentence, words_for_stats):
     # This 'elif' ensures local execution if mode is 'local' OR if remote was intended but failed and a fallback was implemented above.
     # For now, it's a strict 'elif' APP_BERT_EXECUTION_MODE == 'local':
     elif APP_BERT_EXECUTION_MODE == 'local':
-        if not model:
-            print("WARN: Local BERT model not available (execution mode is 'local' but model failed to load). Cannot calculate embedding complexity.")
+        model_to_use = get_transformer_model()
+        if not model_to_use:
+            print("WARN: Local BERT model not available. Cannot calculate embedding complexity.")
             return {'factor': None, 'embeddings': None, 'token_map': None}
+        
+        # Move inputs to the same device as the model (GPU or CPU)
+        device = next(model_to_use.parameters()).device
+        inputs_on_device = {k: v.to(device) for k, v in inputs.items()}
         
         print("Calculating embeddings locally.")
         with torch.no_grad():
-            outputs = model(**inputs_on_device, output_hidden_states=True)
+            outputs = model_to_use(**inputs_on_device, output_hidden_states=True)
         
         # Use the last hidden state (embeddings for each token)
         # Shape: (batch_size, sequence_length, hidden_size)
