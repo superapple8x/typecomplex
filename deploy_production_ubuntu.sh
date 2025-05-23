@@ -161,6 +161,9 @@ GUNICORN_WORKERS='$GUNICORN_WORKERS'
 CELERY_BROKER_URL='redis://localhost:6379/0'
 CELERY_RESULT_BACKEND='redis://localhost:6379/0'
 RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+RATE_LIMIT_FAST_PER_DAY='10'
+RATE_LIMIT_BETTER_PER_DAY='10'
+RATE_LIMIT_BEST_PER_DAY='5'
 CELERY_CONCURRENCY='1'  # Recommended for memory optimization
 CELERY_MAX_MEMORY_KB='1024000' # Recommended for memory optimization (~1GB)
 

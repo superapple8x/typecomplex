@@ -107,6 +107,9 @@ GUNICORN_WORKERS='3' # Example: (2 * number_of_cpu_cores) + 1. Adjust based on s
 CELERY_BROKER_URL='redis://localhost:6379/0'
 CELERY_RESULT_BACKEND='redis://localhost:6379/0'
 RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+RATE_LIMIT_FAST_PER_DAY='10'
+RATE_LIMIT_BETTER_PER_DAY='10'
+RATE_LIMIT_BEST_PER_DAY='5'
 CELERY_CONCURRENCY='1'  # Recommended: Start with 1 worker for memory-constrained Bert usage
 CELERY_MAX_MEMORY_KB='1024000' # Recommended: ~1GB max memory per Celery worker child process. Adjust as needed.
 

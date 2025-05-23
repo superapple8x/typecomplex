@@ -100,8 +100,8 @@ celery = make_celery(app)
 # Use the same Redis as Celery for simplicity, or define a new one.
 app.config['RATE_LIMITER_REDIS_URL'] = app.config['CELERY_BROKER_URL'] 
 app.config['RATE_LIMIT_FAST_PER_DAY'] = 10  
-app.config['RATE_LIMIT_BETTER_PER_DAY'] = 5 
-app.config['RATE_LIMIT_BEST_PER_DAY'] = 2   
+app.config['RATE_LIMIT_BETTER_PER_DAY'] = 10 
+app.config['RATE_LIMIT_BEST_PER_DAY'] = 5   
 app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = 5 # New LLM Synonym Limit
 app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = 5 # New LLM Rewrite Limit
 

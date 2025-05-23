@@ -72,6 +72,13 @@ body {
   font-family: 'Inter', sans-serif !important;
 }
 
+.ql-editor {
+  font-size: 16px !important; /* Added to increase default text size */
+  line-height: 1.6 !important; /* Added for better readability with larger font */
+  color: var(--text-primary) !important; /* Ensure text color is consistent */
+  padding: 12px 15px !important; /* Ensure adequate padding */
+}
+
 .ql-editor.ql-blank::before {
   color: var(--text-secondary) !important;
   font-style: normal !important;
@@ -116,11 +123,12 @@ body {
 .ql-toolbar button {
   -webkit-appearance: none !important;
   appearance: none !important;
-  background: transparent !important;
-  border: none !important;
+  background-color: transparent !important; /* Ensuring transparent background */
+  border-style: hidden !important; /* STRONGER border removal */
+  border-width: 0 !important; /* Explicitly zero width */
   box-shadow: none !important;
   outline: 0 !important;
-  padding: 2px 3px !important;
+  padding: 2px 3px !important; /* Keep padding for icon spacing */
   margin: 0 1px;
   display: inline-flex !important;
   align-items: center !important;
@@ -221,7 +229,34 @@ body {
   align-items: center !important;
   min-width: 24px !important;
   min-height: 24px !important;
+  border-radius: 3px !important;
 }
+
+/* Ensure SVGs within picker labels also adhere to 18x18 and use currentColor */
+.ql-toolbar .ql-picker-label svg {
+  width: 18px !important;
+  height: 18px !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Override default content/pseudo-elements for specific pickers if they add their own icons */
+/* This rule is now ONLY for .ql-align to prevent hiding header text */
+.ql-toolbar .ql-align .ql-picker-label::before {
+ content: "" !important; /* Remove any default ::before content from base Quill theme for align picker */
+ display: none !important; /* Hide it entirely if content:"" isn't enough for align picker */
+}
+
+/* Ensure our registered icons are used for the picker labels */
+/* This specifically targets the ::before pseudo-element which Quill Snow uses for its default align icons */
+.ql-snow .ql-picker.ql-align .ql-picker-label[data-value]::before {
+    content: none !important; /* Attempt to remove default Quill snow theme icon for align picker */
+}
+
+/* For the header picker, Quill Snow usually shows text like "Heading 1".
+   Our custom Feather 'type' icon is added by the Icons['header'] registration in JS.
+   The general '.ql-toolbar .ql-picker-label svg' and '.ql-toolbar button svg' rules should size it correctly.
+   We do NOT want to hide the ::before for .ql-header .ql-picker-label as that holds the text. */
 
 .ql-toolbar .ql-picker-label::before {
   color: currentColor !important;
@@ -1355,4 +1390,16 @@ h1, h2, h3 {
 
 .ql-toolbar .ql-table-cell:hover {
   background-color: var(--accent-blue);
+}
+
+/* Increase size of SVGs within the alignment picker dropdown items */
+.ql-toolbar .ql-picker.ql-align .ql-picker-options .ql-picker-item svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.ql-toolbar .ql-picker-item.ql-selected {
+  color: var(--accent-blue) !important;
+  background-color: rgba(137, 180, 250, 0.15) !important;
+  font-weight: 600 !important;
 }

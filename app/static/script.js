@@ -464,10 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 container: [
                     [{ 'header': [1, 2, 3, false] }],           // Group 1: Headings
                     ['bold', 'italic', 'underline', 'strike'],  // Group 2: Basic inline formatting
-                    [{ 'color': [] }, { 'background': [] }],    // Group 3: Colors
                     ['blockquote'], // Keeping blockquote for now unless specified to remove
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Group 5: Lists
-                    [{ 'script': 'sub'}, { 'script': 'super' }],  // Group 6: Subscript/superscript
                     [{ 'indent': '-1'}, { 'indent': '+1' }],      // Group 7: Indentation
                     [{ 'align': [] }],                           // Group 8: Alignment
                     ['clean'],                                   // Group 10: Clean formatting
@@ -514,8 +512,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toolbar && window.QuillBetterTable) {
         // Create table button and add it to toolbar
         const tableButton = document.createElement('button');
-        tableButton.className = 'ql-table-button';
-        tableButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"></path></svg>`;
+        tableButton.className = 'ql-table-button'; // This class is used by editor-theme.css for specific styling
+        tableButton.innerHTML = featherTableIcon; // Use new Feather icon
         tableButton.title = 'Insert Table';
         
         // Add click handler for inserting table
@@ -546,7 +544,59 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Register custom toolbar button for text analysis
     const QuillClass = quill.constructor;
-    let CustomButton = QuillClass.import('ui/icons');
+    let Icons = QuillClass.import('ui/icons');
+
+    // Define Feather icons
+    // Adjusted for 18x18 viewbox and Quill classes (ql-stroke, ql-fill, ql-even-stroke)
+    // Standard stroke-width for Feather is 2, which Quill seems to handle well.
+    // Some icons might need slight path adjustments if direct scaling from 24x24 to 18x18 isn't perfect.
+
+    Icons['bold'] = '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M3.5,4.5H9.5C11.43,4.5,13,6.07,13,8C13,9.93,11.43,11.5,9.5,11.5H3.5M3.5,8.5H10.5C11.88,8.5,13,9.62,13,11C13,12.38,11.88,13.5,10.5,13.5H3.5V4.5Z"></path></svg>';
+    Icons['italic'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="7.5" y1="4.5" x2="10.5" y2="4.5"></line><line class="ql-stroke" x1="5.5" y1="13.5" x2="8.5" y2="13.5"></line><line class="ql-stroke" x1="9.5" y1="4.5" x2="6.5" y2="13.5"></line></svg>';
+    Icons['underline'] = '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M4.5,5.5V8.5C4.5,10.98,6.52,13,9,13C11.48,13,13.5,10.98,13.5,8.5V5.5"></path><line class="ql-stroke" x1="3.5" y1="15.5" x2="14.5" y2="15.5"></line></svg>';
+    Icons['strike'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2.5" y1="9.5" x2="15.5" y2="9.5"></line><path class="ql-stroke" d="M5.5,4.5C6.93,4.5,7.5,5.5,7.5,6.5C7.5,7.28 7.09,7.81 6.43,8.12"></path><path class="ql-stroke" d="M12.5,13.5c-1.43,0-2-1-2-2c0-0.78,0.41-1.31,1.07-1.62"></path><path class="ql-stroke" d="M9.5,7.5C9.5,5.57,11.07,4,13,4c1.05,0,1.93,0.51,2.43,1.24"></path><path class="ql-stroke" d="M8.5,10.5c0,1.93-1.57,3.5-3.5,3.5C3.95,14,3.07,13.49,2.57,12.76"></path></svg>';
+    
+    Icons['color'] = '<svg viewBox="0 0 18 18"><path class="ql-fill" d="M14.68,3.49a1.2,1.2,0,0,0-1.69,0L11.36,5.12l2.52,2.52,1.63-1.63a1.2,1.2,0,0,0,0-1.69Z"></path><rect class="ql-fill" x="3.1" y="12.2" width="11.8" height="1.71" transform="translate(-5.75 9) rotate(-45)"></rect><path class="ql-fill" d="M2.09,12.29a1.19,1.19,0,0,0-.38.85L1.5,15.56a.61.61,0,0,0,.6.6l2.42-.21a1.2,1.2,0,0,0,.85-.38Z"></path></svg>'; // Adapted from a generic paint drop/edit icon
+    Icons['background'] = '<svg viewBox="0 0 18 18"><path class="ql-fill" d="M16.5,2.5l-3.2,3.23L12.08,4.5,15.31,1.28A1,1,0,0,1,16.5,2.5Z"></path><path class="ql-fill" d="M12.62,6.18,9.4,9.4,8.55,8.55l3.23-3.23Z"></path><path class="ql-fill" d="M3,13.86l3.25-3.25L7.5,12,4.28,15.22A1,1,0,0,1,3,13.86Z"></path><rect class="ql-fill" x="2.05" y="10.05" width="9.9" height="1.5" transform="translate(-4.9 7.5) rotate(-45)"></rect><path class="ql-fill" d="M1.5,15.5a0.5.5,0,0,1-.5-0.5L1.22,12.8A1,1,0,0,1,2.58,12l1.28,1.28L2.5,14.72A0.5.5,0,0,1,2,15a0.46,0.46,0,0,1-.5-0.5Z"></path></svg>'; // Adapted from a generic brush/fill icon
+
+    Icons['blockquote'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="4.5" y1="5.5" x2="13.5" y2="5.5"></line><line class="ql-stroke" x1="6.5" y1="9.5" x2="13.5" y2="9.5"></line><line class="ql-stroke" x1="4.5" y1="13.5" x2="13.5" y2="13.5"></line></svg>'; // Placeholder, resembles text lines. Proper quote icon is better.
+                                                                                                // Using Feather 'align-left' as a base and modifying
+    Icons['list']['ordered'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="5.5" y1="6.5" x2="13.5" y2="6.5"></line><line class="ql-stroke" x1="5.5" y1="11.5" x2="13.5" y2="11.5"></line><path class="ql-stroke" d="M3.5,5.5 L3.5,5.5"></path><path class="ql-stroke" d="M2.5,5.5 A0.5 0.5 0 0 1 3 5 L3.5 5.5 L3 6"></path><path class="ql-stroke" d="M3.5,10.5 L3.5,10.5"></path><path class="ql-stroke" d="M2.5,10.5 L3.5,10.5 L3.5,12.5 L2.5,12.5"></path></svg>'; // Simplified 1. 2.
+    Icons['list']['bullet'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="5.5" y1="6.5" x2="13.5" y2="6.5"></line><line class="ql-stroke" x1="5.5" y1="11.5" x2="13.5" y2="11.5"></line><circle class="ql-fill" cx="3.5" cy="6.5" r="1"></circle><circle class="ql-fill" cx="3.5" cy="11.5" r="1"></circle></svg>'; // Based on Feather list
+
+    Icons['script']['sub'] = '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M6,13H8.5M8.5,13H11M8.5,13V10M8.5,10H10.5L12.5,8M8.5,10H6.5L4.5,8"></path><path class="ql-stroke" d="M12.5,13.5 L12.5,15.5 L14.5,15.5"></path></svg>'; // Custom: X_
+    Icons['script']['super'] = '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M6,13H8.5M8.5,13H11M8.5,13V10M8.5,10H10.5L12.5,8M8.5,10H6.5L4.5,8"></path><path class="ql-stroke" d="M12.5,5.5 L12.5,3.5 L14.5,3.5"></path></svg>'; // Custom: X^
+
+    Icons['indent']['-'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2.5" y1="9.5" x2="9.5" y2="9.5"></line><polyline class="ql-stroke" points="5.5 6.5 2.5 9.5 5.5 12.5"></polyline><line class="ql-stroke" x1="11.5" y1="5.5" x2="11.5" y2="13.5"></line></svg>'; // Based on Feather arrow-left and a line
+    Icons['indent']['+'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="8.5" y1="9.5" x2="15.5" y2="9.5"></line><polyline class="ql-stroke" points="12.5 6.5 15.5 9.5 12.5 12.5"></polyline><line class="ql-stroke" x1="6.5" y1="5.5" x2="6.5" y2="13.5"></line></svg>'; // Based on Feather arrow-right and a line
+    
+    Icons['align'][''] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2.5" y1="9.5" x2="10.5" y2="9.5"></line><line class="ql-stroke" x1="2.5" y1="5.5" x2="15.5" y2="5.5"></line><line class="ql-stroke" x1="2.5" y1="13.5" x2="15.5" y2="13.5"></line></svg>'; // align-left feather
+    Icons['align']['center'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2.5" y1="5.5" x2="15.5" y2="5.5"></line><line class="ql-stroke" x1="4.5" y1="9.5" x2="13.5" y2="9.5"></line><line class="ql-stroke" x1="2.5" y1="13.5" x2="15.5" y2="13.5"></line></svg>'; // align-center feather (Corrected: shorter top/bottom, longer middle compared to L/R)
+    Icons['align']['right'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="7.5" y1="9.5" x2="15.5" y2="9.5"></line><line class="ql-stroke" x1="2.5" y1="5.5" x2="15.5" y2="5.5"></line><line class="ql-stroke" x1="2.5" y1="13.5" x2="15.5" y2="13.5"></line></svg>'; // align-right feather
+    Icons['align']['justify'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2.5" y1="9.5" x2="15.5" y2="9.5"></line><line class="ql-stroke" x1="2.5" y1="5.5" x2="15.5" y2="5.5"></line><line class="ql-stroke" x1="2.5" y1="13.5" x2="15.5" y2="13.5"></line></svg>'; // align-justify feather
+
+
+    Icons['clean'] = '<svg viewBox="0 0 18 18"><polyline class="ql-stroke" points="2.5 5.5 4 4 5.5 5.5"></polyline><line class="ql-stroke" x1="4" y1="4" x2="4" y2="13"></line><polyline class="ql-stroke" points="15.5 5.5 14 4 12.5 5.5"></polyline><line class="ql-stroke" x1="14" y1="4" x2="14" y2="13"></line><line class="ql-stroke" x1="7.5" y1="4.5" x2="10.5" y2="4.5"></line><line class="ql-stroke" x1="6" y1="13.5" x2="12" y2="13.5"></line></svg>'; // trash-2 like (simplified)
+    
+    // Header icon (using 'type' from Feather, implies text/typography)
+    Icons['header'] = '<svg viewBox="0 0 18 18"><polyline class="ql-stroke" points="2.5 5.5 2.5 2.5 15.5 2.5 15.5 5.5"></polyline><line class="ql-stroke" x1="9" y1="2.5" x2="9" y2="15.5"></line><line class="ql-stroke" x1="6" y1="15.5" x2="12" y2="15.5"></line></svg>';
+    // For H1, H2, H3, Quill uses this and adds number via CSS.
+    // If specific H1, H2 icons are needed, they must be defined like Icons['header']['1']
+
+
+    // Custom table button (using Feather 'grid')
+    const originalTableButtonHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"></path></svg>';
+    const featherTableIcon = '<svg viewBox="0 0 18 18"><rect class="ql-stroke" x="2.5" y="2.5" width="13" height="13" rx="1" ry="1"></rect><line class="ql-stroke" x1="2.5" y1="7.5" x2="15.5" y2="7.5"></line><line class="ql-stroke" x1="7.5" y1="2.5" x2="7.5" y2="15.5"></line></svg>'; // Simplified grid
+
+
+    // The analyze-text icon was commented out, if it's to be restored:
+    // Icons['analyze-text'] = '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="13.5" y1="15" x2="13.5" y2="7.5"></line><line class="ql-stroke" x1="9" y1="15" x2="9" y2="3"></line><line class="ql-stroke" x1="4.5" y1="15" x2="4.5" y2="10.5"></line></svg>'; // bar-chart-2 feather
+
+    // CustomButton was defined, let's ensure it's aliased to Icons for clarity if that was the intent
+    // Or if CustomButton was for something else, this is fine.
+    // The line `let CustomButton = QuillClass.import('ui/icons');` is equivalent to `let Icons = ...`
+    // So we are modifying the correct Icons object.
+
     // CustomButton['analyze-text'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`; // Removed analyze-text icon
     
     // Add tooltip with keyboard shortcuts to toolbar buttons
