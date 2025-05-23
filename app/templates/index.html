@@ -427,18 +427,6 @@
                     <!-- Target Audience Goal Input Removed -->
                 </div>
 
-                <!-- Complexity Sensitivity Slider -->
-                <div class="mt-6">
-                    <label for="complexity-sensitivity-slider" class="block text-sm font-medium text-[var(--text-primary)] mb-1">Complexity Sensitivity</label>
-                    <input type="range" id="complexity-sensitivity-slider" min="1" max="5" step="1" value="3" class="w-full h-2 bg-[var(--input-bg)] rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)] mb-1">
-                    <div class="flex justify-between text-xs text-[var(--text-secondary)] px-1">
-                        <span>Lenient</span>
-                        <span>Standard</span>
-                        <span>Strict</span>
-                    </div>
-                    <span id="sensitivity-value-label" class="hidden"></span>
-                </div>
-
                 <!-- Readability Scores Section -->
                 <div class="mt-6">
                     <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">
@@ -608,14 +596,14 @@
                             <div class='flex justify-between items-center mb-2'>
                                 <strong class='text-gray-100'>Analysis Modes & Metrics</strong>
                                 <div class='inline-flex'>
-                                    <button class='tooltip-switch-btn active' data-target='tooltip-full-details'>Full</button>
+                                    <button class='tooltip-switch-btn active' data-target='tooltip-best-details'>Best</button>
                                     <button class='tooltip-switch-btn' data-target='tooltip-better-details'>Better</button>
                                     <button class='tooltip-switch-btn' data-target='tooltip-fast-details'>Fast</button>
                                 </div>
                             </div>
 
-                            <!-- Full Analysis Details -->
-                            <div id='tooltip-full-details' class='tooltip-details visible-details'>
+                            <!-- Best Analysis Details -->
+                            <div id='tooltip-best-details' class='tooltip-details visible-details'>
                                 <p class='text-xs text-gray-400 mb-1'>Comprehensive analysis using all available metrics:</p>
                                 <div class='flex h-3 w-full rounded overflow-hidden mb-2 border border-gray-600'>
                                     <div style="width:18%; background-color:#60a5fa;" title="Basic Metrics (18%)"></div>
@@ -684,19 +672,19 @@
                     appendTo: () => document.body,
                     onMount(instance) {
                         const tooltipElement = instance.popper;
-                        const fullBtn = tooltipElement.querySelector("button[data-target='tooltip-full-details']");
+                        const bestBtn = tooltipElement.querySelector("button[data-target='tooltip-best-details']");
                         const betterBtn = tooltipElement.querySelector("button[data-target='tooltip-better-details']");
                         const fastBtn = tooltipElement.querySelector("button[data-target='tooltip-fast-details']");
-                        const fullDetails = tooltipElement.querySelector('#tooltip-full-details');
+                        const bestDetails = tooltipElement.querySelector('#tooltip-best-details');
                         const betterDetails = tooltipElement.querySelector('#tooltip-better-details');
                         const fastDetails = tooltipElement.querySelector('#tooltip-fast-details');
 
                         const switchView = (showTargetId) => {
-                            [fullDetails, betterDetails, fastDetails].forEach(el => {
+                            [bestDetails, betterDetails, fastDetails].forEach(el => {
                                 el.classList.remove('visible-details');
                                 el.classList.add('hidden-details');
                             });
-                            [fullBtn, betterBtn, fastBtn].forEach(btn => btn.classList.remove('active'));
+                            [bestBtn, betterBtn, fastBtn].forEach(btn => btn.classList.remove('active'));
 
                             const targetEl = tooltipElement.querySelector(`#${showTargetId}`);
                             const targetBtn = tooltipElement.querySelector(`button[data-target='${showTargetId}']`);
@@ -707,7 +695,7 @@
                             }
                         };
 
-                        fullBtn.addEventListener('click', () => switchView('tooltip-full-details'));
+                        bestBtn.addEventListener('click', () => switchView('tooltip-best-details'));
                         betterBtn.addEventListener('click', () => switchView('tooltip-better-details'));
                         fastBtn.addEventListener('click', () => switchView('tooltip-fast-details'));
                     },

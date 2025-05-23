@@ -156,8 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const complexityPercentageEl = document.getElementById('complexity-percentage');
     const complexityLoadingEl = document.getElementById('complexity-loading');
     const analysisTimeEl = document.getElementById('analysis-time');
-    const sensitivitySlider = document.getElementById('complexity-sensitivity-slider');
-    const sensitivityLabel = document.getElementById('sensitivity-value-label');
+    // const sensitivitySlider = document.getElementById('complexity-sensitivity-slider'); // Commented out
+    // const sensitivityLabel = document.getElementById('sensitivity-value-label'); // Commented out
     // Readability score elements
     const fleschKincaidScoreEl = document.getElementById('flesch-kincaid-score');
     const gunningFogScoreEl = document.getElementById('gunning-fog-score');
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let showGoalIndicators = true; // Default state for toggle, updated from checkbox
     let currentAnalysisMode = 'better'; // Default analysis mode
     let isOverallScoreOutOfBounds = false; // Track if overall score is outside target
-    let currentSensitivityLevel = 3; // Default to Standard (value 3)
+    // let currentSensitivityLevel = 3; // Default to Standard (value 3) // Commented out
     let previousScores = { flesch_kincaid_grade: null, gunning_fog: null, smog_index: null }; // For animation
     // --- State for Context Awareness ---
     let contextAwarenessEnabled = false; // Default state, updated from checkbox
@@ -1348,35 +1348,35 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     }
     */
     // --- Dynamic Color Calculation based on Sensitivity ---
-    function getDynamicHighlightColor(score, sensitivityLevel) {
-        // Define base thresholds (Standard Sensitivity - Level 3)
-        let thresholds = {
-            green: 0.4, // Score below this is green
-            yellow: 0.7, // Score below this is yellow
-            orange: 1.0, // Score below this is orange (else red)
-        };
+    // function getDynamicHighlightColor(score, sensitivityLevel) {
+    //     // Define base thresholds (Standard Sensitivity - Level 3)
+    //     let thresholds = {
+    //         green: 0.4, // Score below this is green
+    //         yellow: 0.7, // Score below this is yellow
+    //         orange: 1.0, // Score below this is orange (else red)
+    //     };
 
-        // Adjust thresholds based on sensitivity
-        // Sensitivity 1 (Very Lenient) -> Higher thresholds
-        // Sensitivity 5 (Very Strict) -> Lower thresholds
-        // We adjust by a factor, e.g., 0.15 per level difference from standard (3) - Increased from 0.1
-        const adjustmentFactor = (3 - sensitivityLevel) * 0.15; // Positive for lenient, negative for strict
+    //     // Adjust thresholds based on sensitivity
+    //     // Sensitivity 1 (Very Lenient) -> Higher thresholds
+    //     // Sensitivity 5 (Very Strict) -> Lower thresholds
+    //     // We adjust by a factor, e.g., 0.15 per level difference from standard (3) - Increased from 0.1
+    //     const adjustmentFactor = (3 - sensitivityLevel) * 0.15; // Positive for lenient, negative for strict
 
-        thresholds.green += adjustmentFactor;
-        thresholds.yellow += adjustmentFactor;
-        thresholds.orange += adjustmentFactor;
+    //     thresholds.green += adjustmentFactor;
+    //     thresholds.yellow += adjustmentFactor;
+    //     thresholds.orange += adjustmentFactor;
 
-        // Determine color based on adjusted thresholds
-        if (score < thresholds.green) {
-            return "green";
-        } else if (score < thresholds.yellow) {
-            return "yellow";
-        } else if (score < thresholds.orange) {
-            return "orange";
-        } else {
-            return "red";
-        }
-    }
+    //     // Determine color based on adjusted thresholds
+    //     if (score < thresholds.green) {
+    //         return "green";
+    //     } else if (score < thresholds.yellow) {
+    //         return "yellow";
+    //     } else if (score < thresholds.orange) {
+    //         return "orange";
+    //     } else {
+    //         return "red";
+    //     }
+    // }
 
 
     // --- Apply Statistical Highlighting (Renamed from applyHighlighting) ---
@@ -1422,7 +1422,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
         results.forEach(result => {
             const score = result.score; // Get score from backend result
-            const color = getDynamicHighlightColor(score, currentSensitivityLevel); // Calculate color dynamically based on sensitivity
+            // const color = getDynamicHighlightColor(score, currentSensitivityLevel); // Calculate color dynamically based on sensitivity // Commented out
+            const color = score < 0.5 ? "green" : (score < 0.8 ? "yellow" : "red"); // Simplified default coloring
             const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
             const startIndex = result.start; // Use start index from backend
             const endIndex = result.end;     // Use end index from backend
@@ -1538,8 +1539,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const heightPercent = Math.min(100, Math.max(5, (result.score || 0) * 60 + 5)); // Example scaling
             segment.style.height = `${heightPercent}%`;
 
-            // Determine color based on score and sensitivity
-            const colorName = getDynamicHighlightColor(result.score, currentSensitivityLevel);
+            // Determine color based on score and sensitivity // Commented out sensitivity
+            // const colorName = getDynamicHighlightColor(result.score, currentSensitivityLevel); // Commented out
+            const colorName = result.score < 0.5 ? "green" : (result.score < 0.8 ? "yellow" : "red"); // Simplified default coloring
             const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
             segment.classList.add(colorClass);
 
@@ -2003,7 +2005,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
                             // Apply statistical highlighting for the sentence (Incremental Application)
                             if (showHighlighting && sentenceResult.score !== undefined) {
-                                const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                // const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                const color = sentenceResult.score < 0.5 ? "green" : (sentenceResult.score < 0.8 ? "yellow" : "red"); // Simplified default coloring
                                 const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
                                 const startIndex = sentenceResult.start;
                                 const endIndex = sentenceResult.end;
@@ -2032,9 +2035,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                                 const heightPercent = Math.min(100, Math.max(5, (sentenceResult.score || 0) * 60 + 5));
                                 segment.style.height = `${heightPercent}%`;
 
-                                const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
-                                const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
-                                segment.classList.add(colorClass);
+                                // const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                                // const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
+                                segment.classList.add(mapSegmentColors[colorName] || mapSegmentColors['gray']);
 
                                 segment.title = `Sentence ${sentenceResult.index + 1}: Score ${sentenceResult.score.toFixed(2)}`;
 
@@ -2063,7 +2066,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     sentenceResults.push(sentenceResult);
                     // Apply highlighting and map update for the last sentence if needed
                     if (showHighlighting && sentenceResult.score !== undefined) {
-                       const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                       // const color = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                       const color = sentenceResult.score < 0.5 ? "green" : (sentenceResult.score < 0.8 ? "yellow" : "red"); // Simplified default coloring
                        const bgColor = complexityBackgrounds[color] || complexityBackgrounds['gray'];
                        const startIndex = sentenceResult.start;
                        const endIndex = sentenceResult.end;
@@ -2084,9 +2088,9 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                         const heightPercent = Math.min(100, Math.max(5, (sentenceResult.score || 0) * 60 + 5));
                         segment.style.height = `${heightPercent}%`;
 
-                        const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
-                        const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
-                        segment.classList.add(colorClass);
+                        // const colorName = getDynamicHighlightColor(sentenceResult.score, currentSensitivityLevel);
+                        // const colorClass = mapSegmentColors[colorName] || mapSegmentColors['gray'];
+                        segment.classList.add(mapSegmentColors[colorName] || mapSegmentColors['gray']);
 
                         segment.title = `Sentence ${sentenceResult.index + 1}: Score ${sentenceResult.score.toFixed(2)}`;
 
@@ -2530,7 +2534,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         console.error("Context awareness toggle or container element not found!"); // Updated error message
     }
 
-    // --- Complexity Sensitivity Slider Listener ---
+    // --- Complexity Sensitivity Slider Listener --- (COMMENTED OUT)
+    /*
     if (sensitivitySlider) { // Removed check for sensitivityLabel
         // Initial state update on load
         const initialSliderValue = parseInt(sensitivitySlider.value, 10);
@@ -2556,6 +2561,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
     } else {
         console.warn("Complexity sensitivity slider element not found."); // Updated warning message
     }
+    */
     // --- End Complexity Sensitivity Slider Listener ---
 
 
@@ -2784,7 +2790,7 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
                     // Remove the temporary highlight by re-applying the original statistical highlight
                     // This avoids clearing Gemini highlights accidentally
                     // quill.formatText(result.start, length, 'class', false, 'api');
-                    const originalColorName = getDynamicHighlightColor(result.score, currentSensitivityLevel);
+                    const originalColorName = result.score < 0.5 ? "green" : (result.score < 0.8 ? "yellow" : "red");
                     const originalBgColor = complexityBackgrounds[originalColorName] || complexityBackgrounds['gray'];
                     // Only re-apply background if statistical highlighting is enabled
                     if (showHighlighting) {
