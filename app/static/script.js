@@ -1644,6 +1644,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
 
 
     async function showSynonymTooltip(range) {
+        await fetchAndApplyRateLimits(); // Ensure rate limits are fresh
+
         currentSynonymRange = range; // Store the range
 
         if (!range || range.length === 0) {
@@ -1758,7 +1760,8 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
             const rankedSynonyms = data.ranked_synonyms || [];
             const llmRec = data.llm_recommendation;
             const llmSynonymTotal = currentRateLimitInfo.total_limits.llm_synonym || 5;
-            const llmSynonymRemaining = currentRateLimitInfo.remaining_counts.llm_synonym !== undefined ? currentRateLimitInfo.remaining_counts.llm_synonym : llmSynonymTotal;
+            const rawRemainingLlmSynonym = currentRateLimitInfo.remaining_counts.llm_synonym;
+            const llmSynonymRemaining = (typeof rawRemainingLlmSynonym === 'number' && rawRemainingLlmSynonym >= 0) ? rawRemainingLlmSynonym : 0;
 
             if (rankedSynonyms.length > 0) {
                 contentHTML += `
