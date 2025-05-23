@@ -1722,6 +1722,11 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         }
         // --- End Find Sentence Context ---
 
+        // Ensure sentenceContext is not empty if context awareness is enabled
+        if (contextAwarenessEnabled && !sentenceContext && selectedText) {
+            console.warn("Sentence context is empty after primary and fallback. Using selected text as minimal context for LLM.");
+            sentenceContext = selectedText; // Fallback to selected text itself if all else fails
+        }
 
         try {
             // --- Prepare request body with context ---
@@ -2549,24 +2554,6 @@ function updateComplexityMeter(analysisData) { // Modified to accept full data
         console.warn("Complexity sensitivity slider element not found."); // Updated warning message
     }
     // --- End Complexity Sensitivity Slider Listener ---
-
-
-    // Add Tooltip for Context Awareness Info Icon (Updated Content)
-    if (contextAwarenessInfo && typeof tippy === 'function') {
-        tippy(contextAwarenessInfo, {
-            content: `<div class='text-left p-1 max-w-xs'>
-                        <strong class='block mb-1 text-gray-100'>Context Awareness (via DeepSeek)</strong>
-                        <p class='text-xs text-gray-300 mb-1'>When enabled, uses the configured LLM (currently DeepSeek) to enhance synonym suggestions based on the selected 'Target Audience' profile.</p>
-                        <ul class='list-disc list-inside text-xs space-y-0.5 text-gray-400'>
-                            <li>Recommends the most suitable synonym from the provided list based on sentence context and audience profile.</li>
-                        </ul>
-                        <p class='text-xs text-gray-500 mt-1'>Requires a configured DeepSeek API Key and may incur costs.</p>
-                      </div>`,
-            allowHTML: true,
-            placement: 'top-start',
-            theme: 'tippy-dark',
-        });
-    }
 
 
     // --- Initial Load ---

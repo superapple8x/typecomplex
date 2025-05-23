@@ -280,7 +280,16 @@ def get_synonyms():
             logging.error(f"Exception during DeepSeek synonym recommendation call: {e}", exc_info=True) 
             deepseek_recommendation = {"error": f"Server error during recommendation: {e}"}
     elif context_awareness_enabled:
-        logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met. Skipping DeepSeek recommendation.") 
+        if not ranked_synonyms and not sentence_context:
+            logging.warning("Context awareness enabled but no base synonyms found and no sentence context provided. Skipping LLM recommendation.")
+        elif not ranked_synonyms:
+            logging.warning("Context awareness enabled but no base synonyms found. Skipping LLM recommendation.")
+        elif not sentence_context:
+            logging.warning("Context awareness enabled but no sentence context provided. Skipping LLM recommendation.")
+        else:
+            # This case should ideally not be reached if the main 'if' condition failed,
+            # but including for completeness or future logic changes.
+            logging.warning("Context awareness enabled but prerequisites (synonyms found, context provided) not met for an unknown reason. Skipping LLM recommendation.")
 
     return jsonify({
         "ranked_synonyms": ranked_synonyms, 
