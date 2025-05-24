@@ -2,7 +2,42 @@
 
 ## Overview
 
-TypeComplex is a web application designed to analyze the complexity of English sentences. It helps writers, educators, and researchers assess text readability and identify areas for improvement. Users can input text directly or upload PDF documents. The application provides a suite of metrics, leveraging traditional readability formulas, NLP techniques, and optional AI-powered insights.
+TypeComplex is a web application designed to analyze the complexity of English sentences. It helps writers, educators, and researchers assess text readability and identify areas for improvement. Users can input text directly or upload PDF documents. The application provides a suite of metrics, leveraging traditional readability formulas, NLP techniques, and optional LLM-powered insights.
+
+## Demo
+
+TypeComplex empowers users to deeply understand and refine their writing through an interactive and intuitive interface. Here's a glimpse of its core capabilities:
+
+1.  **Comprehensive Text Analysis:**
+    *   Simply paste your text into the editor or upload a PDF document.
+    *   Instantly receive an overall complexity assessment, along with traditional readability scores (Flesch-Kincaid Grade Level, Gunning Fog Index, SMOG Index).
+    *   Dive deeper with a sentence-by-sentence breakdown, where each sentence's complexity is evaluated based on a configurable "Target Audience" profile.
+    *   The analysis considers a rich set of linguistic features:
+        *   **Lexical:** Word frequency, use of nominalizations, balance of content vs. function words.
+        *   **Syntactic:** Sentence structure depth, clause counts, complexity of grammatical dependencies, and prepositional phrase usage.
+        *   **Semantic:** Contextual word meaning complexity (via embeddings) and logical coherence within sentences.
+    *   `![TypeComplex Analysis UI](docs/analysis.gif)`
+
+2.  **Target Audience Adaptation:**
+    *   Choose from predefined "Target Audience" profiles (e.g., "General Public", "Academic / Technical", "Standard").
+    *   The complexity metrics and their weighting are adjusted based on the selected profile, providing tailored feedback on whether your text is appropriate for the intended readers.
+    *   `![TypeComplex Audience Selection](docs/target.gif)`
+
+3.  **Intelligent Rewrite Suggestions:**
+    *   For sentences identified as overly complex or awkward for the target audience, TypeComplex can offer LLM-powered rewrite suggestions (leveraging models like DeepSeek/Gemini).
+    *   These suggestions aim to improve clarity and readability while preserving the original meaning.
+    *   `![TypeComplex Rewrite Suggestion](docs/rewrite.gif)`
+
+4.  **Contextual Synonym Suggestions:**
+    *   Select a word within your text to receive a list of contextually relevant synonyms.
+    *   The system can use both traditional thesaurus lookups (WordNet) and LLM-enhanced suggestions to provide fitting alternatives that can help vary vocabulary or adjust tone.
+    *   `![TypeComplex Synonym Feature](docs/synonym.gif)`
+
+5.  **Seamless PDF Import & Analysis:**
+    *   Upload PDF documents directly through the "PDF Toolkit".
+    *   TypeComplex extracts the text content and performs the same comprehensive complexity analysis as for pasted text.
+    *   This is ideal for reviewing existing documents, reports, or academic papers.
+    *   `![TypeComplex PDF Import](docs/pdf_toolkit.png)`
 
 ## Features
 
@@ -32,7 +67,7 @@ TypeComplex is a web application designed to analyze the complexity of English s
     *   **Semantic Analysis:**
         *   **Contextual Embedding Complexity:** (using Hugging Face Transformer models like BERT, or remote endpoints). This metric assesses how context-dependent and potentially ambiguous word meanings are, based on their embeddings.
         *   **Semantic Coherence:** (using spaCy word vectors or transformer embeddings). This measures the relatedness of words and concepts within a sentence, indicating how well the sentence flows logically.
-    *   **AI-Powered Enhancements (Optional, via DeepSeek/Gemini integrations):**
+    *   **LLM-Powered Enhancements (Optional, via DeepSeek/Gemini integrations):**
         *   Contextual synonym suggestions.
         *   Sentence rewrite/simplification suggestions.
 *   **Asynchronous Processing:** Celery and Redis handle computationally intensive analyses (especially PDF processing and potentially some "best" mode analyses) in the background, improving UI responsiveness.
@@ -221,4 +256,4 @@ For major changes, please open an issue first to discuss what you would like to 
 
 ## License
 
-This project is licensed under the terms of the **MIT License**. See the `LICENSE` file for more details. (Assuming MIT, please verify from the actual `LICENSE` file contents). 
+This project is licensed under the terms of the **MIT License**. See the `LICENSE` file for more details.
