@@ -2,7 +2,7 @@
 
 ## Overview
 
-TypeComplex is a web application designed to analyze the complexity of English sentences. It helps writers, educators, and researchers assess text readability and identify areas for improvement. Users can input text directly or upload PDF documents. The application provides a suite of metrics, leveraging traditional readability formulas, NLP techniques, and optional LLM-powered insights.
+TypeComplex is a web application designed to analyze the complexity of English sentences similiar to readable.com. It helps writers, educators, and researchers assess text readability and identify areas for improvement. Users can input text directly or upload PDF documents. The application provides a suite of metrics, leveraging traditional readability formulas, NLP techniques, and optional LLM-powered insights.
 
 ## Demo
 
