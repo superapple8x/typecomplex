@@ -16,28 +16,28 @@ TypeComplex empowers users to deeply understand and refine their writing through
         *   **Lexical:** Word frequency, use of nominalizations, balance of content vs. function words.
         *   **Syntactic:** Sentence structure depth, clause counts, complexity of grammatical dependencies, and prepositional phrase usage.
         *   **Semantic:** Contextual word meaning complexity (via embeddings) and logical coherence within sentences.
-    *   `![TypeComplex Analysis UI](docs/analysis.gif)`
+    *   `![TypeComplex Analysis UI](https://github.com/superapple8x/typecomplex/blob/main/docs/analysis.gif)`
 
 2.  **Target Audience Adaptation:**
     *   Choose from predefined "Target Audience" profiles (e.g., "General Public", "Academic / Technical", "Standard").
     *   The complexity metrics and their weighting are adjusted based on the selected profile, providing tailored feedback on whether your text is appropriate for the intended readers.
-    *   `![TypeComplex Audience Selection](docs/target.gif)`
+    *   `![TypeComplex Audience Selection](https://github.com/superapple8x/typecomplex/blob/main/docs/target.gif)`
 
 3.  **Intelligent Rewrite Suggestions:**
     *   For sentences identified as overly complex or awkward for the target audience, TypeComplex can offer LLM-powered rewrite suggestions (leveraging models like DeepSeek/Gemini).
     *   These suggestions aim to improve clarity and readability while preserving the original meaning.
-    *   `![TypeComplex Rewrite Suggestion](docs/rewrite.gif)`
+    *   `![TypeComplex Rewrite Suggestion](https://github.com/superapple8x/typecomplex/blob/main/docs/rewrite.gif)`
 
 4.  **Contextual Synonym Suggestions:**
     *   Select a word within your text to receive a list of contextually relevant synonyms.
     *   The system can use both traditional thesaurus lookups (WordNet) and LLM-enhanced suggestions to provide fitting alternatives that can help vary vocabulary or adjust tone.
-    *   `![TypeComplex Synonym Feature](docs/synonym.gif)`
+    *   `![TypeComplex Synonym Feature](https://github.com/superapple8x/typecomplex/blob/main/docs/synonym.gif)`
 
 5.  **Seamless PDF Import & Analysis:**
     *   Upload PDF documents directly through the "PDF Toolkit".
     *   TypeComplex extracts the text content and performs the same comprehensive complexity analysis as for pasted text.
     *   This is ideal for reviewing existing documents, reports, or academic papers.
-    *   `![TypeComplex PDF Import](docs/pdf_toolkit.png)`
+    *   `![TypeComplex PDF Import](https://github.com/superapple8x/typecomplex/blob/main/docs/pdf.gif)`
 
 ## Features
 
