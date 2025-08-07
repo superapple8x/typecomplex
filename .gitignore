@@ -19,3 +19,17 @@ dump.rdb
 dist/
 special_keys.txt
 __pycache__/gunicorn.conf.cpython-311.pyc
+build
+.kiro/specs/electron-conversion/requirements.md
+ELECTRON CONVERSION PLAN.txt
+requirements.electron.txt
+.kiro/specs/electron-conversion/tasks.md
+.kiro/specs/electron-conversion/design.md
+app/__pycache__/
+cache/
+/app/__pycache__
+specs/tasks.md
+specs/requirements.md
+specs/design.md
+test_tasks.db
+app/__pycache__/frequency.cpython-313.pyc

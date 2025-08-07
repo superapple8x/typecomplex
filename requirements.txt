@@ -44,7 +44,7 @@ MarkupSafe==2.1.5
 matplotlib==3.10.1
 # moddb==0.12.0 (Removed - System specific)
 # nftables==0.1 (Removed - System specific)
-numpy<2.0 # Downgraded for compatibility
+numpy>=2.0,<2.1 # Required by thinc/spaCy on Python 3.13
 olefile==0.47
 packaging==24.2
 pandas==2.2.3
@@ -113,13 +113,13 @@ openai>=1.0 # Added for DeepSeek (OpenAI compatible)
 
 sentence-transformers
 torch
-spacy==3.7.4
+spacy>=3.8,<3.9
 
 nltk
 
 Flask-Caching
 
-blis==0.7.11
+# Let spaCy select compatible blis version for this Python/CPU
 
 
 PyMuPDF>=1.23.0
@@ -128,3 +128,4 @@ redis
 thefuzz
 requests
 gunicorn
+waitress
