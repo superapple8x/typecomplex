@@ -15,6 +15,7 @@ const { PythonProcessManager } = require('./pythonProcessManager');
 const { store, getUserDataPath } = require('./store');
 const settingsStore = require('./settingsStore');
 const http = require('http');
+const { createApiClient } = require('./apiClient');
 
 let processManager = null;
 let isShuttingDown = false;
@@ -23,6 +24,9 @@ let triedAlternateHost = false;
 let mainWindow = null;
 let settingsWindow = null;
 // Managed by PythonProcessManager
+
+// API client (uses resolveBackendBaseUrl which is hoisted below)
+const apiClient = createApiClient({ resolveBaseUrl: resolveBackendBaseUrl, logger: console });
 
 function buildWebviewWrapperDataUrl(url) {
   const html = `<!doctype html>
@@ -488,10 +492,8 @@ ipcMain.handle('settings:setPrefs', async (_event, { partial } = {}) => {
 // IPC: API key management (delegates to backend; never logs key)
 ipcMain.handle('settings:getKeyStatus', async () => {
   try {
-    const base = await resolveBackendBaseUrl();
-    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key/status');
-    const json = await res.json().catch(() => ({}));
-    const status = (json && json.status) || 'unset';
+    const r = await apiClient.request('/settings/api-key/status', { method: 'GET', timeoutMs: 5000 });
+    const status = (r && r.ok && r.data && r.data.status) ? r.data.status : 'unset';
     // persist masked status locally for UI hints
     settingsStore.setPrefs({ deepseekKeyStatus: status });
     return { status };
@@ -503,15 +505,14 @@ ipcMain.handle('settings:getKeyStatus', async () => {
 ipcMain.handle('settings:setApiKey', async (_event, { key } = {}) => {
   try {
     if (typeof key !== 'string' || key.length < 10) throw new Error('invalid_key');
-    const base = await resolveBackendBaseUrl();
-    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key', {
+    const r = await apiClient.request('/settings/api-key', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: key }),
+      timeoutMs: 8000,
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { ok: false, error: (json && (json.error || json.message)) || 'set_failed' };
+    if (!r || !r.ok) {
+      return { ok: false, error: (r && (r.message || (r.data && (r.data.error || r.data.message)))) || 'set_failed' };
     }
     settingsStore.setPrefs({ deepseekKeyStatus: 'set' });
     return { ok: true };
@@ -522,9 +523,11 @@ ipcMain.handle('settings:setApiKey', async (_event, { key } = {}) => {
 
 ipcMain.handle('settings:testApiKey', async () => {
   try {
-    const base = await resolveBackendBaseUrl();
-    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key/test', { method: 'POST' });
-    const json = await res.json().catch(() => ({}));
+    const r = await apiClient.request('/settings/api-key/test', { method: 'POST', timeoutMs: 8000 });
+    if (!r || !r.ok) {
+      return { ok: false, error: (r && (r.message || (r.data && (r.data.error || r.data.message)))) || 'test_failed' };
+    }
+    const json = r.data || {};
     return { ok: Boolean(json && json.ok), error: json && json.error ? json.error : null };
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
@@ -533,11 +536,10 @@ ipcMain.handle('settings:testApiKey', async () => {
 
 ipcMain.handle('settings:deleteApiKey', async () => {
   try {
-    const base = await resolveBackendBaseUrl();
-    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key', { method: 'DELETE' });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { ok: false, error: (json && (json.error || json.message)) || 'delete_failed' };
+    const r = await apiClient.request('/settings/api-key', { method: 'DELETE', timeoutMs: 8000 });
+    if (!r || !r.ok) {
+      const json = r && r.data ? r.data : {};
+      return { ok: false, error: (json && (json.error || json.message)) || (r.message || 'delete_failed') };
     }
     settingsStore.setPrefs({ deepseekKeyStatus: 'unset' });
     return { ok: true };
@@ -609,12 +611,13 @@ async function uploadPdfAndGetTaskId(baseUrl, filePath, options = {}) {
     form.append(k, String(v));
   }
 
-  const res = await fetch(baseUrl.replace(/\/$/, '') + '/upload_pdf', { method: 'POST', body: form });
-  if (!(res.status === 202 || res.status === 200)) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Upload failed (${res.status}): ${text || 'unknown error'}`);
+  const r = await apiClient.request('/upload_pdf', { method: 'POST', body: form, timeoutMs: 30000 });
+  if (!r || !r.ok) {
+    const status = r && typeof r.status === 'number' ? r.status : '0';
+    const msg = (r && (r.message || (r.data && (r.data.error || r.data.message)))) || 'unknown error';
+    throw new Error(`Upload failed (${status}): ${msg}`);
   }
-  const json = await res.json().catch(() => ({}));
+  const json = r.data || {};
   if (!json || !json.task_id) {
     throw new Error('Upload response missing task_id');
   }
@@ -627,8 +630,8 @@ async function pollTaskAndHandleDownload(event, baseUrl, taskId, originalFilenam
   const doneChannel = 'pdf:done';
   const errorChannel = 'pdf:error';
 
-  const makeStatusUrl = () => baseUrl.replace(/\/$/, '') + `/task_status/${encodeURIComponent(taskId)}`;
-  const makeDownloadUrl = () => baseUrl.replace(/\/$/, '') + `/download_highlighted_pdf/${encodeURIComponent(taskId)}`;
+  const statusPath = `/task_status/${encodeURIComponent(taskId)}`;
+  const downloadPath = `/download_highlighted_pdf/${encodeURIComponent(taskId)}`;
 
   const intervalMs = 1000;
   const maxMinutes = 30;
@@ -646,8 +649,11 @@ async function pollTaskAndHandleDownload(event, baseUrl, taskId, originalFilenam
       return;
     }
     try {
-      const res = await fetch(makeStatusUrl(), { method: 'GET' });
-      const json = await res.json();
+      const r = await apiClient.request(statusPath, { method: 'GET', timeoutMs: 10000 });
+      if (!r || !r.ok) {
+        throw new Error((r && (r.message || (r.data && (r.data.error || r.data.message)))) || 'status_error');
+      }
+      const json = r.data || {};
       const state = json && json.state ? String(json.state) : 'UNKNOWN';
       const meta = (json && json.meta) || {};
       const statusMessage = (json && json.status_message) || state;
@@ -662,13 +668,13 @@ async function pollTaskAndHandleDownload(event, baseUrl, taskId, originalFilenam
           filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
         });
         if (!canceled && outPath) {
-          const dl = await fetch(makeDownloadUrl());
-          if (!dl.ok) {
-            try { sender.send(errorChannel, { taskId, error: `download_failed_${dl.status}` }); } catch (_) {}
+          const dr = await apiClient.request(downloadPath, { method: 'GET', responseType: 'arrayBuffer', timeoutMs: 60000 });
+          if (!dr || !dr.ok) {
+            try { sender.send(errorChannel, { taskId, error: `download_failed_${dr && dr.status ? dr.status : '0'}` }); } catch (_) {}
             activeTasks.delete(taskId);
             return;
           }
-          const arrayBuf = await dl.arrayBuffer();
+          const arrayBuf = dr.data;
           await fs.promises.writeFile(outPath, Buffer.from(arrayBuf));
           try { sender.send(doneChannel, { taskId, savedPath: outPath }); } catch (_) {}
         } else {
@@ -719,14 +725,14 @@ ipcMain.handle('pdf:cancel', async (_event, { taskId } = {}) => {
     if (!taskId) return { ok: false, error: 'missing_taskId' };
     const state = activeTasks.get(taskId);
     if (state) state.stop = true;
-    const baseUrl = await resolveBackendBaseUrl();
-    const res = await fetch(baseUrl.replace(/\/$/, '') + '/cancel_pdf_task', {
+    const r = await apiClient.request('/cancel_pdf_task', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_id: taskId }),
+      timeoutMs: 8000,
     });
-    const json = await res.json().catch(() => ({}));
-    return { ok: true, cancelled: Boolean(json && json.cancelled) };
+    const json = (r && r.ok && r.data) ? r.data : {};
+    return { ok: Boolean(r && r.ok), cancelled: Boolean(json && json.cancelled), error: r && !r.ok ? (r.message || (json && (json.error || json.message)) || 'cancel_failed') : null };
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
