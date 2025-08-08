@@ -16,7 +16,7 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 # Initialize the Flask application
-app = Flask(__name__)
+flask_app = Flask(__name__)
 
 # --- Sentry Configuration ---
 SENTRY_DSN = os.environ.get('SENTRY_DSN')
@@ -35,17 +35,17 @@ else:
         print("INFO: SENTRY_DSN is not set. Sentry will not capture errors. This is acceptable for local development without Sentry.", file=sys.stderr)
 
 # --- Production/Development Configuration ---
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-if not app.config['SECRET_KEY'] and os.environ.get('FLASK_ENV', 'production').lower() == 'production':
+flask_app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+if not flask_app.config['SECRET_KEY'] and os.environ.get('FLASK_ENV', 'production').lower() == 'production':
     print("CRITICAL WARNING: SECRET_KEY is not set in a production-like environment. Please set the SECRET_KEY environment variable.", file=sys.stderr)
-    app.config['SECRET_KEY'] = 'ensure-this-is-overridden-in-production' 
-elif not app.config['SECRET_KEY']:
-    app.config['SECRET_KEY'] = 'dev-secret-key-for-flask-CHANGE-ME-AND-SET-VIA-ENV' 
+    flask_app.config['SECRET_KEY'] = 'ensure-this-is-overridden-in-production' 
+elif not flask_app.config['SECRET_KEY']:
+    flask_app.config['SECRET_KEY'] = 'dev-secret-key-for-flask-CHANGE-ME-AND-SET-VIA-ENV' 
     print("INFO: SECRET_KEY is not set via environment variable. Using a default development key. For production, set the SECRET_KEY environment variable.", file=sys.stderr)
 
 # Set DEBUG mode from environment variable FLASK_DEBUG. Defaults to False if not set or not 'true'.
-app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
-if app.config['DEBUG']:
+flask_app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+if flask_app.config['DEBUG']:
     print("INFO: Flask DEBUG mode is ON.", file=sys.stderr)
 else:
     print("INFO: Flask DEBUG mode is OFF.", file=sys.stderr)
@@ -59,8 +59,8 @@ if ELECTRON_MODE:
     print("INFO: Running in Electron mode, using LocalTaskQueue instead of Celery.", file=sys.stderr)
     
     # Configure paths for Electron
-    app.config['BASE_DIR'] = ELECTRON_APP_PATH
-    app.config['USE_LOCAL_STORAGE'] = True
+    flask_app.config['BASE_DIR'] = ELECTRON_APP_PATH
+    flask_app.config['USE_LOCAL_STORAGE'] = True
     
     # Initialize LocalTaskQueue
     db_path = os.path.join(ELECTRON_APP_PATH, 'tasks.db')
@@ -93,20 +93,21 @@ else:
         celery_app.Task = ContextTask
         return celery_app
 
-    app.config.update(
+    flask_app.config.update(
         CELERY_BROKER_URL=CELERY_BROKER_URL,
         CELERY_RESULT_BACKEND=CELERY_RESULT_BACKEND
     )
-    celery = make_celery(app)
+    celery = make_celery(flask_app)
     print("INFO: Celery initialized for web mode.", file=sys.stderr)
 
 # --- Rate Limiter Configuration ---
-app.config['RATE_LIMITER_REDIS_URL'] = os.environ.get('RATE_LIMITER_REDIS_URL', 'redis://localhost:6379/0')
-app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', '10'))
-app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', '10'))
-app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', '5'))
-app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', '5'))
-app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', '5'))
+# In Electron, Redis may not be available; RateLimiter will allow as fallback if Redis is unreachable.
+flask_app.config['RATE_LIMITER_REDIS_URL'] = os.environ.get('RATE_LIMITER_REDIS_URL', 'redis://localhost:6379/0')
+flask_app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', '10'))
+flask_app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', '10'))
+flask_app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', '5'))
+flask_app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', '5'))
+flask_app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', '5'))
 
 # Initialize RateLimiter
 rate_limiter = RateLimiter()
@@ -115,7 +116,7 @@ rate_limiter = RateLimiter()
 CACHE_TYPE = os.environ.get('CACHE_TYPE', 'FileSystemCache' if ELECTRON_MODE else 'RedisCache')
 
 if ELECTRON_MODE:
-    # Use FileSystemCache for Electron
+    # Use FileSystemCache for Electron (no Redis dependency)
     cache_dir = os.path.join(ELECTRON_APP_PATH, 'cache')
     os.makedirs(cache_dir, exist_ok=True)
     cache_config = {
@@ -134,11 +135,18 @@ else:
     }
     print(f"INFO: Cache configured with RedisCache at {CACHE_REDIS_URL}", file=sys.stderr)
 
-app.config.from_mapping(cache_config)
-cache = Cache(app)
+flask_app.config.from_mapping(cache_config)
+cache = Cache(flask_app)
 
-# Import routes after initializing the app, cache, and task system
+# Alias for compatibility with existing imports/decorators
+app = flask_app
+
+# Import routes after initializing the app, cache, and task system.
+# In Electron mode, import the Electron-specific routes directly from this module
 if ELECTRON_MODE:
-    from app import routes_electron
+    from . import routes_electron  # noqa: F401
 else:
-    from app import routes
+    from . import routes  # noqa: F401
+
+# Expose a WSGI-friendly alias to avoid any name confusion
+application = flask_app
