@@ -181,7 +181,7 @@
   - Implement window state persistence and restoration
   - _Requirements: 7.1, 7.3_
 
- - [ ] 7. Implement Settings and Preferences System
+- [x] 7. Implement Settings and Preferences System
   - Create settings UI for user preferences
   - Add DeepSeek API key capture/test UI (renderer) that talks to backend
   - Create settings synchronization between processes (no plaintext key in renderer)
@@ -193,14 +193,14 @@
   - Create settings migration for future schema updates
   - _Requirements: 3.3_
 
-- [ ] 7.2 Build Settings UI
+- [x] 7.2 Build Settings UI
   - Create settings dialog with tabbed interface
   - Implement form validation and real-time preview
   - Add settings import/export functionality
   - Create settings reset to defaults option
   - _Requirements: 3.3, 6.3_
 
- - [ ] 7.3 Add API Key Management
+- [x] 7.3 Add API Key Management
   - DeepSeek-only key support: set, test, rotate, and remove
   - Show masked key presence and last test result; never display full key
   - Optional quota/usage display if API exposes it
