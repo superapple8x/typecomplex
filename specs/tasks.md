@@ -62,7 +62,7 @@
   - Add connectivity testing and error normalization
   - _Requirements: 3.2, 7.3, 8.3_
 
- - [ ] 3.1 Build DeepSeekClient in Backend
+ - [x] 3.1 Build DeepSeekClient in Backend
   - Implement authenticated requests with retries and exponential backoff
   - Support streaming/chunked responses to minimize memory usage
   - Normalize errors (invalid key, quota, network) for consistent UI handling
