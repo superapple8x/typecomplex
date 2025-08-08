@@ -1,18 +1,21 @@
 const path = require('path');
 const { app } = require('electron');
-let Store;
+
+// Resolve proper constructor for electron-store with fallback
+let StoreCtor;
+class NoopStore {
+  constructor(opts = {}) { this.data = { ...(opts.defaults || {}) }; }
+  get(k, d) { return this.data[k] ?? d; }
+  set(k, v) { this.data[k] = v; }
+  delete(k) { delete this.data[k]; }
+  clear() { this.data = {}; }
+  get store() { return this.data; }
+}
 try {
-  Store = require('electron-store');
+  const mod = require('electron-store');
+  StoreCtor = (mod && typeof mod === 'object' && typeof mod.default === 'function') ? mod.default : mod;
 } catch (_) {
-  class NoopStore {
-    constructor(defaults = {}) { this.data = { ...defaults }; }
-    get(k, d) { return this.data[k] ?? d; }
-    set(k, v) { this.data[k] = v; }
-    delete(k) { delete this.data[k]; }
-    clear() { this.data = {}; }
-    store = this.data;
-  }
-  Store = NoopStore;
+  StoreCtor = NoopStore;
 }
 
 const DEFAULTS = {
@@ -24,10 +27,12 @@ const DEFAULTS = {
 };
 
 // Use a separate store file from process-state; keep secrets out
-const settingsStore = new Store({
-  name: 'settings',
-  defaults: DEFAULTS,
-});
+let settingsStore;
+try {
+  settingsStore = new StoreCtor({ name: 'settings', defaults: DEFAULTS });
+} catch (_) {
+  settingsStore = new NoopStore({ defaults: DEFAULTS });
+}
 
 function getPrefs() {
   return {
