@@ -15,6 +15,7 @@ const { store, getUserDataPath } = require('./store');
 const http = require('http');
 
 let processManager = null;
+let isShuttingDown = false;
 let pendingBackendUrl = null;
 let triedAlternateHost = false;
 let mainWindow = null;
@@ -315,11 +316,13 @@ app.on('ready', async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-      if (processManager) {
-    processManager.stop().finally(() => app.quit());
-  } else {
-    app.quit();
-  }
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    if (processManager) {
+      Promise.resolve(processManager.stop({ timeoutMs: 8000 })).finally(() => app.quit());
+    } else {
+      app.quit();
+    }
   }
 });
 
@@ -330,8 +333,26 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   if (processManager) {
-    processManager.stop();
+    try { processManager.stop({ timeoutMs: 8000 }); } catch (_) {}
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  if (!isShuttingDown && processManager) {
+    isShuttingDown = true;
+    try { processManager.stop({ timeoutMs: 3000 }); } catch (_) {}
+  }
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+  if (!isShuttingDown && processManager) {
+    isShuttingDown = true;
+    try { processManager.stop({ timeoutMs: 3000 }); } catch (_) {}
   }
 });
 

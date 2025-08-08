@@ -126,22 +126,61 @@ class PythonProcessManager extends EventEmitter {
   }
 
   async stop({ timeoutMs = 5000 } = {}) {
+    if (this.stopping) {
+      // Avoid duplicate stop sequences
+      return;
+    }
     this.stopping = true;
     this._teardownHeartbeat();
     const proc = this.child;
-    if (!proc) return;
+    if (!proc) {
+      this.stopping = false;
+      return;
+    }
 
-    try {
-      proc.kill();
-    } catch (_) {}
-
-    await new Promise((resolve) => {
-      const t = setTimeout(resolve, timeoutMs);
-      proc.once('close', () => {
-        clearTimeout(t);
-        resolve();
-      });
+    // Try HTTP shutdown endpoint first (graceful)
+    const tryHttpShutdown = () => new Promise((resolve) => {
+      const url = `http://${this.host}:${this.port}/internal/shutdown`;
+      try {
+        const req = http.request(url, {
+          method: 'POST',
+          timeout: Math.min(2000, Math.max(500, timeoutMs - 1000)),
+          headers: { 'X-TypeComplex-Internal': '1' },
+        }, (res) => {
+          res.resume();
+          resolve(true);
+        });
+        req.on('timeout', () => { try { req.destroy(); } catch (_) {}; resolve(false); });
+        req.on('error', () => resolve(false));
+        req.end();
+      } catch (_) {
+        resolve(false);
+      }
     });
+
+    // Wait for process close with escalating signals
+    await (async () => {
+      const start = Date.now();
+      const remaining = () => Math.max(0, timeoutMs - (Date.now() - start));
+      const waitForClose = () => new Promise((resolve) => {
+        const t = setTimeout(resolve, remaining());
+        proc.once('close', () => { clearTimeout(t); resolve(); });
+      });
+
+      // Step 1: HTTP shutdown
+      await tryHttpShutdown();
+      await waitForClose();
+      if (!this.child) return;
+
+      // Step 2: SIGTERM
+      try { proc.kill(); } catch (_) {}
+      await waitForClose();
+      if (!this.child) return;
+
+      // Step 3: SIGKILL
+      try { process.kill(proc.pid, 'SIGKILL'); } catch (_) {}
+      await waitForClose();
+    })();
 
     this.child = null;
     this.restartAttempts = 0;

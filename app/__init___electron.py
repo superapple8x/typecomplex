@@ -10,6 +10,9 @@ from flask_caching import Cache
 from app.local_task_queue import init_local_task_queue, get_local_task_queue
 import os
 import sys
+import signal
+import atexit
+import threading
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
@@ -68,6 +71,42 @@ if ELECTRON_MODE:
     local_task_queue = init_local_task_queue(max_workers=max_workers, db_path=db_path)
     
     print(f"INFO: LocalTaskQueue initialized with {max_workers} workers, database: {db_path}", file=sys.stderr)
+    # --- Graceful shutdown wiring (Electron mode) ---
+    _shutdown_lock = threading.Lock()
+    _shutdown_done = { 'v': False }
+
+    def _graceful_shutdown():
+        """Idempotent shutdown: stop accepting work and close the executor."""
+        try:
+            with _shutdown_lock:
+                if _shutdown_done['v']:
+                    return
+                try:
+                    local_task_queue.shutdown()
+                except Exception:
+                    pass
+                _shutdown_done['v'] = True
+        except Exception:
+            # Never let shutdown path raise
+            pass
+
+    # Ensure cleanup on interpreter exit
+    atexit.register(_graceful_shutdown)
+
+    # Ensure cleanup on signals (e.g., Electron-kill or OS shutdown)
+    def _handle_signal(signum, frame):  # type: ignore[override]
+        try:
+            _graceful_shutdown()
+        finally:
+            # Exit promptly after cleanup. Waitress does not provide an in-app stop.
+            os._exit(0)
+
+    try:
+        signal.signal(signal.SIGTERM, _handle_signal)
+        signal.signal(signal.SIGINT, _handle_signal)
+    except Exception:
+        # Some environments may not allow signal handlers; ignore.
+        pass
 else:
     # Use original Celery configuration for web mode
     from celery import Celery, Task

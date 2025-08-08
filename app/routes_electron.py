@@ -17,6 +17,9 @@ import uuid
 import time
 from werkzeug.utils import secure_filename
 from app import task_manager
+import threading
+import signal
+import os
 
 # Base path for local storage (prefer app config if provided by Electron initializer)
 BASE_DIR = app.config.get('BASE_DIR', os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -708,6 +711,45 @@ def health_check():
             'timestamp': time.time()
         }), 500
 
+
+# --- Internal shutdown endpoint (Electron-only) ---
+@app.route('/internal/shutdown', methods=['POST'])
+def internal_shutdown():
+    """Gracefully stop background work and exit the process.
+
+    Security: only allow loopback clients and require a simple header gate.
+    """
+    try:
+        remote = request.remote_addr or ''
+        if remote not in ('127.0.0.1', '::1'):
+            return jsonify({'error': 'forbidden'}), 403
+        if request.headers.get('X-TypeComplex-Internal') != '1':
+            return jsonify({'error': 'bad_request'}), 400
+
+        # Acknowledge immediately, then shutdown asynchronously
+        def _do_shutdown():
+            try:
+                try:
+                    q = get_local_task_queue()
+                    q.shutdown()
+                except Exception:
+                    pass
+                # Prefer signal path to trigger atexit handlers as well
+                try:
+                    os.kill(os.getpid(), signal.SIGTERM)
+                except Exception:
+                    os._exit(0)
+            except Exception:
+                try:
+                    os._exit(0)
+                except Exception:
+                    pass
+
+        threading.Thread(target=_do_shutdown, daemon=True).start()
+        return jsonify({'status': 'shutting_down'})
+    except Exception as e:
+        app.logger.error(f"/internal/shutdown error: {e}", exc_info=True)
+        return jsonify({'error': 'server_error'}), 500
 
 # Optional: cancel a PDF background task by task_id
 @app.route('/cancel_pdf_task', methods=['POST'])
