@@ -14,6 +14,7 @@ const { PythonProcessManager } = require('./pythonProcessManager');
 
 let processManager = null;
 let pendingBackendUrl = null;
+let triedAlternateHost = false;
 let mainWindow = null;
 // Managed by PythonProcessManager
 
@@ -32,14 +33,34 @@ function createWindow() {
   });
 
   // Debug load events to diagnose white screen
-  mainWindow.webContents.on('did-fail-load', (e, code, desc, url) => {
-    console.error('did-fail-load', code, desc, url);
+  mainWindow.webContents.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
+    console.error('did-fail-load', { code, desc, url, isMainFrame });
+    if (isMainFrame && pendingBackendUrl) {
+      const alt = pendingBackendUrl.replace('127.0.0.1', 'localhost');
+      if (!triedAlternateHost && alt !== pendingBackendUrl) {
+        triedAlternateHost = true;
+        console.warn('Retrying load with localhost instead of 127.0.0.1');
+        mainWindow.loadURL(alt).catch((err) => console.error('Alternate host load failed:', err));
+        return;
+      }
+      // Fallback to a basic page so the window is not blank
+      mainWindow.loadURL('data:text/html,<h2>Backend unreachable</h2><p>Check console logs. Retrying in 5s...</p>');
+      setTimeout(() => {
+        mainWindow.loadURL(pendingBackendUrl).catch(() => {});
+      }, 5000);
+    }
   });
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Renderer finished load');
   });
   mainWindow.webContents.on('dom-ready', () => {
     console.log('Renderer DOM ready');
+    if (!mainWindow.webContents.isDevToolsOpened()) {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
+  });
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log('renderer console:', { level, message, line, sourceId });
   });
 
   // If backend already ready, load immediately
