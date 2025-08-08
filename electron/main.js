@@ -82,6 +82,7 @@ function startBackend() {
   processManager.on('stdout', (msg) => console.log(`Flask stdout: ${msg}`));
   processManager.on('stderr', (msg) => console.error(`Flask stderr: ${msg}`));
   processManager.on('ready', async ({ url }) => {
+    console.log('Backend ready at', url);
     pendingBackendUrl = url;
     if (mainWindow) {
       try {
@@ -89,6 +90,19 @@ function startBackend() {
       } catch (e) {
         console.error('Load failed on ready:', e);
       }
+      // Double-check after a short delay; retry with localhost if needed
+      setTimeout(async () => {
+        try {
+          const current = mainWindow.webContents.getURL();
+          if (!current || current.startsWith('data:text/html')) {
+            const alt = url.replace('127.0.0.1', 'localhost');
+            console.warn('Retrying navigation to backend (alt host)...');
+            await mainWindow.loadURL(alt);
+          }
+        } catch (err) {
+          console.error('Retry load error:', err);
+        }
+      }, 1500);
     }
   });
 
