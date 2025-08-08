@@ -167,7 +167,7 @@
   - Create API client initialization with backend health checking
   - _Requirements: 1.2, 8.3_
 
-- [ ] 6.3 Implement Native File Operations
+- [x] 6.3 Implement Native File Operations
   - Add drag-and-drop support for PDF files
   - Implement native file picker dialogs for document selection
   - Create native save dialogs for exporting results
