@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, Notification, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Notification, dialog, ipcMain, Menu } = require('electron');
 
 // Disable GPU and hardware acceleration early to avoid EGL/ANGLE issues on Linux
 app.disableHardwareAcceleration();
@@ -13,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 const { PythonProcessManager } = require('./pythonProcessManager');
 const { store, getUserDataPath } = require('./store');
+const settingsStore = require('./settingsStore');
 const http = require('http');
 
 let processManager = null;
@@ -20,6 +21,7 @@ let isShuttingDown = false;
 let pendingBackendUrl = null;
 let triedAlternateHost = false;
 let mainWindow = null;
+let settingsWindow = null;
 // Managed by PythonProcessManager
 
 function buildWebviewWrapperDataUrl(url) {
@@ -126,6 +128,66 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function createSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    try { settingsWindow.focus(); } catch (_) {}
+    return settingsWindow;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 720,
+    height: 560,
+    resizable: true,
+    title: 'Settings',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+    },
+    backgroundColor: '#ffffff',
+    show: true,
+  });
+  const htmlPath = path.join(__dirname, 'renderer', 'settings.html');
+  settingsWindow.loadFile(htmlPath).catch((e) => console.error('Failed to load settings window:', e));
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+  return settingsWindow;
+}
+
+function buildAppMenu() {
+  const isMac = process.platform === 'darwin';
+  const template = [
+    ...(isMac ? [{
+      label: app.name,
+      submenu: [
+        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => createSettingsWindow() },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    }] : []),
+    {
+      label: 'File',
+      submenu: [
+        ...(isMac ? [] : [{ label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => createSettingsWindow() }]),
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    { label: 'Edit', submenu: [ { role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' } ] },
+    { label: 'View', submenu: [ { role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' } ] },
+    { label: 'Window', submenu: [ { role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [{ role: 'close' }]) ] },
+    { label: 'Help', submenu: [] },
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 }
 
 function startBackend() {
@@ -313,6 +375,7 @@ function pollHealthAndNavigate({ hosts = ['127.0.0.1', 'localhost'], port = 5001
 app.on('ready', async () => {
   startBackend();
   createWindow();
+  try { buildAppMenu(); } catch (e) { console.warn('Menu build failed:', e && e.message ? e.message : e); }
 });
 
 app.on('window-all-closed', () => {
@@ -399,6 +462,80 @@ ipcMain.handle('health:check', async () => {
     }
   }
   return { ok: false, error: 'Backend not reachable on 127.0.0.1 or localhost:5001' };
+});
+
+// IPC: settings window open
+ipcMain.handle('settings:openWindow', async () => {
+  try { createSettingsWindow(); return { ok: true }; } catch (e) { return { ok: false, error: e && e.message ? e.message : String(e) }; }
+});
+
+// IPC: preferences get/set (non-secret)
+ipcMain.handle('settings:getPrefs', async () => {
+  try { return settingsStore.getPrefs(); } catch (e) { return settingsStore.getPrefs(); }
+});
+ipcMain.handle('settings:setPrefs', async (_event, { partial } = {}) => {
+  try { return settingsStore.setPrefs(partial || {}); } catch (e) { return settingsStore.getPrefs(); }
+});
+
+// IPC: API key management (delegates to backend; never logs key)
+ipcMain.handle('settings:getKeyStatus', async () => {
+  try {
+    const base = await resolveBackendBaseUrl();
+    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key/status');
+    const json = await res.json().catch(() => ({}));
+    const status = (json && json.status) || 'unset';
+    // persist masked status locally for UI hints
+    settingsStore.setPrefs({ deepseekKeyStatus: status });
+    return { status };
+  } catch (e) {
+    return { status: 'unset', error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('settings:setApiKey', async (_event, { key } = {}) => {
+  try {
+    if (typeof key !== 'string' || key.length < 10) throw new Error('invalid_key');
+    const base = await resolveBackendBaseUrl();
+    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: key }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: (json && (json.error || json.message)) || 'set_failed' };
+    }
+    settingsStore.setPrefs({ deepseekKeyStatus: 'set' });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('settings:testApiKey', async () => {
+  try {
+    const base = await resolveBackendBaseUrl();
+    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key/test', { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
+    return { ok: Boolean(json && json.ok), error: json && json.error ? json.error : null };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('settings:deleteApiKey', async () => {
+  try {
+    const base = await resolveBackendBaseUrl();
+    const res = await fetch(base.replace(/\/$/, '') + '/settings/api-key', { method: 'DELETE' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: (json && (json.error || json.message)) || 'delete_failed' };
+    }
+    settingsStore.setPrefs({ deepseekKeyStatus: 'unset' });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
 });
 
 // IPC: open PDF dialog (renderer -> main)

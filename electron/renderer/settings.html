@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>Settings</title>
+  <style>
+    body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; color: #111; }
+    header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+    h1 { font-size: 16px; margin: 0; }
+    main { display: flex; height: calc(100vh - 50px); }
+    nav { width: 200px; border-right: 1px solid #e5e7eb; padding: 8px; background: #fafafa; }
+    nav button { display: block; width: 100%; text-align: left; padding: 8px 10px; margin: 4px 0; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer; }
+    nav button.active { background: #eef2ff; border-color: #c7d2fe; }
+    section { flex: 1; padding: 16px; overflow: auto; }
+    .row { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 6px; color: #374151; }
+    input[type="text"], input[type="password"], select { width: 320px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+    input[type="checkbox"] { transform: translateY(1px); }
+    .muted { color: #6b7280; }
+    .ok { color: #065f46; }
+    .warn { color: #92400e; }
+    .error { color: #991b1b; }
+    .actions { display: flex; gap: 8px; margin-top: 8px; }
+    .note { font-size: 12px; color: #6b7280; margin-top: 8px; }
+    .status { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Settings</h1>
+  </header>
+  <main>
+    <nav>
+      <button id="tab-prefs" class="active">Preferences</button>
+      <button id="tab-api">API Key</button>
+    </nav>
+    <section>
+      <div id="panel-prefs">
+        <div class="row">
+          <label for="targetAudience">Target audience</label>
+          <select id="targetAudience">
+            <option>Standard</option>
+            <option>General Public</option>
+            <option>Academic / Technical</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="analysisMode">Analysis mode</label>
+          <select id="analysisMode">
+            <option>fast</option>
+            <option selected>better</option>
+            <option>best</option>
+          </select>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="modelCache" /> Enable model cache</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="autoUpdate" /> Enable automatic updates</label>
+        </div>
+        <div class="actions">
+          <button id="savePrefs">Save</button>
+          <button id="resetPrefs">Reset to defaults</button>
+        </div>
+        <div id="prefsStatus" class="status muted"></div>
+      </div>
+      <div id="panel-api" style="display:none;">
+        <div class="row">
+          <div class="muted">DeepSeek API Key is <span id="keyStatus" class="warn">unknown</span>.</div>
+          <div class="note">The full key is never displayed here. Storage is handled securely by the backend (OS keychain or encrypted fallback).</div>
+        </div>
+        <div class="row">
+          <label for="apiKeyInput">Set or replace API key</label>
+          <input type="password" id="apiKeyInput" placeholder="Enter API key" autocomplete="off" />
+          <div class="actions">
+            <button id="btnSetKey">Set Key</button>
+            <button id="btnTestKey">Test Connectivity</button>
+            <button id="btnDeleteKey">Remove Key</button>
+          </div>
+        </div>
+        <div id="keyTestResult" class="status muted"></div>
+      </div>
+    </section>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

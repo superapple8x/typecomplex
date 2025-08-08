@@ -33,3 +33,6 @@ specs/requirements.md
 specs/design.md
 test_tasks.db
 app/__pycache__/frequency.cpython-313.pyc
+tasks.db
+secrets/
+electron/tmp-test-logs/
