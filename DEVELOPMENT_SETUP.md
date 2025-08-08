@@ -6,7 +6,7 @@ This document outlines the steps required to set up and run the Sentence Complex
 
 *   Python 3.x installed
 *   Node.js and npm installed (for frontend dependencies and build process)
-*   Access to a Redis server (for Celery and Rate Limiting, typically running on `redis://localhost:6379/0`)
+*   Access to a Redis server (for Celery; app-level rate limiting has been removed)
 
 ## Setup
 
@@ -47,7 +47,7 @@ This document outlines the steps required to set up and run the Sentence Complex
     # Celery and Redis (defaults are usually fine if Redis is local)
     # CELERY_BROKER_URL='redis://localhost:6379/0'
     # CELERY_RESULT_BACKEND='redis://localhost:6379/0'
-    # RATE_LIMITER_REDIS_URL='redis://localhost:6379/0'
+    # (rate limiter removed; no RATE_LIMITER_* variables)
 
     # Gunicorn settings (can also be set here, or in gunicorn.conf.py, or command line)
     # PORT='5001' # Port Gunicorn should bind to
@@ -80,7 +80,7 @@ This document outlines the steps required to set up and run the Sentence Complex
 The application is run using the Gunicorn WSGI server.
 
 1.  **Ensure Redis Server is Running:**
-    The application uses Redis for Celery task queues and rate limiting. Make sure your Redis server is running.
+    The application uses Redis for Celery task queues. App-level rate limiting has been removed. Make sure your Redis server is running.
 
 2.  **Activate Virtual Environment (if not already active):**
     ```bash

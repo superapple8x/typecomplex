@@ -1,6 +1,6 @@
 import logging # Add logging
 from flask import render_template, request, jsonify, Response, send_from_directory, current_app # Import Response, send_from_directory, current_app
-from app import app, celery, rate_limiter # Import celery AND rate_limiter
+from app import app, celery
 # Import the analysis and synonym functions
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model # UPDATED: Removed nlp, Added get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
@@ -67,12 +67,7 @@ def analyze_text():
     analysis_id = data.get('analysisId') # <<< Get analysisId from request
     mode = data.get('mode', 'better') # <<< NEW: Get mode, default to 'better'
 
-    # --- Rate Limiting Check ---
-    client_ip = request.remote_addr
-    if not rate_limiter.check_and_update_limit(client_ip, mode):
-        logging.warning(f"Rate limit exceeded for IP: {client_ip}, Mode: {mode} on /analyze route.")
-        return jsonify({"error": f"Rate limit exceeded for {mode} analysis. Please try again later."}), 429
-    # --- End Rate Limiting Check ---
+    # Application-level rate limiting removed. Provider limits only.
 
     logging.info(f"Received analysis request (ID: {analysis_id}). Mode: {mode}, Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}") # Added mode to log
 
@@ -253,16 +248,7 @@ def get_synonyms():
 
     deepseek_recommendation = None 
     if context_awareness_enabled and ranked_synonyms and sentence_context:
-        # --- Rate Limiting Check for LLM Synonym Suggestion ---
-        client_ip = request.remote_addr
-        if not rate_limiter.check_and_update_limit(client_ip, 'llm_synonym'):
-            logging.warning(f"Rate limit exceeded for LLM synonym suggestion. IP: {client_ip}")
-            # Return the base synonyms but indicate LLM part was skipped due to rate limit
-            return jsonify({
-                "ranked_synonyms": ranked_synonyms,
-                "llm_recommendation": {"error": "Contextual suggestion rate limit exceeded. Please try again later."}
-            }), 200 # Return 200 as base synonyms are still provided
-        # --- End Rate Limiting Check ---
+        # Application-level rate limiting removed. Provider limits only.
 
         logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") 
         try:
@@ -321,17 +307,7 @@ def rewrite_suggestion():
         logging.warning("'/rewrite_suggestion' request missing required fields.")
         return jsonify({"error": "Missing required fields (sentence_text, surrounding_context, target_audience, complexity_analysis_details)"}), 400
 
-    # --- Rate Limiting Check for LLM Rewrite Suggestion ---
-    client_ip = request.remote_addr
-    if not rate_limiter.check_and_update_limit(client_ip, 'llm_rewrite'):
-        logging.warning(f"Rate limit exceeded for LLM rewrite suggestion. IP: {client_ip}")
-        return jsonify({
-            "status": "Error", 
-            "feedback": "LLM rewrite suggestion rate limit exceeded. Please try again later.", 
-            "suggestion": None,
-            "reasoning": "Rate limit exceeded."
-        }), 429
-    # --- End Rate Limiting Check ---
+    # Application-level rate limiting removed. Provider limits only.
 
     sentence_text = data['sentence_text']
     surrounding_context = data['surrounding_context']
@@ -568,95 +544,9 @@ def test_celery_add(a, b):
         app.logger.error(f"Error dispatching 'add' task: {e}", exc_info=True)
         return jsonify({"error": f"Server error during 'add' task dispatch: {str(e)}"}), 500
 
-# --- NEW: API Endpoint for Rate Limits ---
-@app.route('/api/get_rate_limits', methods=['GET'])
-def get_rate_limits_config():
-    """Returns the configured rate limits and current remaining counts for the user."""
-    client_ip = request.remote_addr
-    total_limits = {
-        'fast': current_app.config.get('RATE_LIMIT_FAST_PER_DAY', 10),
-        'better': current_app.config.get('RATE_LIMIT_BETTER_PER_DAY', 5),
-        'best': current_app.config.get('RATE_LIMIT_BEST_PER_DAY', 2),
-        'llm_synonym': current_app.config.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', 5),
-        'llm_rewrite': current_app.config.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', 5)
-    }
-    
-    current_usage = rate_limiter.get_current_usage(client_ip)
-    
-    remaining_counts = {}
-    for mode, total in total_limits.items():
-        remaining_counts[mode] = total - current_usage.get(mode, 0)
-        if remaining_counts[mode] < 0:
-            remaining_counts[mode] = 0 # Ensure it doesn't go negative
-            
-    return jsonify({
-        'total_limits': total_limits,
-        'remaining_counts': remaining_counts
-    })
-# --- END NEW API Endpoint ---
+# Application-level rate limit endpoints removed intentionally.
 
-# --- Admin UI Route for Rate Limit Reset ---
-@app.route('/admin/reset-ui', methods=['GET'])
-def admin_reset_ui():
-    """Serves the HTML page for resetting rate limits via UI."""
-    return render_template('admin_reset.html')
-
-# --- NEW: Admin Route to Reset Rate Limits ---
-@app.route('/admin/reset_rate_limit', methods=['POST'])
-def admin_reset_rate_limit():
-    """
-    Resets the rate limits for the requester's IP address if a valid special key is provided.
-    Expects JSON: {"key": "YOUR_SPECIAL_KEY"}
-    """
-    data = request.get_json()
-    if not data or 'key' not in data:
-        logging.warning("Admin rate limit reset: Missing key in request.")
-        return jsonify({"error": "Missing 'key' in request body"}), 400
-
-    special_key_provided = data.get('key')
-    ip_to_reset = request.remote_addr # Automatically use the requester's IP
-
-    # Validate IP address format (basic validation) - request.remote_addr should be reliable
-    # but an explicit check is good practice if there's any doubt or proxy involvement
-    try:
-        import ipaddress
-        ipaddress.ip_address(ip_to_reset)
-    except ValueError:
-        # This should ideally not happen with request.remote_addr but good to have a safeguard
-        logging.error(f"Admin rate limit reset: Invalid IP address obtained from request.remote_addr: {ip_to_reset}")
-        return jsonify({"error": "Invalid IP address obtained from request."}), 400
-
-    valid_keys = []
-    key_file_path = os.path.join(app.root_path, '..', 'special_keys.txt') # Assuming special_keys.txt is in the workspace root
-    
-    try:
-        with open(key_file_path, 'r') as f:
-            valid_keys = [line.strip() for line in f if line.strip()]
-    except FileNotFoundError:
-        logging.error(f"Admin rate limit reset: special_keys.txt not found at {key_file_path}")
-        # Do not expose file path in error to client
-        return jsonify({"error": "Server configuration error. Key file not found."}), 500
-    except Exception as e:
-        logging.error(f"Admin rate limit reset: Error reading special_keys.txt: {e}")
-        return jsonify({"error": "Server error while validating key."}), 500
-
-    if not valid_keys:
-        logging.error(f"Admin rate limit reset: No valid keys found in special_keys.txt.")
-        return jsonify({"error": "Server configuration error. No special keys configured."}), 500
-
-    if special_key_provided in valid_keys:
-        logging.info(f"Admin rate limit reset: Valid key received. Attempting to reset limits for IP: {ip_to_reset}")
-        # Assuming rate_limiter is the global instance from app/__init__.py
-        success = rate_limiter.reset_limits_for_ip(ip_to_reset)
-        if success:
-            return jsonify({"message": f"Rate limits successfully reset for IP: {ip_to_reset}"}), 200
-        else:
-            # This could mean no keys were found for the IP, or a Redis error occurred.
-            # The RateLimiter class logs specifics.
-            return jsonify({"message": f"Attempted to reset limits for IP: {ip_to_reset}. No active limits found or Redis issue."}), 200
-    else:
-        logging.warning(f"Admin rate limit reset: Invalid key provided for IP: {ip_to_reset}")
-        return jsonify({"error": "Invalid special key."}), 403
+# Admin rate limit reset routes removed intentionally.
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-from app import celery, app, rate_limiter # Import celery instance, flask app, and rate_limiter
+from app import celery, app # Import celery instance and flask app
 from app.pdf_handler import extract_text_and_sentence_coordinates, generate_highlighted_pdf
 from app.analysis import analyze_text_complexity
 import os
@@ -28,24 +28,7 @@ def process_pdf_task(self, file_path, original_filename, action='full_analysis',
 
     app.logger.info(f"Starting PDF processing for: {original_filename} (Task ID: {self.request.id}) at path: {file_path}")
     
-    # --- Rate Limiting Check for PDF Task ---
-    if action == 'full_analysis' and client_ip_address: # Only rate limit full analysis that has an IP
-        if not rate_limiter.check_and_update_limit(client_ip_address, analysis_mode):
-            app.logger.warning(f"Rate limit exceeded for PDF analysis. IP: {client_ip_address}, Mode: {analysis_mode}, Task ID: {self.request.id}")
-            # Update task state to failure due to rate limit
-            self.update_state(state='FAILURE', meta={
-                'exc_type': 'RateLimitExceeded',
-                'exc_message': f'Rate limit exceeded for {analysis_mode} PDF analysis.',
-                'original_filename': original_filename,
-                'status_message': f'Rate limit for {analysis_mode} PDF analysis was exceeded.'
-            })
-            return {
-                'original_filename': original_filename,
-                'status_message': f'Rate limit for {analysis_mode} PDF analysis was exceeded.',
-                'error': True,
-                'error_details': f'RateLimitExceeded: Rate limit for {analysis_mode} PDF analysis.'
-            }
-    # --- End Rate Limiting Check ---
+    # Application-level rate limiting removed. Provider limits only.
 
     try:
         # Step 1: Extract text and sentence coordinates from PDF

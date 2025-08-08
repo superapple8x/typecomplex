@@ -81,6 +81,12 @@
   - _Requirements: 2.1, 3.2, 7.3_
 
  - [x] 3.4 Health Check AI Readiness
+
+- [x] Application-Level Rate Limiting Removal
+  - Remove `RateLimiter` usage and limiter config
+  - Delete limiter module and UI polling for rate limits
+  - Surface provider 429s directly in `/ai/*` endpoints and UI
+  - _Requirements: 9.1, 9.2, 9.3_
   - Extend /health to report AI readiness (key set + optional probe)
   - Surface state to Electron for UI guidance on first run
   - _Requirements: 7.3, 8.1_

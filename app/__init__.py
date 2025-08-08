@@ -14,7 +14,7 @@ else:
     from flask import Flask
     from flask_caching import Cache
     from celery import Celery, Task
-    from app.rate_limiter import RateLimiter
+    # Application-level rate limiting removed. No RateLimiter.
     import sys
     import sentry_sdk
     from sentry_sdk.integrations.flask import FlaskIntegration
@@ -78,14 +78,7 @@ else:
     )
     celery = make_celery(app)
 
-    # Rate limiter
-    app.config['RATE_LIMITER_REDIS_URL'] = app.config['CELERY_BROKER_URL']
-    app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', 10))
-    app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', 10))
-    app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', 5))
-    app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', 5))
-    app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', 5))
-    rate_limiter = RateLimiter()
+    # Application-level rate limiting removed. Provider limits only.
 
     # Cache
     from flask_caching import Cache as _Cache

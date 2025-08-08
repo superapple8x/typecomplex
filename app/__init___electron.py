@@ -5,10 +5,8 @@ Flask app initialization for Electron version using LocalTaskQueue instead of Ce
 from dotenv import load_dotenv
 load_dotenv()
 
-import redis
 from flask import Flask
 from flask_caching import Cache
-from app.rate_limiter import RateLimiter
 from app.local_task_queue import init_local_task_queue, get_local_task_queue
 import os
 import sys
@@ -102,17 +100,7 @@ else:
     celery = make_celery(flask_app)
     print("INFO: Celery initialized for web mode.", file=sys.stderr)
 
-# --- Rate Limiter Configuration ---
-# In Electron, Redis may not be available; RateLimiter will allow as fallback if Redis is unreachable.
-flask_app.config['RATE_LIMITER_REDIS_URL'] = os.environ.get('RATE_LIMITER_REDIS_URL', 'redis://localhost:6379/0')
-flask_app.config['RATE_LIMIT_FAST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_FAST_PER_DAY', '10'))
-flask_app.config['RATE_LIMIT_BETTER_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BETTER_PER_DAY', '10'))
-flask_app.config['RATE_LIMIT_BEST_PER_DAY'] = int(os.environ.get('RATE_LIMIT_BEST_PER_DAY', '5'))
-flask_app.config['RATE_LIMIT_LLM_SYNONYM_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_SYNONYM_PER_DAY', '5'))
-flask_app.config['RATE_LIMIT_LLM_REWRITE_PER_DAY'] = int(os.environ.get('RATE_LIMIT_LLM_REWRITE_PER_DAY', '5'))
-
-# Initialize RateLimiter
-rate_limiter = RateLimiter()
+# --- Application-level rate limiting removed intentionally ---
 
 # --- Cache Configuration ---
 CACHE_TYPE = os.environ.get('CACHE_TYPE', 'FileSystemCache' if ELECTRON_MODE else 'RedisCache')

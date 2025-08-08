@@ -73,7 +73,7 @@ TypeComplex empowers users to deeply understand and refine their writing through
 *   **Asynchronous Processing:** Celery and Redis handle computationally intensive analyses (especially PDF processing and potentially some "best" mode analyses) in the background, improving UI responsiveness.
 *   **User Interface:** Web-based interface built with Flask, HTML, and Tailwind CSS.
 *   **Task Management:** Supports cancellation of ongoing analysis tasks.
-*   **Rate Limiting:** Protects the service from abuse, with configurable limits for different analysis modes.
+*   **No App-Level Rate Limiting:** The app does not impose its own quotas. Provider-side limits (e.g., DeepSeek 429) are surfaced directly.
 
 ## Tech Stack
 
@@ -92,7 +92,7 @@ TypeComplex empowers users to deeply understand and refine their writing through
 *   **WSGI Server (Production):** Gunicorn
 *   **Reverse Proxy (Production):** Nginx (recommended in `PRODUCTION_SETUP.MD`)
 *   **Database:**
-    *   Redis: Used extensively for Celery, caching, and rate limiting.
+    *   Redis: Used for Celery and caching. App-level rate limiting has been removed.
     *   `psycopg2-binary` is listed in `requirements.txt`, suggesting potential (optional or future) integration with PostgreSQL. The core functionality described seems to rely on Redis and file system for persistence.
 *   **Error Monitoring:** Sentry (configurable via environment variable `SENTRY_DSN`)
 *   **Environment Management:** `python-dotenv` (loads `.env` file)
@@ -108,7 +108,7 @@ A brief overview of key directories:
     *   `pdf_handler.py`: Logic for PDF uploading and text extraction.
     *   `tasks.py`: Celery background task definitions (e.g., `process_pdf_task`).
     *   `deepseek_analysis.py`, `gemini_analysis.py`: Integrations with external AI models.
-    *   `rate_limiter.py`: Implements request rate limiting.
+    *   (removed) `rate_limiter.py`: App-level rate limiting has been removed.
     *   `static/`: Static frontend assets (CSS, JS, images). Compiled CSS is usually here.
     *   `templates/`: HTML templates rendered by Flask.
     *   `data/`: May contain data files for NLP models or frequency lists.
@@ -245,9 +245,7 @@ The application provides several HTTP endpoints for its functionality. Key endpo
     *   Purpose: Request cancellation of an ongoing analysis.
     *   Request (JSON): `{ "analysisId": "..." }`
     *   Response (JSON): Cancellation status.
-*   **`GET /api/get_rate_limits`**:
-    *   Purpose: Provides client with current rate limit settings.
-    *   Response (JSON): Rate limit configuration.
+
 
 See `app/routes.py` for full details on request/response structures.
 

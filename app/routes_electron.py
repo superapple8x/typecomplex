@@ -4,7 +4,7 @@ Routes for Electron version using LocalTaskQueue instead of Celery
 
 import logging
 from flask import render_template, request, jsonify, Response, send_from_directory, current_app
-from app.__init___electron import app, rate_limiter
+from app.__init___electron import app
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
 from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion, test_key_connectivity, reset_client
@@ -148,11 +148,7 @@ def analyze_text():
     analysis_id = data.get('analysisId')
     mode = data.get('mode', 'better')
 
-    # --- Rate Limiting Check ---
-    client_ip = request.remote_addr
-    if not rate_limiter.check_and_update_limit(client_ip, mode):
-        logging.warning(f"Rate limit exceeded for IP: {client_ip}, Mode: {mode} on /analyze route.")
-        return jsonify({"error": f"Rate limit exceeded for {mode} analysis. Please try again later."}), 429
+    # Application-level rate limiting removed. Provider limits only.
 
     logging.info(f"Received analysis request (ID: {analysis_id}). Mode: {mode}, Audience Profile: {target_audience_profile}, Context Aware: {context_awareness_enabled}")
 
@@ -306,14 +302,7 @@ def get_synonyms():
 
     deepseek_recommendation = None 
     if context_awareness_enabled and ranked_synonyms and sentence_context:
-        # --- Rate Limiting Check for LLM Synonym Suggestion ---
-        client_ip = request.remote_addr
-        if not rate_limiter.check_and_update_limit(client_ip, 'llm_synonym'):
-            logging.warning(f"Rate limit exceeded for LLM synonym suggestion. IP: {client_ip}")
-            return jsonify({
-                "ranked_synonyms": ranked_synonyms,
-                "llm_recommendation": {"error": "Contextual suggestion rate limit exceeded. Please try again later."}
-            }), 200
+        # Application-level rate limiting removed. Provider limits only.
 
         logging.info("Context awareness enabled, calling DeepSeek synonym recommendation.") 
         try:
@@ -361,16 +350,7 @@ def rewrite_suggestion():
         logging.warning("'/rewrite_suggestion' request missing required fields.")
         return jsonify({"error": "Missing required fields (sentence_text, surrounding_context, target_audience, complexity_analysis_details)"}), 400
 
-    # --- Rate Limiting Check for LLM Rewrite Suggestion ---
-    client_ip = request.remote_addr
-    if not rate_limiter.check_and_update_limit(client_ip, 'llm_rewrite'):
-        logging.warning(f"Rate limit exceeded for LLM rewrite suggestion. IP: {client_ip}")
-        return jsonify({
-            "status": "Error", 
-            "feedback": "LLM rewrite suggestion rate limit exceeded. Please try again later.", 
-            "suggestion": None,
-            "reasoning": "Rate limit exceeded."
-        }), 429
+    # Application-level rate limiting removed. Provider limits only.
 
     sentence_text = data['sentence_text']
     surrounding_context = data['surrounding_context']
@@ -410,9 +390,10 @@ def ai_rewrite():
             data['complexity_analysis_details']
         )
         if 'error' in result:
-            # Normalize common errors
+            # Normalize common errors and surface provider 429s
             err = result.get('error')
-            code = 401 if 'Authentication' in err or 'api_client_unavailable' in err else 502
+            lower = (err or '').lower()
+            code = 401 if ('authentication' in lower or 'api_client_unavailable' in lower) else (429 if 'rate limit' in lower or '429' in lower else 502)
             return jsonify({"error": err}), code
         return jsonify(result)
     except Exception as e:
@@ -435,7 +416,8 @@ def ai_synonyms():
         )
         if result and 'error' in result:
             err = result.get('error')
-            code = 401 if 'Authentication' in err or 'api_client_unavailable' in err else 502
+            lower = (err or '').lower()
+            code = 401 if ('authentication' in lower or 'api_client_unavailable' in lower) else (429 if 'rate limit' in lower or '429' in lower else 502)
             return jsonify({"error": err}), code
         return jsonify(result)
     except Exception as e:

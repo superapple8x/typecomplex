@@ -336,7 +336,7 @@ const securePreferences = {
 - **IPC Validation**: All inter-process communication validated
 - **Error Isolation**: Failures in one component don't crash others
 
-## Application-Level Rate Limiting Removal (Planned)
+## Application-Level Rate Limiting Removal (Completed)
 
 Given that external AI usage costs are borne by the end user, the application SHALL NOT impose its own rate limits on either local features or AI calls. Only provider-side quotas and limits apply. The following changes are planned for the implementation:
 

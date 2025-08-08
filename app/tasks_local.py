@@ -24,8 +24,8 @@ def process_pdf_task(mock_task, file_path, original_filename, action='full_analy
     - If action is 'extract_text': Only extracts text and coordinates.
     - If action is 'full_analysis': Performs full extraction, analysis, and highlighting.
     """
-    # Import Electron-mode instances directly to avoid circular import issues
-    from app.__init___electron import rate_limiter, app  # type: ignore
+    # Import Electron-mode app instance directly to avoid circular import issues
+    from app.__init___electron import app  # type: ignore
     
     task_id = mock_task.request.id
     
@@ -38,24 +38,7 @@ def process_pdf_task(mock_task, file_path, original_filename, action='full_analy
 
     logger.info(f"Starting PDF processing for: {original_filename} (Task ID: {task_id}) at path: {file_path}")
     
-    # --- Rate Limiting Check for PDF Task ---
-    if action == 'full_analysis' and client_ip_address:
-        if not rate_limiter.check_and_update_limit(client_ip_address, analysis_mode):
-            logger.warning(f"Rate limit exceeded for PDF analysis. IP: {client_ip_address}, Mode: {analysis_mode}, Task ID: {task_id}")
-            # Update task state to failure due to rate limit
-            mock_task.update_state(state='FAILURE', meta={
-                'exc_type': 'RateLimitExceeded',
-                'exc_message': f'Rate limit exceeded for {analysis_mode} PDF analysis.',
-                'original_filename': original_filename,
-                'status_message': f'Rate limit for {analysis_mode} PDF analysis was exceeded.'
-            })
-            return {
-                'original_filename': original_filename,
-                'status_message': f'Rate limit for {analysis_mode} PDF analysis was exceeded.',
-                'error': True,
-                'error_details': f'RateLimitExceeded: Rate limit for {analysis_mode} PDF analysis.'
-            }
-    # --- End Rate Limiting Check ---
+    # Application-level rate limiting removed. Provider limits only.
 
     try:
         # Step 1: Extract text and sentence coordinates from PDF
