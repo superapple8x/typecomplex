@@ -71,7 +71,19 @@
                 </svg>
                 Sentence Complexity Analyzer
             </h1>
-            <div class="text-xs text-[var(--text-secondary)] ml-auto">v1.0.0</div>
+            <div class="ml-auto flex items-center gap-3">
+                <div class="text-xs text-[var(--text-secondary)]">v1.0.0</div>
+                <!-- Settings button is shown only under Electron (when window.settings exists). Hidden by default. -->
+                <button id="open-settings-btn" class="hidden text-xs px-2 py-1 rounded border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--input-bg)] transition-colors" title="Open Settings">
+                    <span class="inline-flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.26 1.3.73 1.77.47.47 1.11.73 1.77.73H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Settings
+                    </span>
+                </button>
+            </div>
         </div>
     </header>
 

@@ -21,6 +21,17 @@ function debounce(func, wait) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Electron Settings Entrypoint ---
+    try {
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        if (openSettingsBtn && typeof window !== 'undefined' && window.settings && typeof window.settings.openWindow === 'function') {
+            openSettingsBtn.classList.remove('hidden');
+            openSettingsBtn.addEventListener('click', async () => {
+                try { await window.settings.openWindow(); } catch (_) {}
+            });
+        }
+    } catch (_) {}
+
     // Application-level rate limits removed. No counters or polling.
 
     // --- Function to update text for main analysis mode options ---
