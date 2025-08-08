@@ -1,14 +1,12 @@
 
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
-const http = require('http');
+const { PythonProcessManager } = require('./pythonProcessManager');
+// const http = require('http');
 
-let flaskProcess = null;
+let processManager = null;
 let mainWindow = null;
-let restartAttempts = 0;
-const maxRestartAttempts = 3;
-const baseRestartDelayMs = 1000;
+// Managed by PythonProcessManager
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -18,6 +16,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false, // Keep false for security
       contextIsolation: true, // Keep true for security
+      webgl: false, // reduce GPU use in renderer
     },
   });
 
@@ -28,48 +27,32 @@ function createWindow() {
   });
 }
 
-function startFlask() {
+function startBackend() {
   // Prefer running the Python entrypoint in dev; packaged binary can be set later
-  const python = process.env.PYTHON_BINARY || 'python3';
-  const serverPath = path.join(__dirname, '..', 'electron_server.py');
-  const args = [serverPath, '--host', '127.0.0.1', '--port', '5001'];
-  const env = {
-    ...process.env,
-    ELECTRON_RUN_AS_NODE: '1',
-    ELECTRON_APP_PATH: path.join(__dirname, '..'),
-  };
-  flaskProcess = spawn(python, args, { env });
+  processManager = new PythonProcessManager({});
 
-  flaskProcess.stdout.on('data', (data) => {
-    console.log(`Flask stdout: ${data}`);
-  });
-
-  flaskProcess.stderr.on('data', (data) => {
-    console.error(`Flask stderr: ${data}`);
-  });
-
-  flaskProcess.on('close', (code) => {
-    console.log(`Flask process exited with code ${code}`);
-    if (restartAttempts < maxRestartAttempts) {
-      const delay = baseRestartDelayMs * Math.pow(2, restartAttempts);
-      restartAttempts += 1;
-      console.log(`Attempting to restart backend in ${delay}ms (attempt ${restartAttempts}/${maxRestartAttempts})`);
-      setTimeout(async () => {
-        startFlask();
-        try {
-          await waitForHealth('http://127.0.0.1:5001/health');
-          if (mainWindow) {
-            await mainWindow.loadURL('http://127.0.0.1:5001');
-          }
-        } catch (e) {
-          console.error('Health check failed after restart attempt:', e);
-        }
-      }, delay);
+  processManager.on('stdout', (msg) => console.log(`Flask stdout: ${msg}`));
+  processManager.on('stderr', (msg) => console.error(`Flask stderr: ${msg}`));
+  processManager.on('ready', async ({ url }) => {
+    if (mainWindow) {
+      await mainWindow.loadURL(url);
     }
   });
-  flaskProcess.on('error', (err) => {
-    console.error('Flask process error:', err);
+  processManager.on('restarting', ({ attempt, delay }) => {
+    console.log(`Attempting to restart backend in ${delay}ms (attempt ${attempt}/${processManager.maxRestartAttempts})`);
   });
+  processManager.on('heartbeat-restart', () => {
+    console.warn('Heartbeat: restarting Flask backend due to repeated health failures...');
+  });
+  processManager.on('failed', ({ message }) => {
+    console.error(`Backend failed permanently: ${message}`);
+    if (mainWindow) {
+      mainWindow.loadURL('data:text/html,<h1>Backend failed to start</h1>');
+    }
+  });
+  processManager.on('error', (err) => console.error('Flask process error:', err));
+
+  processManager.start();
 }
 
 function waitForHealth(url, timeoutMs = 20000, intervalMs = 300) {
@@ -98,28 +81,22 @@ function waitForHealth(url, timeoutMs = 20000, intervalMs = 300) {
 }
 
 app.on('ready', async () => {
-  startFlask();
+  // Disable GPU to avoid EGL/ANGLE issues on some Linux setups
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+
+  startBackend();
   createWindow();
-  try {
-    await waitForHealth('http://127.0.0.1:5001/health');
-    if (mainWindow) {
-      await mainWindow.loadURL('http://127.0.0.1:5001');
-    }
-  } catch (e) {
-    console.error('Failed to reach Flask health endpoint:', e);
-    if (mainWindow) {
-      mainWindow.loadURL('data:text/html,<h1>Backend failed to start</h1>');
-    }
-  }
+  // Health is now handled by PythonProcessManager events; no extra loop here.
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    if (flaskProcess) {
-      console.log('Killing Flask process...');
-      flaskProcess.kill();
-    }
+      if (processManager) {
+    processManager.stop().finally(() => app.quit());
+  } else {
     app.quit();
+  }
   }
 });
 
@@ -130,8 +107,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
-  if (flaskProcess) {
-    console.log('Killing Flask process before quit...');
-    flaskProcess.kill();
+  if (processManager) {
+    processManager.stop();
   }
 });
