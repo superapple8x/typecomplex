@@ -4,7 +4,7 @@ Routes for Electron version using LocalTaskQueue instead of Celery
 
 import logging
 from flask import render_template, request, jsonify, Response, send_from_directory, current_app
-from app import app, rate_limiter
+from app.__init___electron import app, rate_limiter
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
 from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion

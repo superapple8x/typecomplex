@@ -24,7 +24,8 @@ def process_pdf_task(mock_task, file_path, original_filename, action='full_analy
     - If action is 'extract_text': Only extracts text and coordinates.
     - If action is 'full_analysis': Performs full extraction, analysis, and highlighting.
     """
-    from app import rate_limiter, app
+    # Import Electron-mode instances directly to avoid circular import issues
+    from app.__init___electron import rate_limiter, app  # type: ignore
     
     task_id = mock_task.request.id
     

@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const { EventEmitter } = require('events');
 
 class PythonProcessManager extends EventEmitter {
@@ -16,21 +17,45 @@ class PythonProcessManager extends EventEmitter {
 
     this.baseRestartDelayMs = options.baseRestartDelayMs || 1000;
     this.maxRestartAttempts = options.maxRestartAttempts || 3;
+    this.maxBackoffCapMs = options.maxBackoffCapMs || 30000; // cap exponential backoff
+    this.cooldownMs = options.cooldownMs || 120000; // after exhausting attempts
+    this.autoRetryAfterCooldown = options.autoRetryAfterCooldown !== undefined ? options.autoRetryAfterCooldown : true;
     this.healthCheckIntervalMs = options.healthCheckIntervalMs || 5000;
-    this.healthTimeoutMs = options.healthTimeoutMs || 20000;
+    // Some environments do heavy first-time initialization (NLTK, spaCy, etc.).
+    // Allow a generous initial readiness timeout, but keep polling if exceeded.
+    this.healthTimeoutMs = options.healthTimeoutMs || 120000;
     this.healthPollIntervalMs = options.healthPollIntervalMs || 300;
 
     this.extraEnv = options.extraEnv || {};
+    this.logDir = options.logDir || null; // directory to dump recent logs on failure
 
     this.child = null;
     this.healthInterval = null;
     this.restartAttempts = 0;
     this.consecutiveHealthFailures = 0;
     this.stopping = false;
+    this.cooldownTimer = null;
+    this.cooldownUntil = 0;
+    this._killReason = null; // 'heartbeat' | 'manual' | null
+    this.resetAttemptsOnNextHeartbeat = false;
+
+    // Track rapid restarts to detect flapping
+    this.recentRestartTimestamps = [];
+    this.flapWindowMs = options.flapWindowMs || 120000; // 2 minutes
+    this.flapThreshold = options.flapThreshold || 5; // restarts within window
+
+    // In-memory ring buffer of recent stdout/stderr
+    this.logBufferLimit = options.logBufferLimit || 500; // entries
+    this.logBuffer = [];
   }
 
   start() {
     if (this.child) return; // already running
+    if (this.cooldownTimer) {
+      clearTimeout(this.cooldownTimer);
+      this.cooldownTimer = null;
+      this.cooldownUntil = 0;
+    }
 
     const args = [this.serverPath, '--host', this.host, '--port', String(this.port)];
     const env = {
@@ -47,33 +72,48 @@ class PythonProcessManager extends EventEmitter {
     this.child = spawn(this.pythonBinary, args, { env });
 
     this.child.stdout.on('data', (data) => {
-      this.emit('stdout', data.toString());
+      const text = data.toString();
+      this._pushLog({ source: 'stdout', text });
+      this.emit('stdout', text);
     });
 
     this.child.stderr.on('data', (data) => {
-      this.emit('stderr', data.toString());
+      const text = data.toString();
+      this._pushLog({ source: 'stderr', text });
+      this.emit('stderr', text);
     });
 
-    this.child.on('close', (code) => {
-      this.emit('exit', code);
+    this.child.on('close', (code, signal) => {
+      const cause = this._killReason === 'heartbeat' ? 'heartbeat' : (this.stopping ? 'manual' : 'exit');
+      this.emit('exit', { code, signal, cause });
       this._teardownHeartbeat();
       this.child = null;
+      this._killReason = null;
 
       if (this.stopping) {
         // do not restart on intentional stop
         return;
       }
 
+      // Detect flapping: too many restarts in a short window
+      const now = Date.now();
+      this._recordRestartTimestamp(now);
+
       if (this.restartAttempts < this.maxRestartAttempts) {
-        const delay = this._computeBackoffDelay();
+        const rawDelay = this._computeBackoffDelay();
+        const delay = Math.min(this.maxBackoffCapMs, rawDelay);
         this.restartAttempts += 1;
-        this.emit('restarting', { attempt: this.restartAttempts, delay });
+        if (this._isFlapping(now)) {
+          this._enterCooldown('flapping');
+          return;
+        }
+        this.emit('restarting', { attempt: this.restartAttempts, delay, cause });
         setTimeout(() => {
           this.start();
           this._awaitReadyThenEmit();
         }, delay);
       } else {
-        this.emit('failed', { message: 'Max restart attempts exceeded' });
+        this._enterCooldown('max_attempts');
       }
     });
 
@@ -110,14 +150,20 @@ class PythonProcessManager extends EventEmitter {
   }
 
   async _awaitReadyThenEmit() {
-    try {
-      await this.waitForHealth(this.healthUrl, this.healthTimeoutMs, this.healthPollIntervalMs);
-      this.restartAttempts = 0;
-      this.emit('ready', { url: `http://${this.host}:${this.port}` });
-      this._startHeartbeat();
-    } catch (e) {
-      this.emit('unhealthy', { error: e });
-    }
+    const attemptReady = async () => {
+      if (this.stopping || !this.child) return;
+      try {
+        await this.waitForHealth(this.healthUrl, this.healthTimeoutMs, this.healthPollIntervalMs);
+        this.emit('ready', { url: `http://${this.host}:${this.port}` });
+        this._startHeartbeat();
+        this.resetAttemptsOnNextHeartbeat = true;
+      } catch (e) {
+        this.emit('unhealthy', { error: e });
+        // Keep polling until the process becomes healthy or is stopped
+        setTimeout(attemptReady, Math.min(2000, this.healthTimeoutMs / 10));
+      }
+    };
+    attemptReady();
   }
 
   _startHeartbeat() {
@@ -125,6 +171,10 @@ class PythonProcessManager extends EventEmitter {
     this.healthInterval = setInterval(async () => {
       try {
         await this.waitForHealth(this.healthUrl, 4000, 300);
+        if (this.resetAttemptsOnNextHeartbeat) {
+          this.restartAttempts = 0;
+          this.resetAttemptsOnNextHeartbeat = false;
+        }
         if (this.consecutiveHealthFailures > 0) {
           this.emit('healthy');
         }
@@ -138,6 +188,7 @@ class PythonProcessManager extends EventEmitter {
           if (this.child) {
             this.emit('heartbeat-restart');
             try {
+              this._killReason = 'heartbeat';
               this.child.kill();
             } catch (_) {}
           }
@@ -187,6 +238,64 @@ class PythonProcessManager extends EventEmitter {
       }
       check();
     });
+  }
+
+  getRecentLogs(maxEntries = 200) {
+    const start = Math.max(0, this.logBuffer.length - maxEntries);
+    return this.logBuffer.slice(start).map((e) => ({ ...e }));
+  }
+
+  _pushLog({ source, text }) {
+    this.logBuffer.push({ ts: Date.now(), source, text });
+    if (this.logBuffer.length > this.logBufferLimit) {
+      this.logBuffer.splice(0, this.logBuffer.length - this.logBufferLimit);
+    }
+  }
+
+  _recordRestartTimestamp(ts) {
+    this.recentRestartTimestamps.push(ts);
+    const cutoff = ts - this.flapWindowMs;
+    this.recentRestartTimestamps = this.recentRestartTimestamps.filter((t) => t >= cutoff);
+  }
+
+  _isFlapping(nowTs) {
+    const cutoff = nowTs - this.flapWindowMs;
+    const count = this.recentRestartTimestamps.filter((t) => t >= cutoff).length;
+    return count >= this.flapThreshold;
+  }
+
+  _enterCooldown(reason) {
+    const now = Date.now();
+    this.cooldownUntil = now + this.cooldownMs;
+    const details = { message: 'Entering cooldown', reason, cooldownMs: this.cooldownMs, cooldownUntil: this.cooldownUntil };
+    // Attempt to dump recent logs for diagnostics
+    let logFile = null;
+    try {
+      if (this.logDir) {
+        if (!fs.existsSync(this.logDir)) {
+          fs.mkdirSync(this.logDir, { recursive: true });
+        }
+        logFile = path.join(this.logDir, `backend-${new Date(now).toISOString().replace(/[:.]/g, '-')}.log`);
+        const lines = this.getRecentLogs(500).map((e) => {
+          const dt = new Date(e.ts).toISOString();
+          return `[${dt}] ${e.source.toUpperCase()}: ${e.text}`.replace(/\n$/, '');
+        }).join('');
+        fs.writeFileSync(logFile, lines, 'utf8');
+        details.logFile = logFile;
+      }
+    } catch (_) {}
+
+    this.emit('failed', details);
+
+    if (this.autoRetryAfterCooldown) {
+      if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
+      this.cooldownTimer = setTimeout(() => {
+        this.cooldownTimer = null;
+        this.restartAttempts = 0;
+        this.start();
+        this._awaitReadyThenEmit();
+      }, this.cooldownMs);
+    }
   }
 }
 

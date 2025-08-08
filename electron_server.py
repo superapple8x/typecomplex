@@ -50,16 +50,32 @@ def main() -> int:
         return 1
 
     try:
-        # Import the Electron-configured Flask app
-        from app.__init___electron import app  # type: ignore
+        # Import the Electron-configured Flask app (use explicit WSGI alias)
+        from app.__init___electron import application as flask_app  # type: ignore
     except Exception as exc:
         print(f"ERROR: Failed to import Electron Flask app: {exc}", file=sys.stderr)
         return 1
 
+    # Sanity: confirm /health route is registered
+    try:
+        print(f"INFO: Flask app object type: {type(flask_app)}", file=sys.stderr)
+        url_map = str(getattr(flask_app, 'url_map'))
+        print(f"INFO: Flask URL Map: {url_map}", file=sys.stderr)
+        # Optional dry-run of /health via test client
+        with flask_app.test_client() as client:
+            resp = client.get('/health')
+            print(f"INFO: Preflight /health status: {resp.status_code}", file=sys.stderr)
+    except Exception as exc:
+        print(f"WARNING: Preflight health check failed before serving: {exc}", file=sys.stderr)
+
     print(f"Starting TypeComplex (Electron) on http://{args.host}:{args.port} with {args.workers} threads", file=sys.stderr)
 
     # Start the server
-    serve(app, host=args.host, port=args.port, threads=args.workers)
+    try:
+        serve(flask_app, host=args.host, port=args.port, threads=args.workers)
+    except Exception as exc:
+        print(f"ERROR: Waitress failed to start: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 

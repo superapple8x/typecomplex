@@ -11,7 +11,15 @@ import spacy # Import spacy
 import logging # Import logging
 logger = logging.getLogger(__name__) # Define logger for this module
 import hashlib # Import hashlib
-from app import cache # Import the initialized cache object
+
+# Lazy cache accessor to avoid circular import issues in Electron mode
+def get_cache():
+    try:
+        from app.__init___electron import cache as _cache  # type: ignore
+        return _cache
+    except Exception:
+        from app import cache as _cache  # type: ignore
+        return _cache
 from app import task_manager # Import task manager
 import requests # For Hugging Face API calls
 
@@ -1255,7 +1263,7 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
     cache_key_string = f"{text_to_analyze_and_return.strip()}|{target_audience_name}|{mode}"
     cache_key = hashlib.sha1(cache_key_string.encode('utf-8')).hexdigest()
 
-    cached_result = cache.get(cache_key)
+    cached_result = get_cache().get(cache_key)
     if cached_result:
         logging.debug(f"Cache HIT for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
         # Ensure the cached result has the correct index and mode, just in case
@@ -1291,7 +1299,7 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
             }
         }
          # --- Cache Set (even for empty/basic) ---
-         cache.set(cache_key, result)
+         get_cache().set(cache_key, result)
          # --- End Cache Set ---
          # Return wrapped result for empty sentence (not from cache calculation)
          return {'result': result, 'from_cache': False}
@@ -1320,7 +1328,7 @@ def analyze_single_spacy_sentence(spacy_sentence_arg, doc_arg, profile, sentence
     }
 
     # --- Cache Set --- 
-    cache.set(cache_key, result)
+    get_cache().set(cache_key, result)
     logging.debug(f"Stored result in cache for sentence index {sentence_index} (Key: {cache_key[:8]}...)")
     # --- End Cache Set ---
 
