@@ -1,5 +1,11 @@
 
 const { app, BrowserWindow } = require('electron');
+
+// Disable GPU and hardware acceleration early to avoid EGL/ANGLE issues on Linux
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 const path = require('path');
 const { PythonProcessManager } = require('./pythonProcessManager');
 // const http = require('http');
@@ -18,6 +24,16 @@ function createWindow() {
       contextIsolation: true, // Keep true for security
       webgl: false, // reduce GPU use in renderer
     },
+    backgroundColor: '#ffffff',
+    show: true,
+  });
+
+  // Debug load events to diagnose white screen
+  mainWindow.webContents.on('did-fail-load', (e, code, desc, url) => {
+    console.error('did-fail-load', code, desc, url);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Renderer finished load');
   });
 
   // Will load the URL after healthcheck passes
@@ -81,10 +97,6 @@ function waitForHealth(url, timeoutMs = 20000, intervalMs = 300) {
 }
 
 app.on('ready', async () => {
-  // Disable GPU to avoid EGL/ANGLE issues on some Linux setups
-  app.commandLine.appendSwitch('disable-gpu');
-  app.commandLine.appendSwitch('disable-software-rasterizer');
-
   startBackend();
   createWindow();
   // Health is now handled by PythonProcessManager events; no extra loop here.
