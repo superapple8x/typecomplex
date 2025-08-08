@@ -1,11 +1,13 @@
 import os
-import openai  # Use the OpenAI library for DeepSeek compatibility
 import json
 import logging
 from typing import Optional, Tuple
 # Import AUDIENCE_PROFILES to get profile details
 from app.analysis import AUDIENCE_PROFILES
 from app.api_keys import ApiKeyStore
+from app.ai.deepseek_client import DeepSeekClient
+from app.ai.key_provider import ApiKeyStoreKeyProvider
+from app.ai.errors import DeepSeekError
 
 # Configure logging (avoid DEBUG for production; and never log secrets)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,111 +16,65 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 base_url = "https://api.deepseek.com/v1"  # OpenAI-compatible endpoint
 model_name = "deepseek-chat"  # Or "deepseek-reasoner" if needed
 
-_client: Optional[openai.OpenAI] = None
 _keystore = ApiKeyStore()
+# Use new DeepSeekClient wrapper with key provider abstraction
+_client = DeepSeekClient(key_provider=ApiKeyStoreKeyProvider(_keystore), base_url=base_url, model_name=model_name)
 
 
 def reset_client() -> None:
-    """Reset the cached OpenAI-compatible client (after key changes)."""
-    global _client
-    _client = None
-
-
-def ensure_client() -> Optional[openai.OpenAI]:
-    """Return a cached OpenAI-compatible client, creating it from stored key if needed."""
-    global _client
-    if _client is not None:
-        return _client
-    api_key = _keystore.get_key()
-    if not api_key:
-        logging.warning("DeepSeek API key not set. AI features are unavailable.")
-        return None
+    """Reset the cached client (after key changes)."""
     try:
-        _client = openai.OpenAI(api_key=api_key, base_url=base_url)
-        return _client
-    except Exception as e:
-        logging.error(f"Failed to initialize DeepSeek client: {e}")
-        _client = None
-        return None
+        _client.reset()
+    except Exception:
+        pass
+
+
+def ensure_client_available() -> bool:
+    """Return True if a key is set and client can be created."""
+    # Attempt a lightweight readiness check by ensuring key exists
+    if not _keystore.is_set():
+        logging.warning("DeepSeek API key not set. AI features are unavailable.")
+        return False
+    # Do not perform network call here to keep it cheap
+    return True
 
 
 def test_key_connectivity() -> Tuple[bool, str]:
     """Test current stored key without sending user content. Returns (ok, normalized_error)."""
-    client = ensure_client()
-    if client is None:
-        return (False, 'api_key_missing')
-    try:
-        # Prefer a metadata endpoint that carries no user content
-        client.models.list()
-        return (True, '')
-    except openai.AuthenticationError:
-        return (False, 'invalid_key')
-    except openai.RateLimitError:
-        return (False, 'rate_limit')
-    except openai.APIError:
-        return (False, 'server_error')
-    except Exception:
-        # Network or unexpected
-        return (False, 'network')
+    result = _client.test_key()
+    return (bool(result.get('ok')), (result.get('error') or ''))
 
 # --- Helper Function for API Calls ---
 def _call_deepseek_api(prompt: str):
     """Internal helper to make DeepSeek API call and handle response parsing/errors."""
-    client = ensure_client()
-    if client is None:
+    if not ensure_client_available():
         logging.error("DeepSeek client not initialized (missing/invalid API key). Skipping DeepSeek call.")
         return {"error": "api_client_unavailable"}
 
     try:
         logging.info("Sending request to DeepSeek API...")
-        # Use the chat completions endpoint
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are an AI assistant helping analyze text complexity and suggest synonyms. Respond ONLY with the requested JSON object."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.5, # Adjust temperature as needed
-            response_format={"type": "json_object"} # Request JSON output if supported by model/API version
+        analysis_results = _client.chat_json(
+            system_prompt=(
+                "You are an AI assistant helping analyze text complexity and suggest synonyms. "
+                "Respond ONLY with the requested JSON object."
+            ),
+            user_content=prompt,
+            temperature=0.5,
         )
-        logging.info("Received response from DeepSeek API.")
-
-        # Extract and parse JSON response
-        if response.choices and response.choices[0].message and response.choices[0].message.content:
-            try:
-                raw_json_response = response.choices[0].message.content
-                # No need to strip ```json as we requested JSON format
-                analysis_results = json.loads(raw_json_response)
-                logging.info("Successfully parsed DeepSeek JSON response.")
-                return analysis_results
-            except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse DeepSeek response as JSON: {e}")
-                logging.debug(f"Raw DeepSeek response content:\n{raw_json_response}")
-                return {"error": "Failed to parse response JSON"}
-            except Exception as e:
-                 logging.error(f"Error processing DeepSeek response content: {e}", exc_info=True)
-                 logging.debug(f"Raw DeepSeek response object:\n{response}")
-                 return {"error": f"Error processing response: {e}"}
-        else:
-            logging.warning("DeepSeek response missing expected content.")
-            logging.debug(f"Full DeepSeek response object:\n{response}")
-            # Check for finish reason (e.g., content filter)
-            finish_reason = response.choices[0].finish_reason if response.choices else "unknown"
-            return {"error": f"Response missing content (Finish Reason: {finish_reason})"}
-
-    except openai.APIError as e:
-        # Handle API errors (e.g., connection, server issues)
-        logging.error(f"DeepSeek API returned an API Error: {e}", exc_info=True)
-        return {"error": f"API Error: {e}"}
-    except openai.AuthenticationError as e:
-        logging.error(f"DeepSeek API Authentication Error (check API key): {e}", exc_info=True)
-        return {"error": "Authentication Error: Invalid API Key?"}
-    except openai.RateLimitError as e:
-        logging.error(f"DeepSeek API Rate Limit Exceeded: {e}", exc_info=True)
-        return {"error": f"Rate Limit Error: {e}"}
+        logging.info("Received and parsed JSON response from DeepSeek API.")
+        return analysis_results
+    except DeepSeekError as e:
+        logging.error(f"DeepSeek call failed: {e}", exc_info=True)
+        # Normalize to simple error message for existing callers
+        if e.code == "invalid_api_key":
+            return {"error": "Authentication Error: Invalid API Key?"}
+        if e.code == "rate_limited":
+            return {"error": "Rate Limit Error: provider returned 429"}
+        if e.code in ("timeout", "network_error"):
+            return {"error": "Network error contacting DeepSeek"}
+        return {"error": f"API call failed: {e.message}"}
     except Exception as e:
-        # Handle other potential errors
-        logging.error(f"An unexpected error occurred during DeepSeek API call: {e}", exc_info=True)
+        logging.error(f"Unexpected error during DeepSeek API call: {e}", exc_info=True)
         return {"error": f"API call failed: {e}"}
 
 
