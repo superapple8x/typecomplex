@@ -103,13 +103,12 @@ soupsieve==2.6
 SQLAlchemy==2.0.40
 # systemd-python==235 (Removed - System specific)
 typing_extensions==4.12.2
-tzdata==2025.openai>=1.0 # Added for DeepSeek (OpenAI compatible)
-keyring>=24.3.1
-cryptography>=42.0.0
-0.3 (Removed - System specific)
+tzdata==2025.2
 textstat
 python-dotenv
 openai>=1.0 # Added for DeepSeek (OpenAI compatible)
+keyring>=24.3.1
+cryptography>=42.0.0
 
 sentence-transformers
 torch
