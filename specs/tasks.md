@@ -74,7 +74,7 @@
   - Ensure key never appears in logs or crash reports
   - _Requirements: 3.3_
 
- - [ ] 3.3 Backend Settings and AI Endpoints
+ - [x] 3.3 Backend Settings and AI Endpoints
   - POST /settings/api-key (set), GET /settings/api-key/status (masked)
   - POST /ai/rewrite and /ai/synonyms proxied to DeepSeek
   - Add a test connectivity endpoint that does not send user content
