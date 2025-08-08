@@ -41,6 +41,36 @@ except OSError as e:
 # Initialize key store (backend-only)
 _api_keys = ApiKeyStore()
 
+# In-process cache for AI readiness probe results
+_ai_readiness_cache = {
+    'last_test': None,      # dict | None: { ok: bool, error: str|None, at: float }
+    'expires_at': 0.0,      # float epoch seconds when cache entry expires
+    'inflight_until': 0.0,  # float epoch seconds to deduplicate rapid probes
+}
+
+def _probe_ai_connectivity_with_timeout(timeout_seconds: float = 3.0) -> dict:
+    """Run test_key_connectivity() with a hard timeout.
+
+    Returns a dict: { ok: bool, error: str|None, at: float }
+    """
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    started_at = time.time()
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(test_key_connectivity)
+            try:
+                ok, reason = future.result(timeout=timeout_seconds)
+                return {
+                    'ok': bool(ok),
+                    'error': (None if ok else (reason or 'unknown')),
+                    'at': started_at
+                }
+            except TimeoutError:
+                return {'ok': False, 'error': 'timeout', 'at': started_at}
+    except Exception:
+        # Any unexpected failure should not break /health
+        return {'ok': False, 'error': 'network', 'at': started_at}
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -55,6 +85,9 @@ def set_api_key():
     try:
         _api_keys.set_key(api_key)
         reset_client()
+        # Clear AI readiness cache on key change
+        global _ai_readiness_cache
+        _ai_readiness_cache = {'last_test': None, 'expires_at': 0.0, 'inflight_until': 0.0}
         return jsonify({"status": "set"})
     except Exception as e:
         app.logger.error(f"Failed to set API key: {e}", exc_info=True)
@@ -84,6 +117,9 @@ def delete_api_key():
     try:
         _api_keys.delete_key()
         reset_client()
+        # Clear AI readiness cache on key removal
+        global _ai_readiness_cache
+        _ai_readiness_cache = {'last_test': None, 'expires_at': 0.0, 'inflight_until': 0.0}
         return jsonify({"status": "removed"})
     except Exception as e:
         app.logger.error(f"Failed to delete API key: {e}", exc_info=True)
@@ -618,10 +654,11 @@ def test_local_add(a, b):
 # Health check endpoint for Electron process monitoring
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for process monitoring"""
+    """Health check endpoint for process monitoring with AI readiness details."""
     try:
         # Basic queue sanity
         get_local_task_queue()
+
         # Optional memory stats
         try:
             import psutil  # type: ignore
@@ -634,11 +671,52 @@ def health_check():
         except Exception:
             memory = None
 
+        # AI readiness info
+        key_status = 'set' if _api_keys.is_set() else 'unset'
+        ai_info = {
+            'key_status': key_status,
+            'ready': False,
+            'last_test': None
+        }
+
+        if key_status == 'set':
+            now = time.time()
+            ttl_seconds = 300.0  # 5 minutes
+            dedup_seconds = 10.0
+            probe_requested = request.args.get('probe_ai', default='0') in ('1', 'true', 'True')
+
+            # Use cached result if valid and no probe requested
+            global _ai_readiness_cache
+            cached = _ai_readiness_cache.get('last_test')
+            if (not probe_requested) and cached and _ai_readiness_cache.get('expires_at', 0.0) > now:
+                ai_info['last_test'] = cached
+                ai_info['ready'] = bool(cached and cached.get('ok'))
+            elif probe_requested:
+                # Deduplicate rapid probes
+                if _ai_readiness_cache.get('inflight_until', 0.0) > now:
+                    # Return whatever we have without triggering a new probe
+                    ai_info['last_test'] = cached
+                    ai_info['ready'] = bool(cached and cached.get('ok'))
+                else:
+                    # Mark inflight and perform a short probe
+                    _ai_readiness_cache['inflight_until'] = now + dedup_seconds
+                    test = _probe_ai_connectivity_with_timeout(timeout_seconds=3.0)
+                    _ai_readiness_cache['last_test'] = test
+                    _ai_readiness_cache['expires_at'] = now + ttl_seconds
+                    _ai_readiness_cache['inflight_until'] = 0.0
+                    ai_info['last_test'] = test
+                    ai_info['ready'] = bool(test.get('ok'))
+            else:
+                # No cached result and probe not requested: report key set but not ready yet
+                ai_info['last_test'] = None
+                ai_info['ready'] = False
+
         stats = {
             'status': 'healthy',
             'task_queue': 'operational',
             'timestamp': time.time(),
             'memory': memory,
+            'ai': ai_info,
         }
         return jsonify(stats)
     except Exception as e:

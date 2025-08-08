@@ -80,7 +80,7 @@
   - Add a test connectivity endpoint that does not send user content
   - _Requirements: 2.1, 3.2, 7.3_
 
- - [ ] 3.4 Health Check AI Readiness
+ - [x] 3.4 Health Check AI Readiness
   - Extend /health to report AI readiness (key set + optional probe)
   - Surface state to Electron for UI guidance on first run
   - _Requirements: 7.3, 8.1_

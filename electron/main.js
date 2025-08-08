@@ -191,6 +191,32 @@ function startBackend() {
         }
       }, 1500);
     }
+
+    // Probe AI readiness once on backend ready and surface guidance if needed
+    try {
+      const healthUrl = url.replace(/\/$/, '') + '/health?probe_ai=1';
+      const req = http.get(healthUrl, (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body || '{}');
+            const ai = (data && data.ai) ? data.ai : null;
+            if (ai && ai.key_status === 'unset') {
+              notify('AI features are disabled', 'Add your DeepSeek API key in Settings to enable AI suggestions.');
+            } else if (ai && ai.key_status === 'set' && ai.ready === false) {
+              notify('AI not ready', 'DeepSeek connectivity failed. Check your API key or network, then try again.');
+            }
+          } catch (e) {
+            console.warn('Failed to parse health JSON for AI readiness:', e && e.message ? e.message : e);
+          }
+        });
+      });
+      req.on('error', (e) => {
+        console.warn('AI readiness probe error:', e && e.message ? e.message : e);
+      });
+    } catch (_) {}
   });
 
   // If backend reports unhealthy before ready, show a temporary page instead of blank
