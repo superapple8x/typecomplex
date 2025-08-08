@@ -91,6 +91,13 @@ function startBackend() {
       }
     }
   });
+
+  // If backend reports unhealthy before ready, show a temporary page instead of blank
+  processManager.on('unhealthy', () => {
+    if (mainWindow && !pendingBackendUrl) {
+      mainWindow.loadURL('data:text/html,<h2>Starting backend…</h2><p>Please wait…</p>');
+    }
+  });
   processManager.on('restarting', ({ attempt, delay }) => {
     console.log(`Attempting to restart backend in ${delay}ms (attempt ${attempt}/${processManager.maxRestartAttempts})`);
   });

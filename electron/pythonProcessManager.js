@@ -162,24 +162,29 @@ class PythonProcessManager extends EventEmitter {
   waitForHealth(url, timeoutMs = 20000, intervalMs = 300) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
-      const check = () => {
-        const req = http.get(url, (res) => {
-          if (res.statusCode === 200) {
-            resolve();
-          } else {
-            retry();
-          }
-          res.resume();
-        });
-        req.on('error', retry);
-        const retry = () => {
-          if (Date.now() - start > timeoutMs) {
-            reject(new Error('Health check timed out'));
-            return;
-          }
-          setTimeout(check, intervalMs);
-        };
-      };
+      function schedule() {
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error('Health check timed out'));
+          return;
+        }
+        setTimeout(check, intervalMs);
+      }
+      function check() {
+        try {
+          const req = http.get(url, (res) => {
+            // Drain response to free sockets
+            res.resume();
+            if (res.statusCode === 200) {
+              resolve();
+            } else {
+              schedule();
+            }
+          });
+          req.on('error', schedule);
+        } catch (_) {
+          schedule();
+        }
+      }
       check();
     });
   }
