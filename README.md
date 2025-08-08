@@ -208,6 +208,16 @@ A brief overview of key directories:
 
 For deploying TypeComplex to a production environment, refer to the comprehensive guide: `PRODUCTION_SETUP.MD`. This document covers setup using Gunicorn, Nginx (as a reverse proxy, for SSL termination, and serving static files), and `systemd` for process management.
 
+## Known Issues (Electron desktop)
+
+- Linux save dialog can briefly cause a blank window after saving a highlighted PDF
+  - Symptom: After the native “Save” dialog completes, a white/blank window may briefly appear. Console logs may include GTK warnings such as:
+    - `GLib-GObject: invalid cast from 'GtkFileChooserNative' to 'GtkWidget'`
+    - `GLib-GObject: ... instance has no handler with id ...`
+  - Status: Non-blocking; analysis, highlighting, and download complete successfully. This appears to be a transient issue related to the underlying GTK file chooser integration in Electron on some Linux environments.
+  - Workarounds: None required; the window returns to normal operation automatically. If it persists in your environment, closing and reopening the app restores the UI.
+  - Next steps: We will monitor for Electron/GTK updates and evaluate minor UX mitigations in a future iteration.
+
 ## API Endpoints
 
 The application provides several HTTP endpoints for its functionality. Key endpoints include:

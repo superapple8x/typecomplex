@@ -10,6 +10,7 @@ app.commandLine.appendSwitch('disable-webgpu');
 app.commandLine.appendSwitch('use-gl', 'swiftshader');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 const path = require('path');
+const fs = require('fs');
 const { PythonProcessManager } = require('./pythonProcessManager');
 const { store, getUserDataPath } = require('./store');
 const http = require('http');
@@ -411,5 +412,177 @@ ipcMain.handle('file:openPdf', async () => {
     return result.filePaths[0];
   } catch (_) {
     return null;
+  }
+});
+
+// --- Helpers for PDF processing ---
+async function resolveBackendBaseUrl() {
+  if (pendingBackendUrl) return pendingBackendUrl.replace(/\/$/, '');
+  const hosts = ['127.0.0.1', 'localhost'];
+  const port = 5001;
+  const pathName = '/health';
+  for (const host of hosts) {
+    const url = `http://${host}:${port}${pathName}`;
+    try {
+      await waitForHealth(url, 2000, 200);
+      return `http://${host}:${port}`;
+    } catch (_) {
+      // try next host
+    }
+  }
+  throw new Error('Backend not reachable on 127.0.0.1 or localhost:5001');
+}
+
+function isPdfPath(filePath) {
+  try {
+    if (!filePath || typeof filePath !== 'string') return false;
+    if (!fs.existsSync(filePath)) return false;
+    return (/\.pdf$/i).test(filePath);
+  } catch (_) { return false; }
+}
+
+const activeTasks = new Map(); // taskId -> { stop: boolean, webContentsId }
+
+async function uploadPdfAndGetTaskId(baseUrl, filePath, options = {}) {
+  const defaults = {
+    action: 'full_analysis',
+    target_audience: 'Standard',
+    analysis_mode: 'best',
+    include_overview_page: true,
+    overview_top_x_count: 5,
+    overview_top_x_type: 'complex',
+    overview_show_visual_map: true,
+  };
+  const opts = { ...defaults, ...options };
+
+  // Build multipart/form-data with Blob to avoid extra deps
+  const buf = await fs.promises.readFile(filePath);
+  const blob = new Blob([buf], { type: 'application/pdf' });
+  const form = new FormData();
+  form.append('file', blob, path.basename(filePath));
+  for (const [k, v] of Object.entries(opts)) {
+    form.append(k, String(v));
+  }
+
+  const res = await fetch(baseUrl.replace(/\/$/, '') + '/upload_pdf', { method: 'POST', body: form });
+  if (!(res.status === 202 || res.status === 200)) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Upload failed (${res.status}): ${text || 'unknown error'}`);
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!json || !json.task_id) {
+    throw new Error('Upload response missing task_id');
+  }
+  return { taskId: json.task_id, originalFilename: json.original_filename || path.basename(filePath) };
+}
+
+async function pollTaskAndHandleDownload(event, baseUrl, taskId, originalFilename) {
+  const sender = event.sender;
+  const progressChannel = 'pdf:progress';
+  const doneChannel = 'pdf:done';
+  const errorChannel = 'pdf:error';
+
+  const makeStatusUrl = () => baseUrl.replace(/\/$/, '') + `/task_status/${encodeURIComponent(taskId)}`;
+  const makeDownloadUrl = () => baseUrl.replace(/\/$/, '') + `/download_highlighted_pdf/${encodeURIComponent(taskId)}`;
+
+  const intervalMs = 1000;
+  const maxMinutes = 30;
+  const deadline = Date.now() + maxMinutes * 60 * 1000;
+
+  while (true) {
+    if (Date.now() > deadline) {
+      try { sender.send(errorChannel, { taskId, error: 'timeout' }); } catch (_) {}
+      return;
+    }
+    const taskState = activeTasks.get(taskId);
+    if (!taskState || taskState.stop) {
+      // Cancelled
+      try { sender.send(errorChannel, { taskId, error: 'cancelled' }); } catch (_) {}
+      return;
+    }
+    try {
+      const res = await fetch(makeStatusUrl(), { method: 'GET' });
+      const json = await res.json();
+      const state = json && json.state ? String(json.state) : 'UNKNOWN';
+      const meta = (json && json.meta) || {};
+      const statusMessage = (json && json.status_message) || state;
+      try { sender.send(progressChannel, { taskId, state, meta, statusMessage }); } catch (_) {}
+
+      if (state === 'SUCCESS') {
+        // Download result
+        const saveDefault = (json && json.result && json.result.highlighted_pdf_filename) ? json.result.highlighted_pdf_filename : (originalFilename || 'result.pdf');
+        const { canceled, filePath: outPath } = await dialog.showSaveDialog({
+          title: 'Save highlighted PDF',
+          defaultPath: saveDefault,
+          filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+        });
+        if (!canceled && outPath) {
+          const dl = await fetch(makeDownloadUrl());
+          if (!dl.ok) {
+            try { sender.send(errorChannel, { taskId, error: `download_failed_${dl.status}` }); } catch (_) {}
+            activeTasks.delete(taskId);
+            return;
+          }
+          const arrayBuf = await dl.arrayBuffer();
+          await fs.promises.writeFile(outPath, Buffer.from(arrayBuf));
+          try { sender.send(doneChannel, { taskId, savedPath: outPath }); } catch (_) {}
+        } else {
+          try { sender.send(doneChannel, { taskId, savedPath: null, canceled: true }); } catch (_) {}
+        }
+        activeTasks.delete(taskId);
+        return;
+      }
+      if (state === 'FAILURE' || state === 'REVOKED') {
+        const err = (json && (json.error || json.error_details)) || 'failed';
+        try { sender.send(errorChannel, { taskId, error: String(err) }); } catch (_) {}
+        activeTasks.delete(taskId);
+        return;
+      }
+    } catch (e) {
+      try { sender.send(errorChannel, { taskId, error: e && e.message ? e.message : String(e) }); } catch (_) {}
+      activeTasks.delete(taskId);
+      return;
+    }
+    // Wait
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+// IPC: process a PDF (renderer -> main)
+ipcMain.handle('pdf:process', async (event, { filePath, options } = {}) => {
+  try {
+    if (!isPdfPath(filePath)) {
+      throw new Error('Invalid PDF path');
+    }
+    const baseUrl = await resolveBackendBaseUrl();
+    const { taskId, originalFilename } = await uploadPdfAndGetTaskId(baseUrl, filePath, options || {});
+    activeTasks.set(taskId, { stop: false, webContentsId: event.sender.id });
+    // detach polling, stream progress via events
+    pollTaskAndHandleDownload(event, baseUrl, taskId, originalFilename).catch((e) => {
+      try { event.sender.send('pdf:error', { taskId, error: e && e.message ? e.message : String(e) }); } catch (_) {}
+      activeTasks.delete(taskId);
+    });
+    return { ok: true, taskId };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+// IPC: cancel a PDF task (best-effort)
+ipcMain.handle('pdf:cancel', async (_event, { taskId } = {}) => {
+  try {
+    if (!taskId) return { ok: false, error: 'missing_taskId' };
+    const state = activeTasks.get(taskId);
+    if (state) state.stop = true;
+    const baseUrl = await resolveBackendBaseUrl();
+    const res = await fetch(baseUrl.replace(/\/$/, '') + '/cancel_pdf_task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    return { ok: true, cancelled: Boolean(json && json.cancelled) };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 });

@@ -37,6 +37,15 @@
           <div class="row"><strong>Backend URL:</strong> <code id="backend-url" class="muted">(not connected)</code></div>
           <div class="row"><strong>Details:</strong> <span id="details" class="muted">—</span></div>
         </div>
+        <div id="dropzone" style="border: 2px dashed #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px; color: #475569;">
+          Drag & drop a PDF here, or use the “Open PDF…” button.
+        </div>
+        <div class="status" id="job" style="display:none">
+          <div class="row"><strong>Task:</strong> <span id="task-id" class="muted">—</span></div>
+          <div class="row"><strong>State:</strong> <span id="task-state" class="muted">—</span></div>
+          <div class="row"><strong>Message:</strong> <span id="task-msg" class="muted">—</span></div>
+          <div class="row"><button id="btn-cancel" class="secondary">Cancel</button></div>
+        </div>
         <pre id="log" style="white-space: pre-wrap; font-size: 12px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; max-height: 45vh; overflow: auto;"></pre>
       </main>
       <footer>

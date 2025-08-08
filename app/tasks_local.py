@@ -91,7 +91,9 @@ def process_pdf_task(mock_task, file_path, original_filename, action='full_analy
         logger.info(f"Task {task_id}: Generating highlighted PDF...")
         
         # Ensure PROCESSED_FOLDER exists (though it should be created at app startup)
-        processed_folder_path = current_app.config['PROCESSED_FOLDER']
+        # Use the Electron-mode Flask app's config directly to avoid missing context
+        from app.__init___electron import app as electron_app  # local import to avoid cycles
+        processed_folder_path = electron_app.config['PROCESSED_FOLDER']
         os.makedirs(processed_folder_path, exist_ok=True)
 
         highlighted_pdf_filename = f"{task_id}_highlighted.pdf"

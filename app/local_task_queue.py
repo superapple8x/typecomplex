@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import logging
+import inspect
 import os
 
 logger = logging.getLogger(__name__)
@@ -152,21 +153,28 @@ class LocalTaskQueue:
             # Update status to running
             self._update_task_status(task_id, 'running', progress=0)
             
-            # Check if this is a Celery-style task by inspecting the function
-            # Look for specific indicators that this might be a Celery task
-            is_celery_style = (
-                hasattr(func, '__self__') and hasattr(func.__self__, 'update_state') or
-                (hasattr(func, '__call__') and 
-                 hasattr(func, '__class__') and 
-                 'Mock' in func.__class__.__name__)  # Our test mock
-            )
-            
-            if is_celery_style:
-                # Create a mock task object for Celery compatibility
+            # Detect if the target function expects a Celery-like task object
+            # by checking for a parameter named 'mock_task'. If present, pass
+            # our MockCeleryTask instance as the first argument for
+            # compatibility with legacy Celery task signatures.
+            try:
+                sig = inspect.signature(func)
+                expects_mock = 'mock_task' in sig.parameters
+            except Exception:
+                expects_mock = False
+
+            if expects_mock:
                 mock_task = MockCeleryTask(task_id, self)
-                result = func(mock_task, *args, **kwargs)
+                # Prefer positional for first arg to satisfy positional-only
+                # definitions, but most functions also accept keyword.
+                try:
+                    result = func(mock_task, *args, **kwargs)
+                except TypeError:
+                    # Fallback to keyword injection if positional failed
+                    kwargs_with_mock = dict(kwargs)
+                    kwargs_with_mock['mock_task'] = mock_task
+                    result = func(*args, **kwargs_with_mock)
             else:
-                # Regular function call
                 result = func(*args, **kwargs)
             
             # Update status to completed
