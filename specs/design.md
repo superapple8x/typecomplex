@@ -250,20 +250,22 @@ class MemoryMonitor:
 
 ```javascript
 class APIClient {
-    async makeRequest(endpoint, data, retries = 3) {
+    async makeRequest(endpoint, data, retries = 2) {
+        // Keep minimal network retries to smooth transient errors
         for (let i = 0; i < retries; i++) {
             try {
                 return await this._request(endpoint, data);
             } catch (error) {
                 if (i === retries - 1) throw error;
-                await this._delay(Math.pow(2, i) * 1000);
+                await this._delay(Math.pow(2, i) * 500);
             }
         }
     }
-    
+
     async _handleOfflineMode(error) {
         // Graceful degradation to offline functionality (non-AI features)
         // Distinguish invalid key vs. network vs. quota errors
+        // Do not impose app-level throttling or rate limits; only surface provider errors
     }
 }
 ```
@@ -333,3 +335,24 @@ const securePreferences = {
 - **Subprocess Sandboxing**: Python process runs with limited privileges
 - **IPC Validation**: All inter-process communication validated
 - **Error Isolation**: Failures in one component don't crash others
+
+## Application-Level Rate Limiting Removal (Planned)
+
+Given that external AI usage costs are borne by the end user, the application SHALL NOT impose its own rate limits on either local features or AI calls. Only provider-side quotas and limits apply. The following changes are planned for the implementation:
+
+- Backend changes (Python):
+  - Remove the `RateLimiter` dependency and configuration from `app/__init___electron.py`.
+  - Remove all `rate_limiter.check_and_update_limit(...)` gates from routes including `/analyze`, `/synonyms`, and `/rewrite_suggestion` (and any other AI endpoints).
+  - Delete the `app/rate_limiter.py` module and any Redis-related fallback code paths used exclusively for rate limiting.
+  - Ensure error handling clearly distinguishes provider-side rate-limit responses (e.g., DeepSeek HTTP 429) and surfaces them without additional app throttling.
+
+- Electron changes:
+  - Remove any renderer UI that displays or polls app-level “rate limits,” including requests made by `static/script.js` to non-existent rate limit endpoints.
+  - Remove any rate-limit banners/toasts and replace them with provider-error messaging where applicable.
+
+- Configuration:
+  - Remove rate-limit-related environment variables and config (e.g., FAST/BETTER/BEST per-day limits) from documentation and app configuration.
+
+- Testing:
+  - Delete tests that assert app-level rate limiting behavior.
+  - Add tests that validate correct surfacing of provider-side quota/rate-limit errors without app throttling.

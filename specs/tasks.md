@@ -157,8 +157,7 @@
 
 - [ ] 6.2 Update API Client for Local Backend
   - Modify API client to use localhost URLs for Python backend
-  - Add connection retry logic and offline mode handling
-  - Implement request timeout handling and error recovery
+  - Implement request timeout handling and error recovery (no app-level throttling)
   - Create API client initialization with backend health checking
   - _Requirements: 1.2, 8.3_
 

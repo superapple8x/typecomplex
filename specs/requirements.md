@@ -95,3 +95,14 @@ This document outlines the requirements for converting TypeComplex from a Flask-
 2. WHEN PDF processing fails THEN the system SHALL provide clear error messages to the user
 3. WHEN network requests fail THEN the system SHALL gracefully degrade to offline functionality
 4. WHEN memory limits are exceeded THEN the system SHALL free resources and continue operation
+
+### Requirement 9 (No App-Level Rate Limits)
+
+**User Story:** As a TypeComplex user who pays for external AI usage, I do not want the app to impose artificial rate limits, so that my usage is only constrained by provider-side limits and my own preferences.
+
+#### Acceptance Criteria
+
+1. WHEN the user performs local (non-AI) operations THEN the system SHALL NOT impose app-level rate limits or quotas
+2. WHEN the user invokes AI features (DeepSeek) THEN the system SHALL NOT throttle at the app level; only provider-side limits may apply
+3. WHEN provider-side rate limits or quotas are encountered THEN the system SHALL report a clear, user-friendly error without delaying or retry-throttling beyond standard network retry/backoff
+4. WHEN the user configures settings THEN the system MAY offer optional advisory warnings about potential usage/costs but SHALL NOT block actions based on usage
