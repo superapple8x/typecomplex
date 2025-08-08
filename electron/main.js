@@ -244,6 +244,14 @@ function startBackend() {
             const ai = (data && data.ai) ? data.ai : null;
             if (ai && ai.key_status === 'unset') {
               notify('AI features are disabled', 'Add your DeepSeek API key in Settings to enable AI suggestions.');
+              // Auto-open settings once per session when key is unset on first readiness
+              try {
+                const lastAuto = store.get('ui.lastAutoOpenedSettingsAt', 0);
+                if (!lastAuto || (Date.now() - Number(lastAuto)) > 10_000) {
+                  store.set('ui.lastAutoOpenedSettingsAt', Date.now());
+                  createSettingsWindow();
+                }
+              } catch (_) {}
             } else if (ai && ai.key_status === 'set' && ai.ready === false) {
               notify('AI not ready', 'DeepSeek connectivity failed. Check your API key or network, then try again.');
             }
