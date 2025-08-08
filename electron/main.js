@@ -5,12 +5,15 @@ const { app, BrowserWindow } = require('electron');
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-webgpu');
+app.commandLine.appendSwitch('use-gl', 'swiftshader');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 const path = require('path');
 const { PythonProcessManager } = require('./pythonProcessManager');
 // const http = require('http');
 
 let processManager = null;
+let pendingBackendUrl = null;
 let mainWindow = null;
 // Managed by PythonProcessManager
 
@@ -35,6 +38,14 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Renderer finished load');
   });
+  mainWindow.webContents.on('dom-ready', () => {
+    console.log('Renderer DOM ready');
+  });
+
+  // If backend already ready, load immediately
+  if (pendingBackendUrl) {
+    mainWindow.loadURL(pendingBackendUrl).catch((e) => console.error('Initial load failed:', e));
+  }
 
   // Will load the URL after healthcheck passes
 
@@ -50,8 +61,13 @@ function startBackend() {
   processManager.on('stdout', (msg) => console.log(`Flask stdout: ${msg}`));
   processManager.on('stderr', (msg) => console.error(`Flask stderr: ${msg}`));
   processManager.on('ready', async ({ url }) => {
+    pendingBackendUrl = url;
     if (mainWindow) {
-      await mainWindow.loadURL(url);
+      try {
+        await mainWindow.loadURL(url);
+      } catch (e) {
+        console.error('Load failed on ready:', e);
+      }
     }
   });
   processManager.on('restarting', ({ attempt, delay }) => {
