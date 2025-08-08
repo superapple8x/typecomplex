@@ -7,7 +7,8 @@ from flask import render_template, request, jsonify, Response, send_from_directo
 from app.__init___electron import app, rate_limiter
 from app.analysis import analyze_text_complexity, analyze_single_spacy_sentence, AUDIENCE_PROFILES, get_active_spacy_model
 from app.synonyms import get_ranked_synonyms
-from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion
+from app.deepseek_analysis import recommend_synonym, get_rewrite_suggestion, test_key_connectivity, reset_client
+from app.api_keys import ApiKeyStore
 from app.local_task_queue import get_local_task_queue, AsyncResult
 from app.tasks_local import process_pdf_task, add_task
 import json
@@ -37,9 +38,56 @@ try:
 except OSError as e:
     app.logger.error(f"Error creating UPLOAD_FOLDER or PROCESSED_FOLDER: {e}")
 
+# Initialize key store (backend-only)
+_api_keys = ApiKeyStore()
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/settings/api-key', methods=['POST'])
+def set_api_key():
+    """Set DeepSeek API key securely. Never echoes key back."""
+    data = request.get_json(silent=True) or {}
+    api_key = data.get('api_key')
+    if not api_key or not isinstance(api_key, str) or len(api_key) < 10:
+        return jsonify({"error": "invalid_api_key"}), 400
+    try:
+        _api_keys.set_key(api_key)
+        reset_client()
+        return jsonify({"status": "set"})
+    except Exception as e:
+        app.logger.error(f"Failed to set API key: {e}", exc_info=True)
+        return jsonify({"error": "store_failed"}), 500
+
+
+@app.route('/settings/api-key/status', methods=['GET'])
+def get_api_key_status():
+    """Return masked status of API key presence."""
+    try:
+        status = 'set' if _api_keys.is_set() else 'unset'
+        return jsonify({"status": status})
+    except Exception as e:
+        app.logger.error(f"Failed to get API key status: {e}", exc_info=True)
+        return jsonify({"status": "unset"}), 200
+
+
+@app.route('/settings/api-key/test', methods=['POST'])
+def test_api_key():
+    """Connectivity test without sending user content."""
+    ok, reason = test_key_connectivity()
+    return jsonify({"ok": bool(ok), "error": (None if ok else reason)})
+
+
+@app.route('/settings/api-key', methods=['DELETE'])
+def delete_api_key():
+    try:
+        _api_keys.delete_key()
+        reset_client()
+        return jsonify({"status": "removed"})
+    except Exception as e:
+        app.logger.error(f"Failed to delete API key: {e}", exc_info=True)
+        return jsonify({"error": "delete_failed"}), 500
 
 @app.route('/')
 def index():
@@ -309,6 +357,54 @@ def rewrite_suggestion():
     except Exception as e:
         logging.error(f"Error in /rewrite_suggestion: {e}", exc_info=True)
         return jsonify({"error": f"Server error: {e}"}), 500
+
+
+# --- AI namespace proxy endpoints ---
+@app.route('/ai/rewrite', methods=['POST'])
+def ai_rewrite():
+    data = request.get_json(silent=True) or {}
+    missing = [k for k in ('sentence_text', 'surrounding_context', 'target_audience', 'complexity_analysis_details') if k not in data]
+    if missing:
+        return jsonify({"error": "missing_fields", "fields": missing}), 400
+    try:
+        result = get_rewrite_suggestion(
+            data['sentence_text'],
+            data['surrounding_context'],
+            data['target_audience'],
+            data['complexity_analysis_details']
+        )
+        if 'error' in result:
+            # Normalize common errors
+            err = result.get('error')
+            code = 401 if 'Authentication' in err or 'api_client_unavailable' in err else 502
+            return jsonify({"error": err}), code
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"/ai/rewrite error: {e}", exc_info=True)
+        return jsonify({"error": "server_error"}), 500
+
+
+@app.route('/ai/synonyms', methods=['POST'])
+def ai_synonyms():
+    data = request.get_json(silent=True) or {}
+    missing = [k for k in ('word', 'sentence_context', 'target_audience', 'ranked_synonyms_list') if k not in data]
+    if missing:
+        return jsonify({"error": "missing_fields", "fields": missing}), 400
+    try:
+        result = recommend_synonym(
+            original_word=data['word'],
+            sentence_context=data['sentence_context'],
+            ranked_synonyms_list=data['ranked_synonyms_list'],
+            target_audience_profile=data['target_audience']
+        )
+        if result and 'error' in result:
+            err = result.get('error')
+            code = 401 if 'Authentication' in err or 'api_client_unavailable' in err else 502
+            return jsonify({"error": err}), code
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"/ai/synonyms error: {e}", exc_info=True)
+        return jsonify({"error": "server_error"}), 500
 
 # --- PDF Processing Routes ---
 

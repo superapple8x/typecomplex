@@ -1,41 +1,73 @@
 import os
 import openai  # Use the OpenAI library for DeepSeek compatibility
-# from dotenv import load_dotenv # Remove this line
 import json
 import logging
+from typing import Optional, Tuple
 # Import AUDIENCE_PROFILES to get profile details
 from app.analysis import AUDIENCE_PROFILES
+from app.api_keys import ApiKeyStore
 
-# Configure logging
+# Configure logging (avoid DEBUG for production; and never log secrets)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Load environment variables from .env file
-# load_dotenv() # Remove this line
-
 # --- DeepSeek API Configuration ---
-api_key = os.getenv("DEEPSEEK_API_KEY")
-base_url = "https://api.deepseek.com/v1" # Use v1 endpoint for OpenAI compatibility
-model_name = "deepseek-chat" # Or "deepseek-reasoner" if needed
+base_url = "https://api.deepseek.com/v1"  # OpenAI-compatible endpoint
+model_name = "deepseek-chat"  # Or "deepseek-reasoner" if needed
 
-client = None # Initialize client variable
+_client: Optional[openai.OpenAI] = None
+_keystore = ApiKeyStore()
 
-if not api_key:
-    logging.error("DEEPSEEK_API_KEY not found in environment variables. Please set it in a .env file.")
-else:
+
+def reset_client() -> None:
+    """Reset the cached OpenAI-compatible client (after key changes)."""
+    global _client
+    _client = None
+
+
+def ensure_client() -> Optional[openai.OpenAI]:
+    """Return a cached OpenAI-compatible client, creating it from stored key if needed."""
+    global _client
+    if _client is not None:
+        return _client
+    api_key = _keystore.get_key()
+    if not api_key:
+        logging.warning("DeepSeek API key not set. AI features are unavailable.")
+        return None
     try:
-        client = openai.OpenAI(api_key=api_key, base_url=base_url)
-        logging.info("DeepSeek client initialized successfully.")
-        # Optional: Add a test call here if needed to verify connection
+        _client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        return _client
     except Exception as e:
-        logging.error(f"Failed to initialize DeepSeek client with API key: {e}")
-        client = None # Ensure client is None if initialization fails
+        logging.error(f"Failed to initialize DeepSeek client: {e}")
+        _client = None
+        return None
+
+
+def test_key_connectivity() -> Tuple[bool, str]:
+    """Test current stored key without sending user content. Returns (ok, normalized_error)."""
+    client = ensure_client()
+    if client is None:
+        return (False, 'api_key_missing')
+    try:
+        # Prefer a metadata endpoint that carries no user content
+        client.models.list()
+        return (True, '')
+    except openai.AuthenticationError:
+        return (False, 'invalid_key')
+    except openai.RateLimitError:
+        return (False, 'rate_limit')
+    except openai.APIError:
+        return (False, 'server_error')
+    except Exception:
+        # Network or unexpected
+        return (False, 'network')
 
 # --- Helper Function for API Calls ---
 def _call_deepseek_api(prompt: str):
     """Internal helper to make DeepSeek API call and handle response parsing/errors."""
-    if not client:
-        logging.error("DeepSeek client not initialized (check API key). Skipping DeepSeek call.")
-        return {"error": "API client not initialized"}
+    client = ensure_client()
+    if client is None:
+        logging.error("DeepSeek client not initialized (missing/invalid API key). Skipping DeepSeek call.")
+        return {"error": "api_client_unavailable"}
 
     try:
         logging.info("Sending request to DeepSeek API...")
@@ -80,7 +112,7 @@ def _call_deepseek_api(prompt: str):
         return {"error": f"API Error: {e}"}
     except openai.AuthenticationError as e:
         logging.error(f"DeepSeek API Authentication Error (check API key): {e}", exc_info=True)
-        return {"error": f"Authentication Error: Invalid API Key?"}
+        return {"error": "Authentication Error: Invalid API Key?"}
     except openai.RateLimitError as e:
         logging.error(f"DeepSeek API Rate Limit Exceeded: {e}", exc_info=True)
         return {"error": f"Rate Limit Error: {e}"}
@@ -239,7 +271,7 @@ if __name__ == '__main__':
     test_syn_list = [{"word": "performs", "rank": 1}, {"word": "executes", "rank": 2}, {"word": "implements", "rank": 3}, {"word": "accomplishes", "rank": 4}]
     # test_profile needs to be defined, e.g., "Standard" for testing
     test_profile = "Standard" 
-    if client:
+    if ensure_client():
         synonym_rec = recommend_synonym(test_orig_word, test_context, test_syn_list, test_profile)
         print(f"Recommendation for '{test_orig_word}' in context (Profile: {test_profile}):")
         print(f"Options: {test_syn_list}")
@@ -266,4 +298,4 @@ if __name__ == '__main__':
         print(f"Complexity Details: {test_complexity_details}")
         print(json.dumps(rewrite_sugg, indent=2))
     else:
-         print("Skipping DeepSeek tests: DeepSeek client not configured (check API key).")
+        print("Skipping DeepSeek tests: DeepSeek client not configured (set API key via settings endpoint).")

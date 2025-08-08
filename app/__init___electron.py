@@ -14,6 +14,8 @@ import os
 import sys
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
+import logging
+import re
 
 # Initialize the Flask application
 flask_app = Flask(__name__)
@@ -140,6 +142,33 @@ cache = Cache(flask_app)
 
 # Alias for compatibility with existing imports/decorators
 app = flask_app
+
+# --- Logging redaction to avoid leaking secrets ---
+class _SecretRedactionFilter(logging.Filter):
+    _API_RE = re.compile(r'(\bapi_key\b\s*[:=]\s*[\"\'])(.*?)([\"\'])', re.IGNORECASE)
+    _AUTH_RE = re.compile(r'(\bAuthorization\b\s*[:=]\s*[\"\'])(.*?)([\"\'])', re.IGNORECASE)
+
+    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+        try:
+            msg = record.getMessage()
+            if not msg:
+                return True
+            redacted = self._API_RE.sub(r'\1***\3', msg)
+            redacted = self._AUTH_RE.sub(r'\1***\3', redacted)
+            if redacted != msg:
+                record.msg = redacted
+                record.args = ()
+        except Exception:
+            pass
+        return True
+
+_filter = _SecretRedactionFilter()
+for logger_name in (None, 'werkzeug'):
+    lg = logging.getLogger(logger_name) if logger_name else flask_app.logger
+    try:
+        lg.addFilter(_filter)
+    except Exception:
+        pass
 
 # Import routes after initializing the app, cache, and task system.
 # In Electron mode, import the Electron-specific routes directly from this module
