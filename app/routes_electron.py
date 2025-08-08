@@ -99,13 +99,22 @@ def set_api_key():
 
 @app.route('/settings/api-key/status', methods=['GET'])
 def get_api_key_status():
-    """Return masked status of API key presence."""
+    """Return masked status of API key presence and last connectivity test time (if any)."""
     try:
         status = 'set' if _api_keys.is_set() else 'unset'
-        return jsonify({"status": status})
+        last = _ai_readiness_cache.get('last_test') or None
+        # Only expose ISO time, not full structure
+        last_test_time = None
+        try:
+            if last and isinstance(last, dict) and 'at' in last:
+                import datetime as _dt
+                last_test_time = _dt.datetime.utcfromtimestamp(float(last['at'])).isoformat() + 'Z'
+        except Exception:
+            last_test_time = None
+        return jsonify({"status": status, "lastTest": last_test_time})
     except Exception as e:
         app.logger.error(f"Failed to get API key status: {e}", exc_info=True)
-        return jsonify({"status": "unset"}), 200
+        return jsonify({"status": "unset", "lastTest": None}), 200
 
 
 @app.route('/settings/api-key/test', methods=['POST'])

@@ -68,7 +68,7 @@
   - Normalize errors (invalid key, quota, network) for consistent UI handling
   - _Requirements: 4.1, 8.1_
 
- - [ ] 3.2 Secure API Key Storage
+ - [x] 3.2 Secure API Key Storage
   - Store API key in the OS keychain using Python keyring
   - Add encrypted file fallback if keyring unavailable
   - Ensure key never appears in logs or crash reports

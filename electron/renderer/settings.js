@@ -86,6 +86,7 @@
       const s = res && res.status ? String(res.status) : 'unset';
       keyStatus.textContent = (s === 'set') ? 'set' : 'unset';
       keyStatus.className = (s === 'set') ? 'ok' : 'warn';
+      // Optionally display last test time somewhere if present
     } catch (e) {
       keyStatus.textContent = 'unknown';
       keyStatus.className = 'warn';

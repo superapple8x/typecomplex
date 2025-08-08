@@ -17,6 +17,16 @@ base_url = "https://api.deepseek.com/v1"  # OpenAI-compatible endpoint
 model_name = "deepseek-chat"  # Or "deepseek-reasoner" if needed
 
 _keystore = ApiKeyStore()
+# Migrate environment key once, if present and no stored key exists
+try:
+    _env_key = os.environ.get("DEEPSEEK_API_KEY")
+    if _env_key and not _keystore.is_set():
+        _keystore.set_key(_env_key)
+        logging.info("DeepSeek API key migrated from environment to secure storage.")
+except Exception as _m_e:
+    # Do not log the key; just surface a short reason
+    logging.warning("Failed to migrate DEEPSEEK_API_KEY to secure storage: %s", type(_m_e).__name__)
+
 # Use new DeepSeekClient wrapper with key provider abstraction
 _client = DeepSeekClient(key_provider=ApiKeyStoreKeyProvider(_keystore), base_url=base_url, model_name=model_name)
 

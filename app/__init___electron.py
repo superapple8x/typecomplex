@@ -172,16 +172,16 @@ app = flask_app
 
 # --- Logging redaction to avoid leaking secrets ---
 class _SecretRedactionFilter(logging.Filter):
-    _API_RE = re.compile(r'(\bapi_key\b\s*[:=]\s*[\"\'])(.*?)([\"\'])', re.IGNORECASE)
-    _AUTH_RE = re.compile(r'(\bAuthorization\b\s*[:=]\s*[\"\'])(.*?)([\"\'])', re.IGNORECASE)
+    _API_RE = re.compile(r'(\bapi_key\b\s*[:=]\s*[\"\"])\S+([\"\"])', re.IGNORECASE)
+    _AUTH_RE = re.compile(r'(\bAuthorization\b\s*[:=]\s*[\"\"])\S+([\"\"])', re.IGNORECASE)
 
     def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
         try:
             msg = record.getMessage()
             if not msg:
                 return True
-            redacted = self._API_RE.sub(r'\1***\3', msg)
-            redacted = self._AUTH_RE.sub(r'\1***\3', redacted)
+            redacted = self._API_RE.sub(r'\1***\2', msg)
+            redacted = self._AUTH_RE.sub(r'\1***\2', redacted)
             if redacted != msg:
                 record.msg = redacted
                 record.args = ()

@@ -3,12 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
+import importlib
 from typing import Dict, Generator, Iterable, List, Optional, Union
-
-try:
-    import openai  # type: ignore
-except Exception as e:  # pragma: no cover
-    openai = None  # type: ignore
 
 from .errors import DeepSeekError, normalize_exception
 from .key_provider import KeyProvider
@@ -45,11 +42,14 @@ class DeepSeekClient:
         if not api_key:
             logging.info("DeepSeek API key not set; client unavailable")
             return None
-        if openai is None:
+        # Lazily resolve the OpenAI-compatible SDK so tests can stub sys.modules['openai']
+        try:
+            openai_sdk = sys.modules.get("openai") or importlib.import_module("openai")  # type: ignore[assignment]
+        except Exception:
             logging.error("openai SDK not available; cannot initialize DeepSeek client")
             return None
         try:
-            self._client = openai.OpenAI(api_key=api_key, base_url=self._base_url)
+            self._client = openai_sdk.OpenAI(api_key=api_key, base_url=self._base_url)  # type: ignore[attr-defined]
             return self._client
         except Exception as e:
             logging.error("Failed to initialize DeepSeek client: %s", e)
