@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, Notification, dialog } = require('electron');
+const { app, BrowserWindow, Notification, dialog, ipcMain } = require('electron');
 
 // Disable GPU and hardware acceleration early to avoid EGL/ANGLE issues on Linux
 app.disableHardwareAcceleration();
@@ -58,11 +58,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false, // Keep false for security
       contextIsolation: true, // Keep true for security
+      sandbox: true,
+      webSecurity: true,
       webgl: false, // reduce GPU use in renderer
-      webviewTag: true, // allow webview wrapper fallback in dev
+      webviewTag: false, // not needed for local UI
     },
     backgroundColor: '#ffffff',
-    show: true,
+    show: false,
   });
 
   // Debug load events to diagnose white screen
@@ -117,30 +119,7 @@ function createWindow() {
     console.log('renderer console:', { level, message, line, sourceId });
   });
 
-  // If backend already ready, load immediately
-  if (pendingBackendUrl) {
-    mainWindow.loadURL(pendingBackendUrl).catch((e) => console.error('Initial load failed:', e));
-  }
-
-  // Will load the URL after healthcheck passes
-  // Periodically log current URL for a short window
-  let urlLogCount = 0;
-  const urlLogger = setInterval(() => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      clearInterval(urlLogger);
-      return;
-    }
-    urlLogCount += 1;
-    console.log('current webContents URL:', mainWindow.webContents.getURL());
-    if (urlLogCount >= 15) {
-      clearInterval(urlLogger);
-    }
-  }, 1000);
-
-  // Ensure we render something immediately while backend warms up
-  if (!pendingBackendUrl) {
-    mainWindow.loadURL('data:text/html,<h2>Starting backend…</h2><p>Please wait…</p>');
-  }
+  // Do not load local UI; we'll navigate to backend when ready
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -159,37 +138,33 @@ function startBackend() {
     pendingBackendUrl = url;
     store.set('process.lastReadyAt', Date.now());
     store.set('process.cooldownUntil', 0);
-    if (mainWindow) {
+    // Navigate to the backend Web UI once ready, keeping preload security settings
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Show window after first successful load
+      const showOnceOnLoad = () => {
+        try {
+          if (!mainWindow.isVisible()) mainWindow.show();
+        } catch (_) {}
+      };
+      mainWindow.webContents.once('did-finish-load', showOnceOnLoad);
       try {
         await mainWindow.loadURL(url);
       } catch (e) {
         console.error('Load failed on ready:', e);
       }
-      // Double-check after a short delay; retry with localhost if needed
+      // Try alternate host shortly after, if still not navigated
       setTimeout(async () => {
         try {
           const current = mainWindow.webContents.getURL();
-          if (!current || current.startsWith('data:text/html')) {
+          if (!current || current.startsWith('file://')) {
             const alt = url.replace('127.0.0.1', 'localhost');
             console.warn('Retrying navigation to backend (alt host)...');
             await mainWindow.loadURL(alt);
-            // If still on data: after another delay, try webview wrapper as fallback
-            setTimeout(async () => {
-              const afterAlt = mainWindow.webContents.getURL();
-              if (!afterAlt || afterAlt.startsWith('data:text/html')) {
-                console.warn('Falling back to webview wrapper for navigation');
-                try {
-                  await mainWindow.loadURL(buildWebviewWrapperDataUrl(url));
-                } catch (fallbackErr) {
-                  console.error('Webview wrapper load error:', fallbackErr);
-                }
-              }
-            }, 1500);
           }
         } catch (err) {
           console.error('Retry load error:', err);
         }
-      }, 1500);
+      }, 1200);
     }
 
     // Probe AI readiness once on backend ready and surface guidance if needed
@@ -219,11 +194,9 @@ function startBackend() {
     } catch (_) {}
   });
 
-  // If backend reports unhealthy before ready, show a temporary page instead of blank
+  // If backend reports unhealthy, keep local UI visible
   processManager.on('unhealthy', () => {
-    if (mainWindow && !pendingBackendUrl) {
-      mainWindow.loadURL('data:text/html,<h2>Starting backend…</h2><p>Please wait…</p>');
-    }
+    // no-op
   });
   processManager.on('restarting', ({ attempt, delay, cause }) => {
     const body = `Restarting backend in ${Math.round(delay/1000)}s (attempt ${attempt}/${processManager.maxRestartAttempts}). Cause: ${cause || 'unknown'}`;
@@ -338,8 +311,6 @@ function pollHealthAndNavigate({ hosts = ['127.0.0.1', 'localhost'], port = 5001
 app.on('ready', async () => {
   startBackend();
   createWindow();
-  // Also start a main-process health poller to navigate once ready in case we miss the event
-  pollHealthAndNavigate();
 });
 
 app.on('window-all-closed', () => {
@@ -376,3 +347,48 @@ function notify(title, body) {
     dialog.showMessageBox({ type: 'info', title, message: body });
   } catch (_) {}
 }
+
+// IPC: health check (renderer -> main)
+ipcMain.handle('health:check', async () => {
+  const hosts = ['127.0.0.1', 'localhost'];
+  const port = 5001;
+  const pathName = '/health';
+  for (const host of hosts) {
+    const url = `http://${host}:${port}${pathName}`;
+    try {
+      await waitForHealth(url, 2000, 200);
+      // Fetch once for payload
+      const data = await new Promise((resolve, reject) => {
+        try {
+          const req = http.get(url, (res) => {
+            let body = '';
+            res.setEncoding('utf8');
+            res.on('data', (c) => { body += c; });
+            res.on('end', () => {
+              try { resolve(JSON.parse(body || '{}')); } catch (_) { resolve({}); }
+            });
+          });
+          req.on('error', reject);
+        } catch (e) { reject(e); }
+      });
+      return { ok: true, baseUrl: `http://${host}:${port}`, data };
+    } catch (_) {
+      // try next host
+    }
+  }
+  return { ok: false, error: 'Backend not reachable on 127.0.0.1 or localhost:5001' };
+});
+
+// IPC: open PDF dialog (renderer -> main)
+ipcMain.handle('file:openPdf', async () => {
+  try {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+    });
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  } catch (_) {
+    return null;
+  }
+});

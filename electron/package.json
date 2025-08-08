@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node ./tests/processManager.spec.js",
+    "dev": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -15,6 +15,7 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0",
     "proxyquire": "^2.1.3"
   },
   "dependencies": {
@@ -26,10 +27,21 @@
     "files": [
       "main.js",
       "preload.js",
+      "pythonProcessManager.js",
+      "store.js",
+      "renderer/**",
       "dist/flask_server/flask_server"
     ],
+    "asar": true,
     "mac": {
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage"]
     }
   }
 }

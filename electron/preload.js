@@ -1,53 +1,26 @@
-// Preload script to run in isolated context.
-// - Logs basic lifecycle events
-// - Probes backend reachability from the renderer via fetch
+// Secure preload running in isolated context.
+// Exposes a minimal, validated API surface to the renderer.
 
-(function () {
-  const HEALTH_PATH = '/health';
-  const CANDIDATE_HOSTS = ['127.0.0.1', 'localhost'];
-  const CANDIDATE_PORTS = [5001];
+const { contextBridge, ipcRenderer } = require('electron');
 
-  function log(...args) {
-    try {
-      // Prefix so main process can filter
-      console.log('[preload]', ...args);
-    } catch (_) {}
-  }
+function safeInvoke(channel, payload) {
+  return ipcRenderer.invoke(channel, payload);
+}
 
-  async function probeOnce() {
-    for (const host of CANDIDATE_HOSTS) {
-      for (const port of CANDIDATE_PORTS) {
-        const url = `http://${host}:${port}${HEALTH_PATH}`;
-        try {
-          const resp = await fetch(url, { method: 'GET', cache: 'no-store', mode: 'no-cors' });
-          log('fetch', url, 'ok:', resp.ok, 'status:', resp.status, 'type:', resp.type);
-        } catch (e) {
-          log('fetch', url, 'error:', String(e && e.message ? e.message : e));
-        }
-      }
-    }
-  }
+contextBridge.exposeInMainWorld('api', {
+  healthCheck: async () => {
+    const result = await safeInvoke('health:check');
+    return result;
+  },
+  selectPdf: async () => {
+    const filePath = await safeInvoke('file:openPdf');
+    return filePath || null;
+  },
+});
 
-  function startProbes() {
-    // Run a few probes early to see connectivity
-    let count = 0;
-    const h = setInterval(() => {
-      probeOnce().catch(() => {});
-      count += 1;
-      if (count >= 5) clearInterval(h);
-    }, 1500);
-  }
-
-  try {
-    window.addEventListener('DOMContentLoaded', () => {
-      log('DOMContentLoaded');
-      startProbes();
-    });
-  } catch (_) {
-    // If window is not available, still attempt a one-shot probe after a short delay
-    setTimeout(() => {
-      log('no-window, running headless probe');
-      probeOnce().catch(() => {});
-    }, 500);
-  }
-})();
+// Optional lightweight logging to help early dev diagnostics
+try {
+  window.addEventListener('DOMContentLoaded', () => {
+    try { console.log('[preload] DOMContentLoaded'); } catch (_) {}
+  });
+} catch (_) {}
