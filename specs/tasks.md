@@ -56,33 +56,34 @@
   - Implement heartbeat system for process monitoring
   - _Requirements: 1.4, 4.2, 8.1_
 
-- [ ] 3. Implement Model Management System
-  - Create ModelManager class for dynamic NLP model loading
-  - Implement memory monitoring and automatic model unloading
-  - Add progressive model downloading for first-time setup
-  - Create model version tracking and update mechanisms
-  - _Requirements: 4.1, 4.2, 7.3, 7.4_
+ - [ ] 3. Implement DeepSeek API Integration
+  - Create backend client and endpoints to use DeepSeek for AI features
+  - Implement secure API key storage and management
+  - Add connectivity testing and error normalization
+  - _Requirements: 3.2, 7.3, 8.3_
 
-- [ ] 3.1 Create ModelManager Class
-  - Write ModelManager with memory-aware model loading
-  - Implement LRU cache for model management
-  - Add model loading progress tracking and reporting
-  - Create model metadata storage and version tracking
-  - _Requirements: 4.1, 4.2, 7.3_
+ - [ ] 3.1 Build DeepSeekClient in Backend
+  - Implement authenticated requests with retries and exponential backoff
+  - Support streaming/chunked responses to minimize memory usage
+  - Normalize errors (invalid key, quota, network) for consistent UI handling
+  - _Requirements: 4.1, 8.1_
 
-- [ ] 3.2 Implement Memory Monitoring
-  - Add psutil-based memory usage monitoring
-  - Implement automatic model unloading when memory limits approached
-  - Create memory cleanup routines with garbage collection
-  - Add memory usage reporting to health check endpoint
-  - _Requirements: 4.1, 4.2_
+ - [ ] 3.2 Secure API Key Storage
+  - Store API key in the OS keychain using Python keyring
+  - Add encrypted file fallback if keyring unavailable
+  - Ensure key never appears in logs or crash reports
+  - _Requirements: 3.3_
 
-- [ ] 3.3 Add Progressive Model Downloading
-  - Implement model download system with progress tracking
-  - Create model verification and integrity checking
-  - Add retry logic for failed model downloads
-  - Implement model caching in user data directory
-  - _Requirements: 7.4_
+ - [ ] 3.3 Backend Settings and AI Endpoints
+  - POST /settings/api-key (set), GET /settings/api-key/status (masked)
+  - POST /ai/rewrite and /ai/synonyms proxied to DeepSeek
+  - Add a test connectivity endpoint that does not send user content
+  - _Requirements: 2.1, 3.2, 7.3_
+
+ - [ ] 3.4 Health Check AI Readiness
+  - Extend /health to report AI readiness (key set + optional probe)
+  - Surface state to Electron for UI guidance on first run
+  - _Requirements: 7.3, 8.1_
 
 - [ ] 4. Set Up Electron Project Structure
   - Initialize Electron project with proper package.json configuration
@@ -175,18 +176,16 @@
   - Implement window state persistence and restoration
   - _Requirements: 7.1, 7.3_
 
-- [ ] 7. Implement Settings and Preferences System
-  - Create electron-store based settings management
-  - Implement settings UI for user preferences
-  - Add API key management for external services
-  - Create settings synchronization between processes
+ - [ ] 7. Implement Settings and Preferences System
+  - Create settings UI for user preferences
+  - Add DeepSeek API key capture/test UI (renderer) that talks to backend
+  - Create settings synchronization between processes (no plaintext key in renderer)
   - _Requirements: 3.3, 6.3_
 
-- [ ] 7.1 Create Settings Storage System
-  - Implement electron-store configuration with schema validation
-  - Create settings migration system for version updates
-  - Add settings backup and restore functionality
-  - Implement settings encryption for sensitive data like API keys
+ - [ ] 7.1 Create Settings Storage System
+  - Use backend-managed OS keychain for API key storage via keyring
+  - Keep electron-store free of secrets; only track masked key status
+  - Create settings migration for future schema updates
   - _Requirements: 3.3_
 
 - [ ] 7.2 Build Settings UI
@@ -196,11 +195,10 @@
   - Create settings reset to defaults option
   - _Requirements: 3.3, 6.3_
 
-- [ ] 7.3 Add API Key Management
-  - Implement secure storage for external API keys
-  - Create API key validation and testing functionality
-  - Add API key rotation and update mechanisms
-  - Implement API usage tracking and quota monitoring
+ - [ ] 7.3 Add API Key Management
+  - DeepSeek-only key support: set, test, rotate, and remove
+  - Show masked key presence and last test result; never display full key
+  - Optional quota/usage display if API exposes it
   - _Requirements: 3.2, 6.3_
 
 - [ ] 8. Create Auto-Update System
@@ -252,10 +250,9 @@
   - Implement build caching for faster CI/CD pipeline
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 9.3 Optimize Bundle Size and Performance
+ - [ ] 9.3 Optimize Bundle Size and Performance
   - Implement dependency analysis and unused code removal
-  - Add model compression and optimization techniques
-  - Create progressive loading for large dependencies
+  - Remove all local LLM model bundling considerations
   - Implement startup time optimization and profiling
   - _Requirements: 7.1, 7.2_
 
