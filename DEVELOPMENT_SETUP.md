@@ -108,6 +108,10 @@ The application is run using the Gunicorn WSGI server.
     ```
     This will restart workers when Python files are modified. Be aware that `--reload` is not suitable for production.
 *   **Frontend Changes:** For CSS changes, you can run `npm run watch:css` in a separate terminal to automatically rebuild `style.css` when `input.css` or related files change.
+*   **Settings Schema & Migrations:** Electron settings are stored via `electron-store` without secrets (preferences only). A versioned schema with migrations ensures forward compatibility. Secrets (like the DeepSeek API key) are stored by the backend using the OS keychain or an encrypted-file fallback and never appear in the Electron store.
+  * Schema version is managed in `electron/settingsStore.js` (`SETTINGS_SCHEMA_VERSION`).
+  * On app startup, migrations run automatically.
+  * Preferences can be exported/imported (non-secret) through the `settings` API exposed by preload.
 *   Remember to activate the virtual environment (`source .venv/bin/activate`) in any new terminal session before running `gunicorn` or Python commands.
 
 ## Troubleshooting / Environment Notes

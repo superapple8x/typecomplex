@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node ./tests/apiClient.test.js && node ./tests/processManager.spec.js && node ./tests/settings.spec.js",
+    "test": "node ./tests/apiClient.test.js && node ./tests/processManager.spec.js && node ./tests/settings.spec.js && node ./tests/settings.migrations.spec.js && node ./tests/settings.export_import.spec.js",
     "dev": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"

@@ -385,6 +385,8 @@ function pollHealthAndNavigate({ hosts = ['127.0.0.1', 'localhost'], port = 5001
 }
 
 app.on('ready', async () => {
+  // Ensure settings are migrated before any usage
+  try { settingsStore.migrateIfNeeded(); } catch (_) {}
   startBackend();
   createWindow();
   try { buildAppMenu(); } catch (e) { console.warn('Menu build failed:', e && e.message ? e.message : e); }
@@ -529,6 +531,24 @@ ipcMain.handle('settings:testApiKey', async () => {
     }
     const json = r.data || {};
     return { ok: Boolean(json && json.ok), error: json && json.error ? json.error : null };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+// IPC: export/import non-secret preferences
+ipcMain.handle('settings:export', async () => {
+  try {
+    const data = settingsStore.exportPrefs();
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+ipcMain.handle('settings:import', async (_event, { payload } = {}) => {
+  try {
+    const next = settingsStore.importPrefs(payload || {});
+    return { ok: true, data: next };
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }

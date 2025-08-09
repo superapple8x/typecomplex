@@ -77,6 +77,14 @@ contextBridge.exposeInMainWorld('settings', {
   deleteApiKey: async () => {
     return safeInvoke('settings:deleteApiKey');
   },
+  // Non-secret preferences backup/restore
+  export: async () => {
+    return safeInvoke('settings:export');
+  },
+  import: async (payload) => {
+    const safe = (payload && typeof payload === 'object') ? payload : {};
+    return safeInvoke('settings:import', { payload: safe });
+  },
 });
 
 // Optional lightweight logging to help early dev diagnostics
