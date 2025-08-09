@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, Notification, dialog, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, Notification, dialog, ipcMain, Menu, session } = require('electron');
 
 // Disable GPU and hardware acceleration early to avoid EGL/ANGLE issues on Linux
 app.disableHardwareAcceleration();
@@ -27,6 +27,9 @@ let settingsWindow = null;
 
 // API client (uses resolveBackendBaseUrl which is hoisted below)
 const apiClient = createApiClient({ resolveBaseUrl: resolveBackendBaseUrl, logger: console });
+
+// Whether to use the local UI (file://) instead of navigating to the backend-served UI
+const USE_LOCAL_UI = process.env.USE_LOCAL_UI === '1';
 
 function buildWebviewWrapperDataUrl(url) {
   const html = `<!doctype html>
@@ -127,7 +130,19 @@ function createWindow() {
     console.log('renderer console:', { level, message, line, sourceId });
   });
 
-  // Do not load local UI; we'll navigate to backend when ready
+  // Load local UI only when explicitly enabled via USE_LOCAL_UI=1
+  if (USE_LOCAL_UI) {
+    const htmlPath = path.join(__dirname, 'renderer', 'index.html');
+    try {
+      // Show window once local HTML finishes loading
+      mainWindow.webContents.once('did-finish-load', () => {
+        try { if (!mainWindow.isVisible()) mainWindow.show(); } catch (_) {}
+      });
+      mainWindow.loadFile(htmlPath).catch((e) => console.error('Failed to load local renderer:', e));
+    } catch (e) {
+      console.error('Error loading local renderer file:', e);
+    }
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -206,8 +221,8 @@ function startBackend() {
     pendingBackendUrl = url;
     store.set('process.lastReadyAt', Date.now());
     store.set('process.cooldownUntil', 0);
-    // Navigate to the backend Web UI once ready, keeping preload security settings
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    // Navigate to the backend Web UI when local UI is not enabled
+    if (!USE_LOCAL_UI && mainWindow && !mainWindow.isDestroyed()) {
       // Show window after first successful load
       const showOnceOnLoad = () => {
         try {
@@ -387,6 +402,25 @@ function pollHealthAndNavigate({ hosts = ['127.0.0.1', 'localhost'], port = 5001
 app.on('ready', async () => {
   // Ensure settings are migrated before any usage
   try { settingsStore.migrateIfNeeded(); } catch (_) {}
+
+  // Enforce CSP headers for file:// pages (meta CSP can be ignored for file scheme)
+  try {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      try {
+        if (details && typeof details.url === 'string' && details.url.startsWith('file://')) {
+          const csp = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src http://127.0.0.1:5001 http://localhost:5001; frame-src 'none'; object-src 'none'";
+          const headers = { ...(details.responseHeaders || {}) };
+          headers['Content-Security-Policy'] = [csp];
+          callback({ responseHeaders: headers });
+          return;
+        }
+      } catch (_) {}
+      callback({ responseHeaders: details.responseHeaders || {} });
+    });
+  } catch (e) {
+    console.warn('Failed to set file:// CSP headers:', e && e.message ? e.message : e);
+  }
+
   startBackend();
   createWindow();
   try { buildAppMenu(); } catch (e) { console.warn('Menu build failed:', e && e.message ? e.message : e); }

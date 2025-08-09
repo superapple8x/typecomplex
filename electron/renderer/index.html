@@ -1,57 +1,386 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src http://127.0.0.1:5001 http://localhost:5001; frame-src 'none'; object-src 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:5001 http://localhost:5001; frame-src 'none'; object-src 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TypeComplex</title>
+    <!-- Core styles from app/static -->
+    <link rel="stylesheet" href="../../app/static/style.css" />
+    <link rel="stylesheet" href="../../app/static/editor-theme.css" />
+    <link rel="stylesheet" href="../../app/static/custom-layout-fixes.css" />
+    <!-- Quill theme -->
+    <link rel="stylesheet" href="../../app/static/quill.snow.css" />
     <style>
-      html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif; color: #111; }
-      .container { display: flex; flex-direction: column; height: 100%; }
-      header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
-      main { padding: 16px; flex: 1; overflow: auto; }
-      .status { padding: 12px; border-radius: 8px; background: #f9fafb; border: 1px solid #e5e7eb; margin-bottom: 12px; }
-      .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
-      button { appearance: none; border: 1px solid #d1d5db; background: #111827; color: white; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-      button.secondary { background: white; color: #111; }
-      code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
-      .muted { color: #6b7280; }
-      .ok { color: #065f46; }
-      .warn { color: #92400e; }
-      .error { color: #991b1b; }
-      footer { padding: 8px 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
+      html, body { height: 100%; margin: 0; }
     </style>
   </head>
-  <body>
-    <div class="container">
-      <header>
-        <div>TypeComplex (Electron)</div>
-        <div class="row">
-          <button id="btn-check">Check Health</button>
-          <button id="btn-open" class="secondary">Open PDF…</button>
-        </div>
-      </header>
-      <main>
-        <div class="status" id="status">
-          <div class="row"><strong>Status:</strong> <span id="status-text" class="muted">Waiting…</span></div>
-          <div class="row"><strong>Backend URL:</strong> <code id="backend-url" class="muted">(not connected)</code></div>
-          <div class="row"><strong>Details:</strong> <span id="details" class="muted">—</span></div>
-        </div>
-        <div id="dropzone" style="border: 2px dashed #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px; color: #475569;">
-          Drag & drop a PDF here, or use the “Open PDF…” button.
-        </div>
-        <div class="status" id="job" style="display:none">
-          <div class="row"><strong>Task:</strong> <span id="task-id" class="muted">—</span></div>
-          <div class="row"><strong>State:</strong> <span id="task-state" class="muted">—</span></div>
-          <div class="row"><strong>Message:</strong> <span id="task-msg" class="muted">—</span></div>
-          <div class="row"><button id="btn-cancel" class="secondary">Cancel</button></div>
-        </div>
-        <pre id="log" style="white-space: pre-wrap; font-size: 12px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; max-height: 45vh; overflow: auto;"></pre>
-      </main>
-      <footer>
-        This is a development UI. Final UI will replace this screen.
-      </footer>
+  <body class="flex flex-col min-h-screen scroll-smooth">
+    <!-- Screen Size Warning Overlay -->
+    <div id="screen-size-warning" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 text-white flex flex-col items-center justify-center p-8 z-[9999]">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mb-6 text-blue-500">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5.052 14.03a2.25 2.25 0 01-1.591.659H1.5M9.75 3.104A2.25 2.25 0 007.5 1.5h-3A2.25 2.25 0 002.25 3.75v15A2.25 2.25 0 004.5 21h15a2.25 2.25 0 002.25-2.25V3.75A2.25 2.25 0 0019.5 1.5h-3a2.25 2.25 0 00-2.25 1.604m-7.5 0S9.06 3 9.75 3m0 0V1.5M3 9.75l6.75-3.375M3 14.25l6.75 3.375m0 0V21m-6.75-6.75v-5.714m0 0a2.25 2.25 0 01.659-1.591L5.052 5.97a2.25 2.25 0 011.591-.659H9.75m4.508 9.032l1.061-1.061A2.25 2.25 0 0116.5 15.75h1.5m-2.625 2.625l1.06-1.06A2.25 2.25 0 0016.5 15.75h1.5M18 9.75l-6.75 3.375m0 0V1.5m6.75 8.25v5.714m0 0a2.25 2.25 0 01-.659 1.591L14.948 20.03a2.25 2.25 0 01-1.591.659h-1.806" />
+      </svg>
+      <h2 class="text-3xl font-semibold mb-4 text-center">Screen Size Too Small</h2>
+      <p class="text-lg text-gray-300 text-center max-w-md">
+        For the best experience with the Sentence Complexity Analyzer, please use a desktop computer or a larger screen display.
+      </p>
     </div>
-    <script src="renderer.js"></script>
+
+    <!-- Header -->
+    <header class="bg-[var(--sidebar-bg)] py-4 px-4 shadow-md">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-[var(--text-primary)] flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+          </svg>
+          Sentence Complexity Analyzer
+        </h1>
+        <div class="ml-auto flex items-center gap-3">
+          <div class="text-xs text-[var(--text-secondary)]">v1.0.0</div>
+          <button id="open-settings-btn" class="hidden text-xs px-2 py-1 rounded border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--input-bg)] transition-colors" title="Open Settings">
+            <span class="inline-flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.26 1.3.73 1.77.47.47 1.11.73 1.77.73H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Settings
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main layout: left sidebar, editor, right sidebar -->
+    <div class="flex flex-grow overflow-hidden main-content-row">
+      <!-- Left Sidebar (PDF Toolkit) -->
+      <aside id="left-sidebar" class="w-[18.4rem] min-w-[18.4rem] p-4 border-r border-[var(--border-color-muted)] flex flex-col shrink-0 space-y-6 bg-[rgba(var(--sidebar-bg-rgb),0.5)] backdrop-blur-md relative left-sidebar-state-open">
+        <button id="toggle-left-sidebar-btn" title="Collapse PDF Toolkit" class="bg-[var(--sidebar-bg)] hover:bg-[var(--input-bg)] rounded-md text-[var(--text-primary)] hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <div class="pt-3 pb-1 border-b border-[var(--border-color-muted)]">
+          <h2 class="text-lg font-semibold text-[var(--text-primary)] text-center">PDF Toolkit</h2>
+        </div>
+        <div class="flex flex-col space-y-4 pt-3">
+          <div id="pdf-upload-card" class="sidebar-card bg-[var(--input-bg)] rounded-lg border border-[var(--border-color)] p-2">
+            <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden" />
+            <label for="pdf-upload-input" class="flex flex-col items-center justify-center w-full h-32 p-4 border-2 border-dashed border-[var(--border-color)] rounded-lg cursor-pointer hover:border-[var(--accent-blue)] hover:bg-[rgba(var(--accent-blue-rgb),0.05)] transition-colors duration-150">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2 text-[var(--text-secondary)]">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 17.25V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 17.25z" />
+              </svg>
+              <span class="text-sm font-medium text-[var(--text-primary)]">Import PDF</span>
+              <span class="text-xs text-[var(--text-secondary)]">Drag & drop or click to browse</span>
+            </label>
+          </div>
+
+          <div id="pdf-file-actions-card" class="sidebar-card hidden space-y-4 bg-[var(--sidebar-bg)] p-4 rounded-lg border border-[var(--border-color)]">
+            <div id="pdf-info-container" class="mb-2 bg-[var(--input-bg)] p-3 rounded-lg">
+              <div class="flex items-center mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-[var(--accent-green)]">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 17.25v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m6 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V17.25m-6.008 0a.625.625 0 100-1.25.625.625 0 000 1.25zM9 13.5v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3-3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V9.75m3 3.75v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m3 0v.008c0 .004.002.006.002.006h.006a.007.007 0 00.006-.006V13.5m-9 3.75h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3 0h.008c.004 0 .006-.002.006-.006V17.25m3-15V6.75A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V17.25m-9-4.5h.008c.004 0 .006-.002.006-.006V12.75m6 0h.008c.004 0 .006-.002.006-.006V12.75" />
+                </svg>
+                <p id="pdf-filename" class="text-sm font-medium text-[var(--text-primary)] truncate">No file selected.</p>
+                <button id="pdf-remove-btn" class="ml-auto text-[var(--accent-red)] hover:opacity-75 transition-opacity p-1" title="Remove PDF">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="pdf-actions-container" class="space-y-4 p-3 rounded-md">
+              <!-- PDF Target Audience Selector -->
+              <div class="relative">
+                <label for="pdf-target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience (PDF)</label>
+                <button id="pdf-target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
+                  <span id="pdf-target-audience-selected">Standard</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                <div id="pdf-target-audience-options" class="absolute z-10 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-60 overflow-y-auto">
+                  <ul class="py-1 text-sm text-[var(--text-primary)]">
+                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Standard">Standard</a></li>
+                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="General Public">General Public (Grade 8-10)</a></li>
+                    <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Academic / Technical">Academic / Technical</a></li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- PDF Analysis Mode Selector -->
+              <div class="relative">
+                <label for="pdf-analysis-mode-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Analysis Mode (PDF)</label>
+                <button id="pdf-analysis-mode-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
+                  <span id="pdf-analysis-mode-selected">Better Analysis</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                <div id="pdf-analysis-mode-options" class="absolute z-10 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
+                  <ul class="py-1 text-sm text-[var(--text-primary)]">
+                    <li>
+                      <a href="#" class="flex items-center px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="fast">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2 text-[var(--text-secondary)]"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                        Fast Analysis
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" class="flex items-center px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="better">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                        Better Analysis
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" class="flex items-center px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="best">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                        Best Analysis
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <button id="text-extract-btn" class="sidebar-button w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v9m0 0l-3.75-3.75M12 13.5l3.75-3.75M21 18.75v.75A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 19.5v-.75"/></svg>
+                Extract Text
+              </button>
+              <button id="pdf-analysis-btn" class="sidebar-button w-full mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+                Analyze & Highlight
+              </button>
+              <div id="pdf-action-status" class="status-text"></div>
+            </div>
+
+            <div class="pt-4 mt-3 border-t border-[var(--border-color-muted)]">
+              <h4 class="text-xs font-semibold text-[var(--text-secondary)] mb-2 uppercase">PDF Overview Page Options</h4>
+              <div class="space-y-3 text-sm">
+                <div id="overview-options-details" class="space-y-3 pl-2 border-l-2 border-[var(--border-color)] ml-2">
+                  <div>
+                    <label for="overview-top-x-count" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Top X Sentences (0-20)</label>
+                    <input type="number" id="overview-top-x-count" name="overview_top_x_count" min="0" max="20" value="5" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)]" />
+                  </div>
+                  <div>
+                    <label for="overview-top-x-type" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Show Top</label>
+                    <select id="overview-top-x-type" name="overview_top_x_type" class="w-full p-1.5 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]">
+                      <option value="complex" selected>Complex Sentences</option>
+                      <option value="simple">Simple Sentences</option>
+                    </select>
+                  </div>
+                  <div class="flex items-center justify-between mt-6">
+                    <label for="overview-show-visual-map" class="text-[var(--text-primary)] cursor-pointer flex items-center">
+                      <input type="checkbox" id="overview-show-visual-map" name="overview_show_visual_map" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked />
+                      Show Visual Sentence Map
+                    </label>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <label for="include-overview-page" class="text-[var(--text-primary)] cursor-pointer flex items-center">
+                      <input type="checkbox" id="include-overview-page" name="include_overview_page" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)] mr-2" checked />
+                      Include Overview Page
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Download Card - Initially Hidden -->
+          <div id="pdf-download-card" class="sidebar-card hidden bg-[var(--input-bg)] p-3 rounded-lg">
+            <div id="pdf-download-container">
+              <button id="download-pdf-btn" class="sidebar-button-accent w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download Analyzed PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Button to open left sidebar when closed -->
+      <button id="open-left-sidebar-btn" class="hidden fixed top-4 left-2 z-20 text-gray-100 hover:text-white transition-colors duration-150 bg-[rgba(31,32,40,0.8)] p-2 rounded-md shadow-lg backdrop-blur-sm" title="Open PDF Toolkit">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+      </button>
+
+      <!-- Main content area -->
+      <main class="flex-grow flex flex-col p-6 overflow-y-auto">
+        <div id="editor-container" class="flex-grow min-h-[300px] overflow-y-auto h-0 bg-[rgba(31,32,40,0.2)] rounded-lg p-2 px-8"></div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside id="complexity-sidebar" class="w-[18.4rem] min-w-[18.4rem] bg-[var(--sidebar-bg)] p-4 border-l border-[var(--border-color)] flex flex-col shrink-0 right-sidebar-state-open transition-all duration-300 ease-in-out relative">
+        <button id="toggle-sidebar-btn" title="Collapse Analysis" class="bg-[var(--sidebar-bg)] hover:bg-[var(--input-bg)] rounded-md text-[var(--text-primary)] hover:text-white transition-colors duration-150 z-10 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
+        <div class="flex justify-between items-center mb-6 pt-4">
+          <h2 class="text-lg font-semibold text-[var(--text-primary)] flex items-center">
+            <span class="text-lg font-semibold">Analysis</span>
+          </h2>
+        </div>
+        <div class="flex-grow overflow-y-auto h-0 pr-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-md font-medium text-[var(--text-primary)]">
+              <span class="text-base font-medium">Overall Complexity</span>
+              <span id="overall-complexity-info" class="inline-block ml-1 cursor-help"></span>
+            </h3>
+          </div>
+          <!-- Analysis controls (play/pause + options) -->
+          <div id="analysis-controls-container" class="relative inline-flex items-center mb-3">
+            <div class="inline-flex rounded shadow-sm">
+              <button id="analysis-control-btn" class="p-1 rounded-l text-[var(--text-secondary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[var(--accent-blue)] transition-colors duration-150 border border-r-0 border-[var(--border-color)]" title="Start Analysis">
+                <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653Z" />
+                </svg>
+                <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 hidden">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+                </svg>
+              </button>
+              <button id="analysis-expand-btn" class="p-1 rounded-r text-[var(--text-secondary)] bg-[var(--input-bg)] hover:bg-[rgba(108,111,147,0.1)] focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[var(--accent-blue)] transition-colors duration-150 border border-[var(--border-color)]" title="More analysis options">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </div>
+            <div id="analysis-options-menu" class="absolute top-full left-0 mt-1 w-48 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded shadow-lg hidden z-20">
+              <ul class="py-1 text-sm text-[var(--text-primary)]">
+                <li><a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="fast"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>Fast Analysis</a></li>
+                <li><a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="better"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>Better Analysis</a></li>
+                <li><a href="#" class="flex items-center px-3 py-2 hover:bg-[rgba(108,111,147,0.1)] analysis-mode-option" data-mode="best"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>Best Analysis</a></li>
+              </ul>
+            </div>
+            <span id="analysis-loading-indicator" class="ml-2 hidden">
+              <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </span>
+            <span id="analysis-phase-indicator" class="ml-2 w-3 h-3 rounded-full hidden" title="Analysis Phase"></span>
+          </div>
+
+          <!-- Target Audience Selector (Custom Dropdown) -->
+          <div class="mt-4 relative">
+            <label for="target-audience-button" class="block text-sm font-medium text-[var(--text-primary)] mb-2">Target Audience</label>
+            <button id="target-audience-button" type="button" class="w-full p-2 bg-[var(--input-bg)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[inset_0_0_0_1px_var(--accent-blue)] text-left flex justify-between items-center">
+              <span id="target-audience-selected">Standard</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-[var(--text-secondary)]"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+            </button>
+            <div id="target-audience-options" class="absolute z-10 mt-1 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded shadow-lg hidden max-h-60 overflow-y-auto">
+              <ul class="py-1 text-sm text-[var(--text-primary)]">
+                <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Standard">Standard</a></li>
+                <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="General Public">General Public (Grade 8-10)</a></li>
+                <li><a href="#" class="block px-4 py-2 hover:bg-[rgba(108,111,147,0.1)]" data-value="Academic / Technical">Academic / Technical</a></li>
+              </ul>
+            </div>
+          </div>
+          <div id="overall-complexity-meter" class="bg-[rgba(49,50,68,0.5)] rounded p-3">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-sm font-medium text-[var(--text-primary)]">Complexity Level</h3>
+              <span id="complexity-percentage" class="text-xs font-mono bg-[rgba(49,50,68,0.3)] px-2 py-1 rounded">0%</span>
+            </div>
+            <div class="flex space-x-1 h-4 w-full mb-2">
+              <div data-level="1" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+              <div data-level="2" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+              <div data-level="3" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+              <div data-level="4" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+              <div data-level="5" class="complexity-level flex-1 bg-[rgba(49,50,68,0.3)] rounded-sm"></div>
+            </div>
+            <div class="flex flex-wrap justify-around text-xs text-[var(--text-secondary)] mt-1 px-0.5">
+              <span class="text-center px-0.5 text-xs">L1</span>
+              <span class="text-center px-0.5 text-xs">L2</span>
+              <span class="text-center px-0.5 text-xs">L3</span>
+              <span class="text-center px-0.5 text-xs">L4</span>
+              <span class="text-center px-0.5 text-xs">L5</span>
+            </div>
+            <div id="complexity-loading" class="h-1 w-full bg-[rgba(49,50,68,0.3)] rounded-full overflow-hidden hidden mt-2">
+              <div class="h-full bg-[var(--accent-blue)] rounded-full animate-pulse" style="width: 100%"></div>
+            </div>
+            <p id="complexity-description" class="text-xs text-gray-500 dark:text-gray-500 mt-1 text-center h-4"></p>
+          </div>
+
+          <!-- Readability Scores -->
+          <div class="mt-6">
+            <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Readability Scores</h3>
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="bg-[var(--input-bg)] p-3 rounded">
+                <div id="flesch-kincaid-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                <div class="text-xs text-[var(--text-secondary)]">Flesch-Kincaid Grade <span id="flesch-kincaid-target" class="text-xs text-[var(--text-secondary)] ml-1 hidden"></span></div>
+              </div>
+              <div class="bg-[var(--input-bg)] p-3 rounded">
+                <div id="gunning-fog-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                <div class="text-xs text-[var(--text-secondary)]">Gunning Fog <span id="gunning-fog-target" class="text-xs text-[var(--text-secondary)] ml-1 hidden"></span></div>
+              </div>
+              <div class="bg-[var(--input-bg)] p-3 rounded col-span-2">
+                <div id="smog-index-score" class="text-lg font-semibold text-[var(--text-primary)]">-</div>
+                <div class="text-xs text-[var(--text-secondary)]">SMOG Index</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visual Sentence Map -->
+          <div class="mt-6">
+            <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Visual Sentence Map</h3>
+            <div id="document-map-container" class="rounded p-3 h-24 max-h-[200px] overflow-x-auto overflow-y-hidden">
+              <div id="document-map" class="flex items-end gap-px"></div>
+            </div>
+          </div>
+
+          <!-- Display Options -->
+          <div class="mt-6 pt-4 border-t border-[var(--border-color)]">
+            <h3 class="text-sm font-medium text-[var(--text-primary)] mb-2">Display Options</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between">
+                <label for="toggle-highlighting" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                  <input type="checkbox" id="toggle-highlighting" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" checked />
+                  <span class="ml-2">Show Complexity Highlighting</span>
+                </label>
+              </div>
+              <div class="flex items-center justify-between">
+                <label for="toggle-goal-indicators" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                  <input type="checkbox" id="toggle-goal-indicators" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" checked />
+                  <span class="ml-2">Show Goal Indicators</span>
+                </label>
+              </div>
+              <div class="flex items-center justify-between items-center">
+                <label for="rewrite-context-toggle" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                  <input type="checkbox" id="rewrite-context-toggle" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" />
+                  <span class="ml-2">Use Full Document Context for Rewrites</span>
+                </label>
+              </div>
+              <div class="flex items-center justify-between mt-2">
+                <label for="context-awareness-toggle" class="flex items-center cursor-pointer text-[var(--text-primary)]">
+                  <input type="checkbox" id="context-awareness-toggle" class="h-4 w-4 rounded bg-[var(--input-bg)] border-[var(--border-color)] focus:ring-[var(--accent-blue)]" />
+                  <span class="ml-2">Enable Enhanced Suggestion</span>
+                  <span id="context-awareness-info" class="inline-block ml-1 cursor-help"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="target-audience-goal-container" class="mt-2 hidden"></div>
+        </div>
+      </aside>
+
+      <!-- Button to open right sidebar when closed -->
+      <button id="open-sidebar-btn" class="hidden fixed top-4 right-2 z-20 text-gray-100 hover:text-white transition-colors duration-150 bg-[rgba(31,32,40,0.8)] p-2 rounded-md shadow-lg backdrop-blur-sm" title="Open Analysis">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+      </button>
+    </div>
+
+    <!-- Status Bar -->
+    <footer id="status-bar" class="bg-[var(--sidebar-bg)] text-[var(--text-secondary)] text-xs px-4 py-2 border-t border-[var(--border-color)] flex justify-between items-center">
+      <div class="flex space-x-4">
+        <span class="has-tooltip" data-tippy-content="Total words">Words: <span id="word-count">0</span></span>
+        <span class="has-tooltip" data-tippy-content="Total sentences">Sentences: <span id="sentence-count">0</span></span>
+        <span class="has-tooltip" data-tippy-content="Total characters">Chars: <span id="character-count">0</span></span>
+      </div>
+      <div>
+        <span class="has-tooltip" data-tippy-content="Last analysis time">Analysis: <span id="analysis-time">0ms</span></span>
+      </div>
+    </footer>
+
+    <!-- Libraries (local) -->
+    <script src="./boot.js"></script>
+    <script src="./app-bridge.js"></script>
+    <script src="../../app/static/popper.min.js"></script>
+    <script src="../../app/static/tippy-bundle.umd.min.js"></script>
+    <script src="../../app/static/quill.js"></script>
+
+    <!-- App scripts (use backend-prefixed fetch via boot.js) -->
+    <script defer src="../../app/static/script.js"></script>
+    <script defer src="../../app/static/rewrite_handler.js"></script>
   </body>
-</html>
+  </html>

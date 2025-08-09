@@ -147,14 +147,14 @@
   - Implement process state saving for clean restarts
   - _Requirements: 1.4_
 
-- [ ] 6. Migrate Frontend UI to Electron
+- [x] 6. Migrate Frontend UI to Electron
   - Port existing web templates to Electron renderer process
   - Update API client to communicate with local Python backend
   - Implement native file operations (drag-and-drop, file dialogs)
   - Add desktop-specific UI enhancements and progress indicators
   - _Requirements: 1.2, 2.1, 2.2, 2.3_
 
-- [ ] 6.1 Port Web Templates to Electron
+- [x] 6.1 Port Web Templates to Electron
   - Convert Flask templates to static HTML for Electron renderer
   - Update asset paths and resource loading for local files
   - Migrate JavaScript functionality to work in Electron context

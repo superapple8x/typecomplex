@@ -311,6 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- END NEW ---
 
+    // Ensure backend is ready before any fetch-dependent init
+    (async () => {
+        try {
+            if (window.backend && typeof window.backend.waitUntilReady === 'function') {
+                await window.backend.waitUntilReady();
+            }
+        } catch (_) {}
+    })();
+
     // --- Quill Initialization ---
     // Import and register required modules for enhanced functionality
     
